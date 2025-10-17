@@ -1,0 +1,20 @@
+server:
+  host: "localhost"
+  port: 8080
+  nip11:
+    name: "nosmec relay"
+    description: "A simple nostr relay using LMDB storage"
+    pubkey: "npub10elfcs4fr0l0r8af98jlmgdh9c8tcxjvz9qkw038js35mp4dma8qzvjptg"
+    contact: "admin@example.com"
+    software: "nosmec"
+    version: "1.0.0"
+
+storage:
+  base_path: "$HOME/.local/share/nosmec"
+  database:
+    path: "nostr_relay.db"
+
+i2p:
+  enabled: false
+  address: "127.0.0.1"
+  port: 7656
