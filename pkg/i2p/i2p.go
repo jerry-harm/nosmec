@@ -1,4 +1,4 @@
-package server
+package i2p
 
 import (
 	"context"
@@ -6,12 +6,13 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-i2p/onramp"
 )
 
-// I2PServer I2P 服务器
+// I2PServer I2P 服务器和客户端
 type I2PServer struct {
 	server   *http.Server
 	listener net.Listener
@@ -19,11 +20,26 @@ type I2PServer struct {
 }
 
 // NewI2PServer 创建新的 I2P 服务器
-func NewI2PServer(handler http.Handler, tunnelName string, i2pPath string, samAddr string) (*I2PServer, error) {
-	// 设置 I2P 密钥存储路径
-	if i2pPath != "" {
-		if err := os.Setenv("I2P_KEYSTORE_PATH", i2pPath); err != nil {
-			return nil, fmt.Errorf("failed to set I2P keystore path: %w", err)
+func NewI2PServer(handler http.Handler, tunnelName string, basePath string, samAddr string) (*I2PServer, error) {
+	// 在 garlic 初始化之前设置所有密钥存储路径
+	if basePath != "" {
+		// 设置 I2P 密钥存储路径
+		i2pPath := filepath.Join(filepath.Dir(basePath), "i2pkeys")
+		onramp.I2P_KEYSTORE_PATH = i2pPath
+
+		// 设置 Onion 密钥存储路径（使用 i2pkeys 目录的父目录 + onionkeys）
+		onionPath := filepath.Join(filepath.Dir(basePath), "onionkeys")
+		onramp.ONION_KEYSTORE_PATH = onionPath
+
+		// 设置 TLS 密钥存储路径（使用 i2pkeys 目录的父目录 + tlskeys）
+		tlsPath := filepath.Join(filepath.Dir(basePath), "tlskeys")
+		onramp.TLS_KEYSTORE_PATH = tlsPath
+
+		// 调用 I2PKeystorePath 确保目录正确创建并开始使用
+		if path, err := onramp.I2PKeystorePath(); err != nil {
+			return nil, fmt.Errorf("failed to initialize I2P keystore path: %w", err)
+		} else {
+			log.Printf("I2P keystore path initialized: %s", path)
 		}
 	}
 
@@ -52,6 +68,21 @@ func NewI2PServer(handler http.Handler, tunnelName string, i2pPath string, samAd
 		listener: listener,
 		garlic:   garlic,
 	}, nil
+}
+
+// Dial 连接到 I2P 地址
+func (s *I2PServer) Dial(network, addr string) (net.Conn, error) {
+	return s.garlic.Dial(network, addr)
+}
+
+// DialContext 使用上下文连接到 I2P 地址
+func (s *I2PServer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	return s.garlic.DialContext(ctx, network, addr)
+}
+
+// IsI2PAddress 检查地址是否为 I2P 地址
+func IsI2PAddress(addr string) bool {
+	return strings.HasSuffix(addr, ".i2p") || strings.HasSuffix(addr, ".b32.i2p")
 }
 
 // Start 启动 I2P 服务器

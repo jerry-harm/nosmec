@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log"
@@ -6,32 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
-	Server struct {
-		Host  string `mapstructure:"host"`
-		Port  int    `mapstructure:"port"`
-		NIP11 struct {
-			Name        string `mapstructure:"name"`
-			Description string `mapstructure:"description"`
-			PubKey      string `mapstructure:"pubkey"`
-			Contact     string `mapstructure:"contact"`
-			Software    string `mapstructure:"software"`
-			Version     string `mapstructure:"version"`
-		} `mapstructure:"nip11"`
-	} `mapstructure:"server"`
-	Storage struct {
-		BasePath string `mapstructure:"base_path"`
-		Database struct {
-			Path string `mapstructure:"path"`
-		} `mapstructure:"database"`
-	} `mapstructure:"storage"`
-	I2P struct {
-		Enabled bool   `mapstructure:"enabled"`
-		Address string `mapstructure:"address"`
-		Port    int    `mapstructure:"port"`
-	} `mapstructure:"i2p"`
-}
-
+// LoadConfig 加载应用配置
 func LoadConfig() *Config {
 	viper.SetConfigName("config")           // 读取名为config的配置文件
 	viper.SetConfigType("yaml")             // 指定文件类型为yaml
@@ -47,6 +22,8 @@ func LoadConfig() *Config {
 	viper.SetDefault("i2p.enabled", false)
 	viper.SetDefault("i2p.address", "127.0.0.1")
 	viper.SetDefault("i2p.port", 7656)
+	viper.SetDefault("client.default_relays", []string{"ws://localhost:8080"})
+	viper.SetDefault("client.theme", "dark")
 
 	err := viper.ReadInConfig() // 读取配置
 	if err != nil {

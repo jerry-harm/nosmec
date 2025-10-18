@@ -15,6 +15,12 @@ storage:
     path: "nostr_relay.db"
 
 i2p:
-  enabled: false
+  enabled: true
   address: "127.0.0.1"
   port: 7656
+
+client:
+  default_relays:
+    - "ws://localhost:8080"
+  theme: "dark"
+  private_key: ""

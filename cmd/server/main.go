@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-i2p/onramp"
 	"github.com/jerry-harm/nosmec/pkg/config"
 	"github.com/jerry-harm/nosmec/pkg/i2p"
 	"github.com/jerry-harm/nosmec/server"
@@ -25,19 +24,20 @@ func main() {
 	basePath := expandPath(config.Storage.BasePath)
 	databasePath := filepath.Join(basePath, config.Storage.Database.Path)
 
-	// 在程序启动时立即设置 onramp 密钥存储路径，防止默认目录被创建
+	// 使用默认的目录名称
 	i2pPath := filepath.Join(basePath, "i2pkeys")
-	onionPath := filepath.Join(basePath, "onionkeys")
+	torPath := filepath.Join(basePath, "onionkeys")
 	tlsPath := filepath.Join(basePath, "tlskeys")
 
-	onramp.I2P_KEYSTORE_PATH = i2pPath
-	onramp.ONION_KEYSTORE_PATH = onionPath
-	onramp.TLS_KEYSTORE_PATH = tlsPath
+	// 创建存储目录
+	if err := createStorageDirs(basePath, i2pPath, torPath, tlsPath); err != nil {
+		log.Fatalf("Failed to create storage directories: %v", err)
+	}
 
-	log.Printf("Starting nosmec (client + server)...")
-	log.Printf("Server: %s:%d", config.Server.Host, config.Server.Port)
-	log.Printf("Client relays: %v", config.Client.DefaultRelays)
+	log.Printf("Starting nostr relay server...")
+	log.Printf("Host: %s, Port: %d", config.Server.Host, config.Server.Port)
 	log.Printf("Storage base path: %s", basePath)
+	log.Printf("Database path: %s", databasePath)
 
 	// 创建 relay 服务器
 	relayServer, err := server.NewRelayServer(
@@ -73,7 +73,7 @@ func main() {
 		log.Printf("Using SAM address: %s", samAddr)
 
 		// 创建 I2P 服务器
-		i2pServer, err = i2p.NewI2PServer(relayServer.GetHandler(), "nosmec-relay", basePath, samAddr)
+		i2pServer, err = i2p.NewI2PServer(relayServer.GetHandler(), "nosmec-relay", i2pPath, samAddr)
 		if err != nil {
 			log.Fatalf("Failed to create I2P server: %v", err)
 		}
@@ -87,15 +87,12 @@ func main() {
 		}()
 	}
 
-	// TODO: 启动客户端UI
-	log.Println("Client UI will be started here...")
-
 	// 等待中断信号
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("Shutting down nosmec...")
+	log.Println("Shutting down servers...")
 
 	// 优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -108,10 +105,21 @@ func main() {
 		}
 	}
 
-	log.Println("nosmec stopped gracefully")
+	log.Println("Servers stopped gracefully")
 }
 
 // expandPath 扩展路径中的环境变量
 func expandPath(path string) string {
 	return os.ExpandEnv(path)
+}
+
+// createStorageDirs 创建存储目录
+func createStorageDirs(dirs ...string) error {
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+		log.Printf("Created directory: %s", dir)
+	}
+	return nil
 }
