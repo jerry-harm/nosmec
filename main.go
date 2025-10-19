@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-i2p/onramp"
 	"github.com/jerry-harm/nosmec/pkg/config"
 	"github.com/jerry-harm/nosmec/pkg/i2p"
 	"github.com/jerry-harm/nosmec/server"
@@ -24,15 +23,6 @@ func main() {
 	// 处理存储路径
 	basePath := expandPath(config.Storage.BasePath)
 	databasePath := filepath.Join(basePath, config.Storage.Database.Path)
-
-	// 在程序启动时立即设置 onramp 密钥存储路径，防止默认目录被创建
-	i2pPath := filepath.Join(basePath, "i2pkeys")
-	onionPath := filepath.Join(basePath, "onionkeys")
-	tlsPath := filepath.Join(basePath, "tlskeys")
-
-	onramp.I2P_KEYSTORE_PATH = i2pPath
-	onramp.ONION_KEYSTORE_PATH = onionPath
-	onramp.TLS_KEYSTORE_PATH = tlsPath
 
 	log.Printf("Starting nosmec (client + server)...")
 	log.Printf("Server: %s:%d", config.Server.Host, config.Server.Port)
@@ -78,6 +68,11 @@ func main() {
 			log.Fatalf("Failed to create I2P server: %v", err)
 		}
 		defer i2pServer.Stop(context.Background())
+
+		// 设置智能 I2P 分流 Transport
+		i2pTransport := i2p.NewI2PTransport(i2pServer)
+		http.DefaultClient.Transport = i2pTransport
+		log.Printf("I2P proxy transport enabled - .i2p addresses will use I2P network, others use direct connection")
 
 		// 启动 I2P 服务器
 		go func() {

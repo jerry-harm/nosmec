@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-i2p/onramp"
@@ -21,28 +20,6 @@ type I2PServer struct {
 
 // NewI2PServer 创建新的 I2P 服务器
 func NewI2PServer(handler http.Handler, tunnelName string, basePath string, samAddr string) (*I2PServer, error) {
-	// 在 garlic 初始化之前设置所有密钥存储路径
-	if basePath != "" {
-		// 设置 I2P 密钥存储路径
-		i2pPath := filepath.Join(filepath.Dir(basePath), "i2pkeys")
-		onramp.I2P_KEYSTORE_PATH = i2pPath
-
-		// 设置 Onion 密钥存储路径（使用 i2pkeys 目录的父目录 + onionkeys）
-		onionPath := filepath.Join(filepath.Dir(basePath), "onionkeys")
-		onramp.ONION_KEYSTORE_PATH = onionPath
-
-		// 设置 TLS 密钥存储路径（使用 i2pkeys 目录的父目录 + tlskeys）
-		tlsPath := filepath.Join(filepath.Dir(basePath), "tlskeys")
-		onramp.TLS_KEYSTORE_PATH = tlsPath
-
-		// 调用 I2PKeystorePath 确保目录正确创建并开始使用
-		if path, err := onramp.I2PKeystorePath(); err != nil {
-			return nil, fmt.Errorf("failed to initialize I2P keystore path: %w", err)
-		} else {
-			log.Printf("I2P keystore path initialized: %s", path)
-		}
-	}
-
 	// 创建 Garlic 隧道
 	garlic, err := onramp.NewGarlic(tunnelName, samAddr, nil)
 	if err != nil {
@@ -133,4 +110,48 @@ func (s *I2PServer) GetListenerAddr() string {
 		return s.listener.Addr().String()
 	}
 	return ""
+}
+
+// GetHTTPClient 获取使用 I2P 网络的 HTTP 客户端
+func (s *I2PServer) GetHTTPClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			DialContext: s.DialContext,
+		},
+	}
+}
+
+// I2PTransport 智能 I2P 分流 Transport
+type I2PTransport struct {
+	i2pServer       *I2PServer
+	directTransport http.RoundTripper
+}
+
+// NewI2PTransport 创建新的 I2P 分流 Transport
+func NewI2PTransport(i2pServer *I2PServer) *I2PTransport {
+	return &I2PTransport{
+		i2pServer:       i2pServer,
+		directTransport: http.DefaultTransport,
+	}
+}
+
+// RoundTrip 实现 http.RoundTripper 接口
+func (t *I2PTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// 检查是否是 I2P 地址
+	if IsI2PAddress(req.URL.Host) {
+		// 使用 I2P 连接
+		return t.i2pRoundTrip(req)
+	} else {
+		// 使用直连
+		return t.directTransport.RoundTrip(req)
+	}
+}
+
+// i2pRoundTrip 使用 I2P 网络处理请求
+func (t *I2PTransport) i2pRoundTrip(req *http.Request) (*http.Response, error) {
+	// 创建使用 I2P dialer 的 Transport
+	i2pTransport := &http.Transport{
+		DialContext: t.i2pServer.DialContext,
+	}
+	return i2pTransport.RoundTrip(req)
 }
