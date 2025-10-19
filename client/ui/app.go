@@ -51,9 +51,6 @@ func (a *App) Init() tea.Cmd {
 	// 启动 Nostr 客户端连接
 	if a.nostr != nil {
 		go func() {
-			if err := a.nostr.Connect(); err != nil {
-				log.Printf("Failed to connect to relays: %v", err)
-			}
 		}()
 	}
 	return nil
