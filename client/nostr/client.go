@@ -6,30 +6,22 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/pkg/config"
-	"github.com/jerry-harm/nosmec/pkg/i2p"
 )
 
 // Client Nostr 客户端
 type Client struct {
-	config    *config.Config
-	relays    map[string]*nostr.Relay
-	i2pServer *i2p.I2PServer
+	config *config.Config
+	relays map[string]*nostr.Relay
 }
 
 // NewClient 创建新的 Nostr 客户端
-func NewClient(cfg *config.Config, i2pServer *i2p.I2PServer) (*Client, error) {
+func NewClient(cfg *config.Config) (*Client, error) {
 	client := &Client{
-		config:    cfg,
-		relays:    make(map[string]*nostr.Relay),
-		i2pServer: i2pServer,
+		config: cfg,
+		relays: make(map[string]*nostr.Relay),
 	}
 
 	return client, nil
-}
-
-// NewClientWithoutI2P 创建没有 I2P 支持的 Nostr 客户端
-func NewClientWithoutI2P(cfg *config.Config) (*Client, error) {
-	return NewClient(cfg, nil)
 }
 
 // Connect 连接到配置的 relay
@@ -76,14 +68,4 @@ func (c *Client) PublishEvent(event nostr.Event) error {
 		}
 	}
 	return nil
-}
-
-// Subscribe 订阅事件
-func (c *Client) Subscribe(filter nostr.Filter) (*nostr.Subscription, error) {
-	ctx := context.Background()
-	// 暂时只使用第一个 relay
-	for _, relay := range c.relays {
-		return relay.Subscribe(ctx, filter, nostr.SubscriptionOptions{})
-	}
-	return nil, nil
 }

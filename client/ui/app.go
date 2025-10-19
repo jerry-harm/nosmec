@@ -24,7 +24,7 @@ type App struct {
 // NewApp 创建新应用
 func NewApp(cfg *config.Config) *App {
 	// 创建 Nostr 客户端
-	nclient, err := nostr.NewClientWithoutI2P(cfg)
+	nclient, err := nostr.NewClient(cfg)
 	if err != nil {
 		log.Printf("Failed to create nostr client: %v", err)
 	}
