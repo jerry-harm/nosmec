@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"fiatjaf.com/nostr"
-	"github.com/jerry-harm/nosmec/pkg/config"
+	"github.com/jerry-harm/nosmec/config"
 )
 
 // Client Nostr 客户端

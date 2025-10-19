@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jerry-harm/nosmec/client/ui"
-	"github.com/jerry-harm/nosmec/pkg/config"
+	"github.com/jerry-harm/nosmec/config"
 )
 
 func main() {

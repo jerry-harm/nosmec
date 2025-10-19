@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jerry-harm/nosmec/client/nostr"
 	"github.com/jerry-harm/nosmec/client/ui/views"
-	"github.com/jerry-harm/nosmec/pkg/config"
+	"github.com/jerry-harm/nosmec/config"
 )
 
 // App 主应用
