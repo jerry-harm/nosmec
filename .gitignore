@@ -31,6 +31,4 @@ go.work.sum
 # .idea/
 # .vscode/
 
-nosmec
-nosmec-client
-nosmec-server
+vendor/*

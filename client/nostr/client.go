@@ -1,22 +1,22 @@
 package nostr
 
 import (
+	"context"
+
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 )
 
-// Client Nostr 客户端
 type Client struct {
-	config *config.Config
-	relays map[string]*nostr.Relay
+	pool *nostr.Pool
+	ctx  context.Context
 }
 
-// NewClient 创建新的 Nostr 客户端
-func NewClient(cfg *config.Config) (*Client, error) {
-	client := &Client{
-		config: cfg,
-		relays: make(map[string]*nostr.Relay),
+func (c *Client) Init() {
+	c.ctx = context.Background()
+	c.pool = nostr.NewPool(nostr.PoolOptions{})
+	for _, url := range config.Global.Client.DefaultRelays {
+		relayUrl := nostr.NormalizeURL(url)
+		c.pool.Relays.LoadAndStore(relayUrl, nostr.NewRelay(c.ctx, relayUrl, nostr.RelayOptions{}))
 	}
-
-	return client, nil
 }

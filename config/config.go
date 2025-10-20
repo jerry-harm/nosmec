@@ -8,10 +8,10 @@ import (
 
 // LoadConfig 加载应用配置
 func LoadConfig() *Config {
-	viper.SetConfigName("config")           // 读取名为config的配置文件
+	viper.SetConfigName("nosmec")           // 读取名为config的配置文件
 	viper.SetConfigType("yaml")             // 指定文件类型为yaml
-	viper.AddConfigPath("./")               // 在当前文件夹下寻找
 	viper.AddConfigPath("$XDG_CONFIG_HOME") // 使用变量
+	viper.AddConfigPath("./")               // 在当前文件夹下寻找
 	viper.AddConfigPath(".")                // 在工作目录下查找
 
 	// 设置默认值
@@ -19,9 +19,9 @@ func LoadConfig() *Config {
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("storage.base_path", "$HOME/.local/share/nosmec")
 	viper.SetDefault("storage.database.path", "nostr_relay.db")
-	viper.SetDefault("i2p.enabled", false)
-	viper.SetDefault("i2p.address", "127.0.0.1")
-	viper.SetDefault("i2p.port", 7656)
+	viper.SetDefault("i2p.enabled", true)
+	viper.SetDefault("i2p.sam_address", "127.0.0.1")
+	viper.SetDefault("i2p.sam_port", 7656)
 	viper.SetDefault("client.default_relays", []string{"ws://localhost:8080"})
 	viper.SetDefault("client.theme", "dark")
 
@@ -35,6 +35,8 @@ func LoadConfig() *Config {
 	if err != nil {
 		log.Fatalf("Unable to decode config into struct: %v", err)
 	}
-
+	viper.SafeWriteConfig()
 	return &config
 }
+
+var Global *Config = LoadConfig()

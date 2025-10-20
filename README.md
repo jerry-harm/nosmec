@@ -13,7 +13,6 @@ all ai shit for now
 - [ ] public group
 - [ ] blossom upload
 - [ ] local relay
-- [ ] local relay with samv3 and tor
 - [ ] DM
 - [ ] nip29
 - [ ] remote signer

@@ -21,9 +21,9 @@ type Config struct {
 		} `mapstructure:"database"`
 	} `mapstructure:"storage"`
 	I2P struct {
-		Enabled bool   `mapstructure:"enabled"`
-		Address string `mapstructure:"address"`
-		Port    int    `mapstructure:"port"`
+		Enabled    bool   `mapstructure:"enabled"`
+		SamAddress string `mapstructure:"sam_address"`
+		SamPort    int    `mapstructure:"sam_port"`
 	} `mapstructure:"i2p"`
 	Client struct {
 		DefaultRelays []string `mapstructure:"default_relays"`
