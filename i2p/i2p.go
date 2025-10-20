@@ -10,14 +10,11 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 )
 
-type Client struct {
-	sam  *sam3.SAM
-	keys *i2pkeys.I2PKeys
-}
+var Sam *sam3.SAM
 
-func (c *Client) Init() {
+func Init() {
 	var err error
-	c.sam, err = sam3.NewSAM(fmt.Sprintf("%s:%d", config.Global.I2P.SamAddress, config.Global.I2P.SamPort))
+	Sam, err = sam3.NewSAM(fmt.Sprintf("%s:%d", config.Global.I2P.SamAddress, config.Global.I2P.SamPort))
 	if err != nil {
 		log.Fatal("SAM build fialed:", err)
 	}
@@ -27,6 +24,5 @@ func (c *Client) Init() {
 	if err != nil {
 		log.Fatal("key generate fialed:", err)
 	}
-	c.keys = &keys
-
+	Sam.DestinationKeys = &keys
 }

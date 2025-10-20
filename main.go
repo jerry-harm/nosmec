@@ -9,9 +9,11 @@ import (
 	"time"
 
 	_ "github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/i2p"
 )
 
 func main() {
+	i2p.Init()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

@@ -20,3 +20,7 @@ func (c *Client) Init() {
 		c.pool.Relays.LoadAndStore(relayUrl, nostr.NewRelay(c.ctx, relayUrl, nostr.RelayOptions{}))
 	}
 }
+
+func (c *Client) Subscribe() {
+
+}
