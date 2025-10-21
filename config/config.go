@@ -28,13 +28,13 @@ func LoadConfig() *Config {
 		Read:  true,
 		Write: true,
 		Inbox: true,
+	}, {
+		Url:   "wss://bostr.shop",
+		Read:  true,
+		Write: true,
+		Inbox: true,
 	},
-		{
-			Url:   "wss://bostr.shop",
-			Read:  true,
-			Write: true,
-			Inbox: true,
-		}})
+	})
 
 	err := viper.ReadInConfig() // 读取配置
 	if err != nil {

@@ -34,9 +34,8 @@ func (c *Client) Init() {
 
 }
 
-func (c *Client) SubscribeAllShortNote() {
-	events := c.Pool.SubscribeMany(context.Background(), c.ReadRelays, nostr.Filter{Kinds: []nostr.Kind{1}, Limit: 100}, nostr.SubscriptionOptions{})
-	fmt.Println("start ", c.ReadRelays)
+func (c *Client) Test() {
+	events := c.Pool.FetchMany(context.Background(), c.ReadRelays, nostr.Filter{Kinds: []nostr.Kind{1}, Limit: 100}, nostr.SubscriptionOptions{})
 	for {
 		event, ok := <-events
 		if !ok {

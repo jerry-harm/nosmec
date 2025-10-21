@@ -48,6 +48,7 @@ require (
 )
 
 require (
+	github.com/go-i2p/sam3 v0.33.92
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 )

@@ -9,24 +9,22 @@ import (
 	"time"
 
 	"github.com/jerry-harm/nosmec/client"
-	_ "github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/i2p"
 )
 
 func main() {
+	os.MkdirAll(config.Global.BasePath, 0777)
 	i2p.Init()
 	defer i2p.Sam.Close()
 	defer i2p.Session.Close()
-	log.Println("i2p loaded")
 
 	newclient := &client.Client{}
 	newclient.Init()
 	defer newclient.Pool.Close("down")
-	log.Println("client loaded")
 
-	go newclient.SubscribeAllShortNote()
+	go newclient.Test()
 
-	log.Println("waiting")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
