@@ -14,20 +14,20 @@ type Config struct {
 			Version     string `mapstructure:"version"`
 		} `mapstructure:"nip11"`
 	} `mapstructure:"server"`
-	Storage struct {
-		BasePath string `mapstructure:"base_path"`
-		Database struct {
-			Path string `mapstructure:"path"`
-		} `mapstructure:"database"`
-	} `mapstructure:"storage"`
-	I2P struct {
+	BasePath string `mapstructure:"base_path"`
+	I2P      struct {
 		Enabled    bool   `mapstructure:"enabled"`
 		SamAddress string `mapstructure:"sam_address"`
 		SamPort    int    `mapstructure:"sam_port"`
 	} `mapstructure:"i2p"`
 	Client struct {
-		DefaultRelays []string `mapstructure:"default_relays"`
-		Theme         string   `mapstructure:"theme"`
-		PrivateKey    string   `mapstructure:"private_key"`
+		Relays     []Relay `mapstructure:"relays"`
+		PrivateKey string  `mapstructure:"private_key"`
 	} `mapstructure:"client"`
+}
+type Relay struct {
+	Url   string `mapstructure:"url"`
+	Read  bool   `mapstructure:"read"`
+	Write bool   `mapstructure:"write"`
+	Inbox bool   `mapstructure:"inbox"`
 }
