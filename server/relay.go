@@ -21,7 +21,6 @@ func NewRelay() (*khatru.Relay, error) {
 
 	prefix, decoded, err := nip19.Decode(config.Global.Client.PrivateKey)
 	if err == nil || prefix == "nsec" {
-
 		secretKey, ok := decoded.(nostr.SecretKey)
 		pubKey := nostr.GetPublicKey(secretKey)
 		if ok {
@@ -29,8 +28,6 @@ func NewRelay() (*khatru.Relay, error) {
 		} else {
 			log.Println("error nip11 pub key")
 		}
-	} else {
-		log.Println("not right nip11 pub key")
 	}
 
 	// set up some basic properties (will be returned on the NIP-11 endpoint)

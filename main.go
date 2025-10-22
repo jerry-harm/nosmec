@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jerry-harm/nosmec/client"
+	"github.com/jerry-harm/nosmec/client/ui"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/i2p"
 	"github.com/jerry-harm/nosmec/server"
@@ -17,6 +18,7 @@ import (
 
 func main() {
 	os.MkdirAll(config.Global.BasePath, 0777)
+	go ui.StartTab()
 	i2p.Init()
 	defer i2p.Sam.Close()
 	defer i2p.Session.Close()
