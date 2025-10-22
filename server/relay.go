@@ -19,9 +19,11 @@ func NewRelay() (*khatru.Relay, error) {
 	// create the relay instance
 	relay := khatru.NewRelay()
 
-	prefix, decoded, err := nip19.Decode(config.Global.Server.NIP11.PubKey)
-	if err == nil || prefix == "npub" {
-		pubKey, ok := decoded.(nostr.PubKey)
+	prefix, decoded, err := nip19.Decode(config.Global.Client.PrivateKey)
+	if err == nil || prefix == "nsec" {
+
+		secretKey, ok := decoded.(nostr.SecretKey)
+		pubKey := nostr.GetPublicKey(secretKey)
 		if ok {
 			relay.Info.PubKey = &pubKey
 		} else {

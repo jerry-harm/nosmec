@@ -8,10 +8,7 @@ type Config struct {
 		NIP11 struct {
 			Name        string `mapstructure:"name"`
 			Description string `mapstructure:"description"`
-			PubKey      string `mapstructure:"pubkey"`
 			Contact     string `mapstructure:"contact"`
-			Software    string `mapstructure:"software"`
-			Version     string `mapstructure:"version"`
 		} `mapstructure:"nip11"`
 	} `mapstructure:"server"`
 	BasePath string `mapstructure:"base_path"`
