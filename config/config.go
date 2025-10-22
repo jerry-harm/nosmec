@@ -28,11 +28,6 @@ func LoadConfig() *Config {
 		Read:  true,
 		Write: true,
 		Inbox: true,
-	}, {
-		Url:   "wss://bostr.shop",
-		Read:  true,
-		Write: true,
-		Inbox: true,
 	},
 	})
 

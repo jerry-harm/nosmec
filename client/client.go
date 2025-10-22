@@ -1,9 +1,6 @@
 package client
 
 import (
-	"context"
-	"fmt"
-
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 )
@@ -32,15 +29,4 @@ func (c *Client) Init() {
 		go c.Pool.EnsureRelay(relayUrl)
 	}
 
-}
-
-func (c *Client) Test() {
-	events := c.Pool.FetchMany(context.Background(), c.ReadRelays, nostr.Filter{Kinds: []nostr.Kind{1}, Limit: 100}, nostr.SubscriptionOptions{})
-	for {
-		event, ok := <-events
-		if !ok {
-			break
-		}
-		fmt.Println(event.ID)
-	}
 }
