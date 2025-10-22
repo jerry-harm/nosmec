@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"log"
 	"net/http"
 	"path/filepath"
 
@@ -19,21 +20,20 @@ func NewRelay() (*khatru.Relay, error) {
 	relay := khatru.NewRelay()
 
 	prefix, decoded, err := nip19.Decode(config.Global.Server.NIP11.PubKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode npub: %w", err)
-	}
-	if prefix != "npub" {
-		return nil, fmt.Errorf("expected npub prefix, got %s", prefix)
-	}
-	pubKey, ok := decoded.(nostr.PubKey)
-	if !ok {
-		return nil, fmt.Errorf("decoded value is not a pubkey")
+	if err == nil || prefix == "npub" {
+		pubKey, ok := decoded.(nostr.PubKey)
+		if ok {
+			relay.Info.PubKey = &pubKey
+		} else {
+			log.Println("error nip11 pub key")
+		}
+	} else {
+		log.Println("not right nip11 pub key")
 	}
 
 	// set up some basic properties (will be returned on the NIP-11 endpoint)
 	relay.Info.Name = config.Global.Server.NIP11.Name
 	relay.Info.Description = config.Global.Server.NIP11.Description
-	relay.Info.PubKey = &pubKey
 
 	db := lmdb.LMDBBackend{Path: filepath.Join(config.Global.BasePath, "nosmec.db")}
 
@@ -59,7 +59,6 @@ func NewRelay() (*khatru.Relay, error) {
 			}
 		}
 	}
-
 	mux := relay.Router()
 	// set up other http handlers
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

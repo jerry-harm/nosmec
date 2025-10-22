@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"github.com/jerry-harm/nosmec/client"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/i2p"
+	"github.com/jerry-harm/nosmec/server"
 )
 
 func main() {
@@ -22,6 +24,13 @@ func main() {
 	newclient := &client.Client{}
 	newclient.Init()
 	defer newclient.Pool.Close("down")
+
+	relayServer, err := server.NewRelay()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	go http.Serve(i2p.Listener, relayServer)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

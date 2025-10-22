@@ -14,6 +14,7 @@ require (
 
 require (
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3 // indirect
+	github.com/PowerDNS/lmdb-go v1.9.3 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect

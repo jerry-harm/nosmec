@@ -15,6 +15,7 @@ import (
 
 var Sam *sam3.SAM
 var Session *sam3.StreamSession
+var Listener *sam3.StreamListener
 
 func Init() {
 	var err error
@@ -41,6 +42,10 @@ func Init() {
 		Transport: &http.Transport{
 			Dial: I2PDial,
 		},
+	}
+	Listener, err = Session.Listen()
+	if err != nil {
+		log.Fatal("session listen error")
 	}
 }
 
