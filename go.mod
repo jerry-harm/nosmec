@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/FastFilter/xorfilter v0.2.1 // indirect
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3 // indirect
 	github.com/PowerDNS/lmdb-go v1.9.3 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
@@ -22,6 +23,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
@@ -29,6 +31,8 @@ require (
 	github.com/coder/websocket v1.8.13 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
+	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/fasthttp/websocket v1.5.12 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -68,6 +72,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
 )
 
 require (

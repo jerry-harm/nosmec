@@ -23,12 +23,8 @@ func LoadConfig() *Config {
 	viper.SetDefault("i2p.enabled", true)
 	viper.SetDefault("i2p.sam_address", "127.0.0.1")
 	viper.SetDefault("i2p.sam_port", 7656)
-	viper.SetDefault("client.relays", []Relay{{
-		Url:   "ws://nostr.jerryhome.i2p",
-		Read:  true,
-		Write: true,
-		Inbox: true,
-	},
+	viper.SetDefault("client.relays", []string{
+		"ws://nostr.jerryhome.i2p",
 	})
 
 	err := viper.ReadInConfig() // 读取配置

@@ -18,13 +18,7 @@ type Config struct {
 		SamPort    int    `mapstructure:"sam_port"`
 	} `mapstructure:"i2p"`
 	Client struct {
-		Relays     []Relay `mapstructure:"relays"`
-		PrivateKey string  `mapstructure:"private_key"`
+		Relays     []string `mapstructure:"relays"`
+		PrivateKey string   `mapstructure:"private_key"`
 	} `mapstructure:"client"`
-}
-type Relay struct {
-	Url   string `mapstructure:"url"`
-	Read  bool   `mapstructure:"read"`
-	Write bool   `mapstructure:"write"`
-	Inbox bool   `mapstructure:"inbox"`
 }
