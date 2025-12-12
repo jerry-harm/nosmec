@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -13,14 +15,67 @@ type subQuitMsg struct{}
 
 func subQuit() tea.Msg { return subQuitMsg{} }
 
+// KeyMap 定义按键绑定
+type KeyMap struct {
+	Up    key.Binding
+	Down  key.Binding
+	Enter key.Binding
+	Quit  key.Binding
+	Back  key.Binding
+	Help  key.Binding
+}
+
+// ShortHelp 返回短帮助（显示在状态栏）
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Quit, k.Help}
+}
+
+// FullHelp 返回完整帮助（显示在帮助面板）
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Enter},
+		{k.Quit, k.Back, k.Help},
+	}
+}
+
+// DefaultKeyMap 默认按键绑定
+var DefaultKeyMap = KeyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "move up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "move down"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter", " "),
+		key.WithHelp("enter", "select"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("q", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("q"),
+		key.WithHelp("q", "back"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+}
+
 // MenuModel 菜单式UI模型
 type MenuModel struct {
 	choices      []string  // 菜单选项
 	cursor       int       // 当前选中的菜单项索引
 	selected     string    // 当前选中的功能
-	content      string    // 右侧显示的内容
-	inSubMenu    bool      // 是否在子菜单/功能中
 	currentModel tea.Model // 当前活动的子模块
+	keys         KeyMap    // 按键绑定
+	help         help.Model
+	width        int // 窗口宽度
+	height       int // 窗口高度
 }
 
 // Init 初始化
@@ -30,55 +85,58 @@ func (m MenuModel) Init() tea.Cmd {
 
 // Update 处理消息和更新状态
 func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// 如果当前有活动的子模块，将消息路由给它
-	if m.currentModel != nil {
-		var cmd tea.Cmd
-		m.currentModel, cmd = m.currentModel.Update(msg)
 
-		return m, cmd
-	}
-
-	// 原有的主菜单逻辑
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// 存储窗口大小
+		m.width = msg.Width
+		m.height = msg.Height
+
+		h, _ := docStyle.GetFrameSize()
+		m.help.Width = msg.Width - h
+
+		// 如果当前有活动的子模块，将窗口大小消息传递给它
+		if m.currentModel != nil {
+			var cmd tea.Cmd
+			m.currentModel, cmd = m.currentModel.Update(msg)
+			return m, cmd
+		}
+		return m, nil
 	case tea.KeyMsg:
-		switch keypress := msg.String(); keypress {
-		case "ctrl+c", "q":
-			// 如果在子菜单中，按q返回主菜单
-			if m.inSubMenu {
-				m.inSubMenu = false
-				m.content = ""
+		switch {
+		case key.Matches(msg, m.keys.Quit):
+			if m.currentModel != nil {
+				m.currentModel = nil
 				return m, nil
 			}
-			// 否则退出程序
 			return m, tea.Quit
-
-		case "up", "k":
-			if !m.inSubMenu {
+		case key.Matches(msg, m.keys.Up):
+			if m.currentModel == nil {
 				m.cursor = max(m.cursor-1, 0)
 			}
-			return m, nil
-
-		case "down", "j":
-			if !m.inSubMenu {
+		case key.Matches(msg, m.keys.Down):
+			if m.currentModel == nil {
 				m.cursor = min(m.cursor+1, len(m.choices)-1)
 			}
-			return m, nil
-
-		case "enter", " ":
-			if !m.inSubMenu {
-				// 进入选中的功能
+		case key.Matches(msg, m.keys.Enter):
+			if m.currentModel == nil {
 				m.selected = m.choices[m.cursor]
-				m.inSubMenu = true
 				m.updateContent()
+				return m, m.currentModel.Init()
 			}
-			return m, nil
-
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
 		}
 	case subQuitMsg:
 		m.currentModel = nil
 		return m, nil
 	}
-
+	// 如果当前有活动的子模块，将其他消息路由给它
+	if m.currentModel != nil {
+		var cmd tea.Cmd
+		m.currentModel, cmd = m.currentModel.Update(msg)
+		return m, cmd
+	}
 	return m, nil
 }
 
@@ -86,11 +144,7 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *MenuModel) updateContent() {
 	switch m.selected {
 	case "Global":
-		// 创建Global子模块
-		m.currentModel = NewGlobalModel()
-		m.content = "" // 清空内容，因为子模块会自己渲染
-	default:
-		m.content = "Welcome to NoSMEC UI\n\nSelect a menu item to begin."
+		m.currentModel = NewGlobalModel(m.width, m.height)
 	}
 }
 
@@ -108,38 +162,28 @@ func (m MenuModel) View() string {
 	doc.WriteString(title)
 	doc.WriteString("\n\n")
 
-	if !m.inSubMenu {
-		// 主菜单视图
-		doc.WriteString("Main Menu:\n\n")
+	// 主菜单视图（只有在没有活动的子模块时才显示）
+	doc.WriteString("Main Menu:\n\n")
 
-		// 渲染菜单选项
-		for i, choice := range m.choices {
-			cursor := " "
-			if m.cursor == i {
-				cursor = ">"
-			}
-
-			style := menuItemStyle
-			if m.cursor == i {
-				style = selectedMenuItemStyle
-			}
-
-			doc.WriteString(style.Render(fmt.Sprintf("%s %s", cursor, choice)))
-			doc.WriteString("\n")
+	// 渲染菜单选项
+	for i, choice := range m.choices {
+		cursor := " "
+		if m.cursor == i {
+			cursor = ">"
 		}
 
-	} else {
-		// 功能视图
-		doc.WriteString(subTitleStyle.Render(m.selected))
-		doc.WriteString("\n\n")
-		doc.WriteString(m.content)
-		doc.WriteString("\n\n")
+		style := menuItemStyle
+		if m.cursor == i {
+			style = selectedMenuItemStyle
+		}
 
+		doc.WriteString(style.Render(fmt.Sprintf("%s %s", cursor, choice)))
+		doc.WriteString("\n")
 	}
 
-	// 状态栏 - 显示程序状态
-	status := statusStyle.Render("NoSMEC UI - Use arrow keys to navigate, q to quit")
-	doc.WriteString("\n\n" + status)
+	// 添加帮助信息
+	doc.WriteString("\n")
+	doc.WriteString(m.help.View(m.keys))
 
 	return docStyle.Render(doc.String())
 }
@@ -147,7 +191,7 @@ func (m MenuModel) View() string {
 // 样式定义
 var (
 	docStyle = lipgloss.NewStyle().
-			Padding(1, 2, 1, 2)
+			Padding(1, 2)
 
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -184,11 +228,11 @@ func StartMenu() {
 	choices := []string{"Global"}
 
 	m := MenuModel{
-		choices:   choices,
-		cursor:    0,
-		selected:  "",
-		content:   "Welcome to NoSMEC UI\n\nSelect a menu item to begin.",
-		inSubMenu: false,
+		choices:  choices,
+		cursor:   0,
+		selected: "",
+		keys:     DefaultKeyMap,
+		help:     help.New(),
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
