@@ -9,13 +9,18 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type subQuitMsg struct{}
+
+func subQuit() tea.Msg { return subQuitMsg{} }
+
 // MenuModel 菜单式UI模型
 type MenuModel struct {
-	choices   []string // 菜单选项
-	cursor    int      // 当前选中的菜单项索引
-	selected  string   // 当前选中的功能
-	content   string   // 右侧显示的内容
-	inSubMenu bool     // 是否在子菜单/功能中
+	choices      []string  // 菜单选项
+	cursor       int       // 当前选中的菜单项索引
+	selected     string    // 当前选中的功能
+	content      string    // 右侧显示的内容
+	inSubMenu    bool      // 是否在子菜单/功能中
+	currentModel tea.Model // 当前活动的子模块
 }
 
 // Init 初始化
@@ -25,6 +30,15 @@ func (m MenuModel) Init() tea.Cmd {
 
 // Update 处理消息和更新状态
 func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// 如果当前有活动的子模块，将消息路由给它
+	if m.currentModel != nil {
+		var cmd tea.Cmd
+		m.currentModel, cmd = m.currentModel.Update(msg)
+
+		return m, cmd
+	}
+
+	// 原有的主菜单逻辑
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
@@ -56,16 +70,13 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected = m.choices[m.cursor]
 				m.inSubMenu = true
 				m.updateContent()
-			} else {
-				// 在子菜单中处理操作
-				m.handleSubMenuAction()
 			}
 			return m, nil
 
-		case "s":
-			// s键现在没有特殊功能
-			return m, nil
 		}
+	case subQuitMsg:
+		m.currentModel = nil
+		return m, nil
 	}
 
 	return m, nil
@@ -74,24 +85,22 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // updateContent 更新右侧内容区域
 func (m *MenuModel) updateContent() {
 	switch m.selected {
-	case "BBS":
-		m.content = bbsContent()
-	case "Chat":
-		m.content = chatContent()
-	case "Settings":
-		m.content = settingsContent()
+	case "Global":
+		// 创建Global子模块
+		m.currentModel = NewGlobalModel()
+		m.content = "" // 清空内容，因为子模块会自己渲染
 	default:
 		m.content = "Welcome to NoSMEC UI\n\nSelect a menu item to begin."
 	}
 }
 
-// handleSubMenuAction 处理子菜单中的操作
-func (m *MenuModel) handleSubMenuAction() {
-	// 现在没有子菜单操作
-}
-
 // View 渲染UI
 func (m MenuModel) View() string {
+	// 如果当前有活动的子模块，渲染子模块的视图
+	if m.currentModel != nil {
+		return m.currentModel.View()
+	}
+
 	doc := strings.Builder{}
 
 	// 标题
@@ -119,8 +128,6 @@ func (m MenuModel) View() string {
 			doc.WriteString("\n")
 		}
 
-		// 提示信息
-		doc.WriteString("\n" + helpStyle.Render("↑/↓: Navigate • Enter: Select • q: Quit"))
 	} else {
 		// 功能视图
 		doc.WriteString(subTitleStyle.Render(m.selected))
@@ -128,8 +135,6 @@ func (m MenuModel) View() string {
 		doc.WriteString(m.content)
 		doc.WriteString("\n\n")
 
-		// 返回提示
-		doc.WriteString(helpStyle.Render("q: Back to Main Menu"))
 	}
 
 	// 状态栏 - 显示程序状态
@@ -137,62 +142,6 @@ func (m MenuModel) View() string {
 	doc.WriteString("\n\n" + status)
 
 	return docStyle.Render(doc.String())
-}
-
-// 功能内容生成函数
-func bbsContent() string {
-	return `BBS Functionality
-
-┌─────────────────────────────────────┐
-│ 1. View Posts                       │
-│ 2. Create New Post                  │
-│ 3. Search Topics                    │
-│ 4. Manage Threads                   │
-└─────────────────────────────────────┘
-
-This is a placeholder for BBS functionality.
-In a real implementation, this would display
-forum posts and allow user interaction.`
-}
-
-func chatContent() string {
-	return `Chat Functionality
-
-┌─────────────────────────────────────┐
-│ Online Users: 3                     │
-│                                     │
-│ [User1] Hello everyone!             │
-│ [User2] Hi User1!                   │
-│ [You]  Testing the chat system...   │
-│                                     │
-│ Type your message:                  │
-└─────────────────────────────────────┘
-
-This is a placeholder for Chat functionality.
-In a real implementation, this would be a
-real-time chat interface.`
-}
-
-func settingsContent() string {
-	return `Settings
-
-Configuration:
-┌─────────────────────────────────────┐
-│ I2P: Enabled                        │
-│ Port: 8080                          │
-│ Data Path: ~/.local/share/nosmec    │
-│ UI Mode: Menu-based                 │
-└─────────────────────────────────────┘
-
-Application Info:
-• Version: 1.0.0
-• Build: Development
-• UI Framework: Bubble Tea
-• Server: Nostr Relay
-
-Note: Server control has been moved to
-the main application. The server starts
-automatically with the UI.`
 }
 
 // 样式定义
@@ -232,7 +181,7 @@ var (
 
 // StartMenu 启动菜单式UI
 func StartMenu() {
-	choices := []string{"BBS", "Chat", "Settings"}
+	choices := []string{"Global"}
 
 	m := MenuModel{
 		choices:   choices,

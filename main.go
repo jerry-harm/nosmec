@@ -9,26 +9,35 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jerry-harm/nosmec/client"
 	"github.com/jerry-harm/nosmec/client/ui"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/i2p"
-	"github.com/jerry-harm/nosmec/server"
 )
 
 func main() {
 	// 初始化配置和I2P
 	os.MkdirAll(config.Global.BasePath, 0777)
-	i2p.Init()
-	defer i2p.Sam.Close()
-	defer i2p.ListenerSession.Close()
-	defer i2p.DialSession.Close()
-	defer i2p.Listener.Close()
+	// go func() {
+	// 	i2p.Init()
+	// }()
 
-	// 启动服务器
-	relayServer, err := server.NewRelay()
-	if err != nil {
-		log.Fatalln(err)
+	// 设置HTTP客户端使用I2PDial，设置30秒超时
+	http.DefaultClient = &http.Client{
+		Transport: &http.Transport{
+			Proxy: i2p.I2PProxy,
+		},
+		Timeout: 30 * time.Second,
 	}
+	// 初始化客户端
+	client.Init()
+	defer client.Close()
+
+	// // 启动服务器
+	// relayServer, err := server.NewRelay()
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
 
 	serverStopped := make(chan bool, 1)
 
@@ -36,14 +45,14 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// 启动HTTP服务器
-	go func() {
-		log.Println("Starting Nostr relay server...")
-		if err := http.Serve(i2p.Listener, relayServer); err != nil {
-			log.Printf("Server error: %v\n", err)
-		}
-		serverStopped <- true
-	}()
+	// // 启动HTTP服务器
+	// go func() {
+	// 	log.Println("Starting Nostr relay server...")
+	// 	if err := http.Serve(i2p.Listener, relayServer); err != nil {
+	// 		log.Printf("Server error: %v\n", err)
+	// 	}
+	// 	serverStopped <- true
+	// }()
 
 	// 启动UI（默认启动）
 	go func() {
@@ -63,6 +72,9 @@ func main() {
 
 	// 优雅关闭
 	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer i2p.Sam.Close()
+	// defer i2p.ListenerSession.Close()
+	// defer i2p.Listener.Close()
 	defer cancel()
 
 	log.Println("nosmec stopped gracefully")

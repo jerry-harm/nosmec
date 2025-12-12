@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -18,7 +17,6 @@ import (
 
 var Sam *sam3.SAM
 var ListenerSession *sam3.StreamSession // 用于listener的session，使用固定key
-var DialSession *sam3.StreamSession     // 用于dial的session，使用临时key
 var Listener *sam3.StreamListener
 
 // generateSessionName 生成带有随机字符串的session名称
@@ -43,33 +41,17 @@ func Init() {
 		log.Fatal("listener key generate fialed:", err)
 	}
 
-	// 为dial生成临时key（每次程序运行都不同）
-	dialKeys, err := Sam.NewKeys()
 	if err != nil {
 		log.Fatal("dial key generate fialed:", err)
 	}
 
 	// 生成唯一的session名称
 	listenerSessionName := generateSessionName("nosmec-listener")
-	dialSessionName := generateSessionName("nosmec-dial")
 
 	// 创建listener session（使用固定key）
 	ListenerSession, err = Sam.NewStreamSession(listenerSessionName, listenerKeys, sam3.Options_Default)
 	if err != nil {
 		log.Fatal("listener session create fialed:", err)
-	}
-
-	// 创建dial session（使用临时key）
-	DialSession, err = Sam.NewStreamSession(dialSessionName, dialKeys, sam3.Options_Default)
-	if err != nil {
-		log.Fatal("dial session create fialed:", err)
-	}
-
-	// 设置HTTP客户端使用I2PDial
-	http.DefaultClient = &http.Client{
-		Transport: &http.Transport{
-			Dial: I2PDial,
-		},
 	}
 
 	// 使用listener session创建监听器
@@ -83,18 +65,18 @@ func IsI2PAddress(addr string) bool {
 	return strings.Contains(addr, ".i2p")
 }
 
-func I2PDial(network, addr string) (net.Conn, error) {
-	if IsI2PAddress(addr) {
-		conn, err := DialSession.Dial(network, addr)
-		return conn, err
-	}
+// func I2PDial(network, addr string) (net.Conn, error) {
+// 	if IsI2PAddress(addr) {
+// 		conn, err := DialSession.Dial(network, addr)
+// 		return conn, err
+// 	}
 
-	conn, err := net.Dial(network, addr)
+// 	conn, err := net.Dial(network, addr)
 
-	return conn, err
-}
+// 	return conn, err
+// }
 
-func I2PAndClearnetProxy(req *http.Request) (*url.URL, error) {
+func I2PProxy(req *http.Request) (*url.URL, error) {
 	hostname := req.URL.Hostname()
 	if strings.HasSuffix(hostname, ".i2p") {
 		socksurl, _ := url.Parse("socks5://127.0.0.1:4447")
