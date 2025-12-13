@@ -66,13 +66,14 @@ type notesLoadingCompleteMsg struct{}
 
 // GlobalModel 显示全局note的模型
 type GlobalModel struct {
-	list        list.Model
-	notes       []noteItem
-	err         error
-	keys        globalKeyMap
-	eventdetail *nostr.Event
-	eventChan   chan nostr.Event // 用于接收事件的channel
-	errChan     chan error       // 用于接收错误的channel
+	list             list.Model
+	notes            []noteItem
+	err              error
+	keys             globalKeyMap
+	eventdetail      *nostr.Event
+	eventDetailModel tea.Model
+	eventChan        chan nostr.Event // 用于接收事件的channel
+	errChan          chan error       // 用于接收错误的channel
 }
 
 // NewGlobalModel 创建新的GlobalModel实例
@@ -189,16 +190,40 @@ func (m GlobalModel) waitForEvent() tea.Cmd {
 
 // Update 处理消息
 func (m GlobalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// 如果当前有活动的eventDetailModel，将消息路由给它
+	if m.eventDetailModel != nil {
+		var cmd tea.Cmd
+		m.eventDetailModel, cmd = m.eventDetailModel.Update(msg)
+		// 检查是否返回了EventDetailQuitMsg
+		if _, isQuit := msg.(EventDetailQuitMsg); isQuit {
+			m.eventDetailModel = nil
+			m.eventdetail = nil
+			return m, nil
+		}
+		// 检查是否返回了subQuitMsg（保持向后兼容）
+		if _, isSubQuit := msg.(subQuitMsg); isSubQuit {
+			m.eventDetailModel = nil
+			m.eventdetail = nil
+			return m, nil
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
+		// 如果已经有eventDetailModel，更新其大小
+		if m.eventDetailModel != nil {
+			m.eventDetailModel, _ = m.eventDetailModel.Update(msg)
+		}
 	case tea.KeyMsg:
 		// 检查是否在详情模式下
 		if m.eventdetail != nil {
-
-			m.eventdetail = nil
-			return m, nil
+			// 创建新的EventDetailModel
+			h, v := docStyle.GetFrameSize()
+			m.eventDetailModel = NewEventDetailModel(*m.eventdetail, m.list.Width()+v, m.list.Height()+h)
+			return m, m.eventDetailModel.Init()
 		}
 
 		// 列表模式下的按键处理
@@ -261,8 +286,8 @@ func (m GlobalModel) View() string {
 		return fmt.Sprintf("error: %v", m.err)
 	}
 
-	if m.eventdetail != nil {
-		return renderEventDetail(*m.eventdetail)
+	if m.eventDetailModel != nil {
+		return m.eventDetailModel.View()
 	}
 
 	return docStyle.Render(m.list.View())

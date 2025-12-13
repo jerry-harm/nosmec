@@ -103,29 +103,25 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keys.Quit):
-			if m.currentModel != nil {
-				m.currentModel = nil
-				return m, nil
-			}
-			return m, tea.Quit
-		case key.Matches(msg, m.keys.Up):
-			if m.currentModel == nil {
+		if m.currentModel == nil {
+			switch {
+			case key.Matches(msg, m.keys.Quit):
+				if m.currentModel != nil {
+					m.currentModel = nil
+					return m, nil
+				}
+				return m, tea.Quit
+			case key.Matches(msg, m.keys.Up):
 				m.cursor = max(m.cursor-1, 0)
-			}
-		case key.Matches(msg, m.keys.Down):
-			if m.currentModel == nil {
+			case key.Matches(msg, m.keys.Down):
 				m.cursor = min(m.cursor+1, len(m.choices)-1)
-			}
-		case key.Matches(msg, m.keys.Enter):
-			if m.currentModel == nil {
+			case key.Matches(msg, m.keys.Enter):
 				m.selected = m.choices[m.cursor]
 				m.updateContent()
 				return m, m.currentModel.Init()
+			case key.Matches(msg, m.keys.Help):
+				m.help.ShowAll = !m.help.ShowAll
 			}
-		case key.Matches(msg, m.keys.Help):
-			m.help.ShowAll = !m.help.ShowAll
 		}
 	case subQuitMsg:
 		m.currentModel = nil
