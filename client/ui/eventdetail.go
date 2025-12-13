@@ -96,7 +96,8 @@ type EventDetailModel struct {
 // NewEventDetailModel 创建新的事件详情模型
 func NewEventDetailModel(event nostr.Event, width, height int) EventDetailModel {
 	vp := viewport.New(width, height)
-	vp.Style = lipgloss.NewStyle().Padding(0, 1)
+	// 增加右边距，让内容离右边更远
+	vp.Style = docStyle
 
 	m := EventDetailModel{
 		event:    event,
@@ -125,7 +126,7 @@ func (m EventDetailModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 5
+		m.viewport.Height = msg.Height - 10
 		m.updateViewportContent()
 		return m, nil
 
@@ -188,9 +189,6 @@ func (m *EventDetailModel) renderTextMode() string {
 
 	// 作者信息
 	author := fmt.Sprintf("Author: %s", m.event.PubKey.String())
-	if len(author) > 60 {
-		author = author[:57] + "..."
-	}
 	builder.WriteString(fmt.Sprintf("  %s\n", author))
 
 	// 时间
@@ -199,9 +197,6 @@ func (m *EventDetailModel) renderTextMode() string {
 
 	// 事件ID
 	eventID := fmt.Sprintf("Event ID: %s", m.event.ID.String())
-	if len(eventID) > 60 {
-		eventID = eventID[:57] + "..."
-	}
 	builder.WriteString(fmt.Sprintf("  %s\n", eventID))
 
 	// 类型
@@ -253,14 +248,20 @@ func (m *EventDetailModel) renderJSONMode() string {
 		return fmt.Sprintf("Error formatting JSON: %v", err)
 	}
 
-	var builder strings.Builder
-	builder.WriteString(titleStyle.Render("Event Details (JSON Mode)"))
-	builder.WriteString("\n\n")
-	builder.WriteString(string(jsonBytes))
-	return builder.String()
+	return string(jsonBytes)
 }
 
 // View 渲染UI
 func (m EventDetailModel) View() string {
-	return docStyle.Render(m.viewport.View() + "\n\n" + m.help.View(m.keys))
+
+	helpView := m.help.View(m.keys)
+	availableHeight := m.height - lipgloss.Height(helpView) - docStyle.GetHeight()
+
+	if m.viewport.Height != availableHeight {
+		m.viewport.Height = availableHeight
+		m.updateViewportContent()
+	}
+
+	viewportContent := m.viewport.View()
+	return docStyle.Render(viewportContent + "\n\n" + helpView)
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/jerry-harm/nosmec/client"
 	"github.com/jerry-harm/nosmec/config"
 )
@@ -74,6 +72,8 @@ type GlobalModel struct {
 	eventDetailModel tea.Model
 	eventChan        chan nostr.Event // 用于接收事件的channel
 	errChan          chan error       // 用于接收错误的channel
+	width            int              // 窗口宽度
+	height           int              // 窗口高度
 }
 
 // NewGlobalModel 创建新的GlobalModel实例
@@ -108,6 +108,8 @@ func NewGlobalModel(width, height int) GlobalModel {
 		keys:      DefaultGlobalKeyMap,
 		eventChan: make(chan nostr.Event, 100),
 		errChan:   make(chan error, 1),
+		width:     width,
+		height:    height,
 	}
 }
 
@@ -194,14 +196,8 @@ func (m GlobalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.eventDetailModel != nil {
 		var cmd tea.Cmd
 		m.eventDetailModel, cmd = m.eventDetailModel.Update(msg)
-		// 检查是否返回了EventDetailQuitMsg
+
 		if _, isQuit := msg.(EventDetailQuitMsg); isQuit {
-			m.eventDetailModel = nil
-			m.eventdetail = nil
-			return m, nil
-		}
-		// 检查是否返回了subQuitMsg（保持向后兼容）
-		if _, isSubQuit := msg.(subQuitMsg); isSubQuit {
 			m.eventDetailModel = nil
 			m.eventdetail = nil
 			return m, nil
@@ -211,6 +207,10 @@ func (m GlobalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		// 更新存储的窗口尺寸
+		m.width = msg.Width
+		m.height = msg.Height
+
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 		// 如果已经有eventDetailModel，更新其大小
@@ -218,14 +218,6 @@ func (m GlobalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.eventDetailModel, _ = m.eventDetailModel.Update(msg)
 		}
 	case tea.KeyMsg:
-		// 检查是否在详情模式下
-		if m.eventdetail != nil {
-			// 创建新的EventDetailModel
-			h, v := docStyle.GetFrameSize()
-			m.eventDetailModel = NewEventDetailModel(*m.eventdetail, m.list.Width()+v, m.list.Height()+h)
-			return m, m.eventDetailModel.Init()
-		}
-
 		// 列表模式下的按键处理
 		switch {
 		case key.Matches(msg, m.keys.Quit):
@@ -249,7 +241,8 @@ func (m GlobalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Enter):
 			i, ok := m.list.SelectedItem().(noteItem)
 			if ok {
-				m.eventdetail = &i.event
+				m.eventDetailModel = NewEventDetailModel(i.event, m.width, m.height)
+				return m, m.eventDetailModel.Init()
 			}
 			return m, nil
 		}
@@ -291,45 +284,4 @@ func (m GlobalModel) View() string {
 	}
 
 	return docStyle.Render(m.list.View())
-}
-
-// renderEventDetail 渲染事件详情表格
-// TODO 格式化成json用textarea显示
-func renderEventDetail(event nostr.Event) string {
-	// 创建表格数据
-	rows := [][]string{
-		{"Field", "Value"},
-		{"ID", event.ID.String()},
-		{"PubKey", event.PubKey.String()},
-		{"Created At", time.Unix(int64(event.CreatedAt), 0).Format("2006-01-02 15:04:05")},
-		{"Kind", fmt.Sprintf("%d", event.Kind)},
-		{"Content", event.Content},
-	}
-
-	// 添加标签
-	if len(event.Tags) > 0 {
-		for i, tag := range event.Tags {
-			rows = append(rows, []string{fmt.Sprintf("Tag[%d]", i), fmt.Sprintf("%v", tag)})
-		}
-	}
-
-	// 创建表格
-	t := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("63"))).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			if row == 0 {
-				return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
-			}
-			if col == 0 {
-				return lipgloss.NewStyle().Foreground(lipgloss.Color("117"))
-			}
-			return lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
-		}).
-		Rows(rows...).Wrap(true).Width(30)
-
-	// 获取表格字符串
-	tableStr := t.Render()
-
-	return docStyle.Render(tableStr + "\n\n" + helpStyle.Render("Press AnyKey to return"))
 }
