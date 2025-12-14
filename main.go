@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/jerry-harm/nosmec/client"
-	"github.com/jerry-harm/nosmec/client/ui"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/i2p"
 )
@@ -55,12 +54,6 @@ func main() {
 	// }()
 
 	// 启动UI（默认启动）
-	go func() {
-		log.Println("Starting UI...")
-		ui.StartMenu()
-		// UI退出时发送信号
-		sigChan <- os.Interrupt
-	}()
 
 	// 等待退出信号
 	select {
