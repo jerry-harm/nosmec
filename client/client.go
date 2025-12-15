@@ -4,10 +4,8 @@ import (
 	"log"
 	"path/filepath"
 
-	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/sdk"
-	"fiatjaf.com/nostr/sdk/hints/lmdbh"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -29,32 +27,20 @@ func Init() {
 		log.Fatalf("Failed to initialize LMDB store: %v", err)
 	}
 
-	// Initialize LMDB hints database
-	hintsDB, err := lmdbh.NewLMDBHints(filepath.Join(config.Global.BasePath, "hints.db"))
-	if err != nil {
-		log.Fatalf("Failed to initialize LMDB hints: %v", err)
-	}
-
 	// Create a new system
 	System = sdk.NewSystem()
 
 	// Configure the system
 	System.Store = Store
-	System.Hints = hintsDB
-
-	// Create a pool with relays from config
-	pool := nostr.NewPool(nostr.PoolOptions{})
 
 	// Add all relays from config using EnsureRelay
 	for _, relayURL := range config.Global.Client.Relays {
-		if _, err := pool.EnsureRelay(relayURL); err != nil {
+		if _, err := System.Pool.EnsureRelay(relayURL); err != nil {
 			log.Printf("Warning: Failed to ensure relay %s: %v", relayURL, err)
 		} else {
 			log.Printf("Added relay: %s", relayURL)
 		}
 	}
-
-	System.Pool = pool
 
 	// Set up relay streams
 	System.RelayListRelays = sdk.NewRelayStream(config.Global.Client.Relays...)
@@ -76,22 +62,4 @@ func Close() {
 	if Store != nil {
 		Store.Close()
 	}
-}
-
-// GetSystem returns the global system instance
-func GetSystem() *sdk.System {
-	return System
-}
-
-// GetStore returns the global store instance
-func GetStore() *lmdb.LMDBBackend {
-	return Store
-}
-
-// GetPool returns the global pool instance
-func GetPool() *nostr.Pool {
-	if System != nil {
-		return System.Pool
-	}
-	return nil
 }
