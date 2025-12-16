@@ -63,3 +63,5 @@ func Close() {
 		Store.Close()
 	}
 }
+
+// TODO subscribe needed events and save it

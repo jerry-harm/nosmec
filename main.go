@@ -21,7 +21,7 @@ func main() {
 	// 	i2p.Init()
 	// }()
 
-	// 设置HTTP客户端使用I2PDial，设置30秒超时
+	// 设置HTTP客户端使用proxy，设置30秒超时
 	http.DefaultClient = &http.Client{
 		Transport: &http.Transport{
 			Proxy: i2p.I2PProxy,
