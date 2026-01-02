@@ -1,4 +1,4 @@
-package community
+package utils
 
 import (
 	"encoding/json"
@@ -16,7 +16,7 @@ type Community struct {
 	Description string
 	Image       string
 	ImageSize   string // width x height
-	Moderators  []nostr.PubKey
+	Moderators  []nostr.ProfilePointer
 	Relays      map[string][]string // marker -> relay URLs
 	// Other tags can be stored as raw tags
 	RawTags nostr.Tags
@@ -28,70 +28,47 @@ func ParseCommunityFromEvent(event *nostr.Event) (*Community, error) {
 	if event.Kind != nostr.KindCommunityDefinition {
 		return nil, fmt.Errorf("event kind %d is not a community definition", event.Kind)
 	}
+
 	comm := &Community{
 		Author:      event.PubKey,
 		DIdentifier: event.Tags.GetD(),
-		Name:        "",
-		Description: "",
+		Name:        event.Tags.Find("name")[1],
+		Description: event.Tags.Find("description")[1],
 		Image:       "",
 		ImageSize:   "",
-		Moderators:  make([]nostr.PubKey, 0),
-		Relays:      make(map[string][]string),
+		Moderators:  make([]nostr.ProfilePointer, 0),
+		Relays:      make(map[string][]string, 0),
 		RawTags:     event.Tags,
 	}
 
-	for _, tag := range event.Tags {
-		if len(tag) == 0 {
-			continue
-		}
-		switch tag[0] {
-		case "d":
-			if len(tag) > 1 {
-				comm.DIdentifier = tag[1]
+	if len(event.Tags.Find("image")) == 3 {
+		comm.Image = event.Tags.Find("image")[1]
+		comm.ImageSize = event.Tags.Find("image")[2]
+	}
+
+	for tag := range event.Tags.FindAll("p") {
+		if len(tag) == 4 && tag[3] == "moderator" {
+			pubkey, err := nostr.PubKeyFromHex(tag[1])
+			if err != nil {
+				continue
 			}
-		case "name":
-			if len(tag) > 1 {
-				comm.Name = tag[1]
-			}
-		case "description":
-			if len(tag) > 1 {
-				comm.Description = tag[1]
-			}
-		case "image":
-			if len(tag) > 1 {
-				comm.Image = tag[1]
-				if len(tag) > 2 {
-					comm.ImageSize = tag[2]
-				}
-			}
-		case "p":
-			// moderator tag includes "moderator" marker at position 3
-			if len(tag) > 3 && tag[3] == "moderator" {
-				pubkey, err := nostr.PubKeyFromHex(tag[1])
-				if err != nil {
-					continue
-				}
-				comm.Moderators = append(comm.Moderators, pubkey)
-			}
-		case "relay":
-			marker := ""
-			if len(tag) > 2 {
-				marker = tag[2]
-			}
-			if len(tag) > 1 {
-				comm.Relays[marker] = append(comm.Relays[marker], tag[1])
-			}
+			comm.Moderators = append(comm.Moderators, nostr.ProfilePointer{PublicKey: pubkey, Relays: []string{tag[2]}})
 		}
 	}
-	if comm.DIdentifier == "" {
-		return nil, fmt.Errorf("community definition missing 'd' tag")
+
+	for tag := range event.Tags.FindAll("relay") {
+		if len(tag) == 3 {
+			marker := tag[2]
+			comm.Relays[marker] = append(comm.Relays[marker], tag[1])
+		}
 	}
+
 	return comm, nil
 }
 
 // CreateCommunityDefinition creates a new community definition event.
 // The event is unsigned; caller must sign it before publishing.
-func CreateCommunityDefinition(author nostr.PubKey, dIdentifier, name, description, image, imageSize string, moderators []nostr.PubKey, relays map[string][]string) *nostr.Event {
+func CreateCommunityDefinition(author nostr.PubKey, dIdentifier, name, description, image, imageSize string, moderators []nostr.ProfilePointer, relays map[string][]string) *nostr.Event {
 	tags := nostr.Tags{}
 	tags = append(tags, nostr.Tag{"d", dIdentifier})
 	if name != "" {
@@ -108,7 +85,7 @@ func CreateCommunityDefinition(author nostr.PubKey, dIdentifier, name, descripti
 		}
 	}
 	for _, mod := range moderators {
-		tags = append(tags, nostr.Tag{"p", mod.Hex(), "", "moderator"})
+		tags = append(tags, nostr.Tag{"p", mod.PublicKey.Hex(), "", "moderator"})
 	}
 	for marker, urls := range relays {
 		for _, url := range urls {
@@ -131,7 +108,7 @@ func CreateCommunityDefinition(author nostr.PubKey, dIdentifier, name, descripti
 // IsModerator returns true if the given pubkey is a moderator of the community.
 func (c *Community) IsModerator(pubkey nostr.PubKey) bool {
 	for _, mod := range c.Moderators {
-		if mod == pubkey {
+		if mod.PublicKey == pubkey {
 			return true
 		}
 	}
