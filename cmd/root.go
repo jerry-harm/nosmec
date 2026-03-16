@@ -1,27 +1,21 @@
 /*
 Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
+	"net/http"
 	"os"
 
+	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
-
-
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "nosmec",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "a cli for nostr",
+	Long:  ``,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -46,6 +40,16 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.AddCommand(profileCmd)
+
+	// 设置HTTP传输的代理
+	setupHTTPTransport()
 }
 
-
+// setupHTTPTransport 配置HTTP传输的代理设置
+func setupHTTPTransport() {
+	transport := &http.Transport{
+		Proxy: utils.ProxySelector,
+	}
+	http.DefaultTransport = transport
+}

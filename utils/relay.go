@@ -1,4 +1,4 @@
-package server
+package utils
 
 import (
 	"context"
@@ -26,9 +26,7 @@ var sam *sam3.SAM
 var i2pListenerSession *sam3.StreamSession
 var i2pListener *sam3.StreamListener
 
-// generateSessionName 生成带有随机字符串的session名称
 func generateSessionName(base string) string {
-	// 使用时间戳和随机数确保唯一性
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	randomSuffix := strconv.FormatInt(time.Now().UnixNano(), 36) + strconv.Itoa(rand.Intn(1000))
 	return base + "-" + randomSuffix
@@ -37,19 +35,15 @@ func generateSessionName(base string) string {
 func sam_init() {
 	log.Println("Initializing I2P... (this may take a moment)")
 	var err error
-	sam, err = sam3.NewSAM(fmt.Sprintf("%s:%d", config.Global.I2P.SamAddress, config.Global.I2P.SamPort))
+	sam, err = sam3.NewSAM(fmt.Sprintf("%s:%d", config.GlobalConfig().LocalServer.I2P.SamAddress, config.GlobalConfig().LocalServer.I2P.SamPort))
 	if err != nil {
 		log.Fatal("SAM build fialed:", err)
 	}
 
 	// 为listener生成/读取固定key（从文件）
-	listenerKeys, err := sam.EnsureKeyfile(filepath.Join(config.Global.BasePath, "sam.dat"))
+	listenerKeys, err := sam.EnsureKeyfile(filepath.Join(config.GlobalConfig().DataDir, "sam.dat"))
 	if err != nil {
 		log.Fatal("listener key generate fialed:", err)
-	}
-
-	if err != nil {
-		log.Fatal("dial key generate fialed:", err)
 	}
 
 	// 生成唯一的session名称
@@ -83,7 +77,7 @@ func newRelay() (*khatru.Relay, error) {
 	// create the relay instance
 	relay := khatru.NewRelay()
 
-	prefix, decoded, err := nip19.Decode(config.Global.Client.PrivateKey)
+	prefix, decoded, err := nip19.Decode(config.GlobalConfig().PrivateKey)
 	if err == nil || prefix == "nsec" {
 		secretKey, ok := decoded.(nostr.SecretKey)
 		pubKey := nostr.GetPublicKey(secretKey)
@@ -95,10 +89,10 @@ func newRelay() (*khatru.Relay, error) {
 	}
 
 	// set up some basic properties (will be returned on the NIP-11 endpoint)
-	relay.Info.Name = config.Global.Server.NIP11.Name
-	relay.Info.Description = config.Global.Server.NIP11.Description
+	relay.Info.Name = config.GlobalConfig().LocalServer.NIP11.Name
+	relay.Info.Description = config.GlobalConfig().LocalServer.NIP11.Description
 
-	db := lmdb.LMDBBackend{Path: filepath.Join(config.Global.BasePath, "nosmec.db")}
+	db := lmdb.LMDBBackend{Path: filepath.Join(config.GlobalConfig().DataDir, "nosmec.db")}
 
 	if err := db.Init(); err != nil {
 		panic(err)
@@ -133,7 +127,7 @@ func newRelay() (*khatru.Relay, error) {
 }
 
 // for standalone i2p server
-func DoRun() {
+func Run() {
 
 	go func() {
 		sam_init()
