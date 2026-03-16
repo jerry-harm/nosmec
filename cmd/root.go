@@ -40,7 +40,6 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rootCmd.AddCommand(profileCmd)
 
 	// 设置HTTP传输的代理
 	setupHTTPTransport()

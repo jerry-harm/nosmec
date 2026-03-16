@@ -68,12 +68,14 @@ func (f *RelayFilter) Matches() []string {
 
 func SaveRelays() {
 	relays := make([]string, 0)
-	globalPool.Relays.Range(func(key string, value *nostr.Relay) bool {
-		relays = append(relays, key)
-		return true
-	})
-	for k, _ := range globalConfig.RelayList {
+	for k := range globalConfig.RelayList {
 		relays = append(relays, k)
+	}
+	if globalPool != nil {
+		globalPool.Relays.Range(func(key string, value *nostr.Relay) bool {
+			relays = append(relays, key)
+			return true
+		})
 	}
 	temp := append(globalConfig.KnownRelays, relays...)
 	set := make(map[string]struct{})
@@ -84,7 +86,8 @@ func SaveRelays() {
 			res = append(res, v)
 		}
 	}
-	globalConfig.KnownRelays = res
+	// globalConfig.KnownRelays = res
+	viper.Set("known_relays", res)
 	// 保存配置
 	if err := viper.WriteConfig(); err != nil {
 		fmt.Printf("Warning: Failed to save config: %v\n", err)

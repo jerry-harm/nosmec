@@ -13,7 +13,14 @@ import (
 
 // profileCmd represents the profile command
 var profileCmd = &cobra.Command{
-	Use:   "profile [npub or pubkey]",
+	Use:   "profile",
+	Short: "Manage Nostr profiles",
+	Long:  `Manage Nostr profiles - get and set profile information.`,
+}
+
+// profileGetCmd represents the 'profile get' command
+var profileGetCmd = &cobra.Command{
+	Use:   "get [npub or pubkey]",
 	Short: "Query user profile information",
 	Long: `Query Nostr profile information for a user.
 
@@ -53,6 +60,17 @@ If an argument is provided, it can be an npub string or hex format pubkey.`,
 	},
 }
 
+// profileSetCmd represents the 'profile set' command
+var profileSetCmd = &cobra.Command{
+	Use:   "set",
+	Short: "Set user profile information",
+	Long:  `Set current user's profile information.`,
+	// TODO: Implement profile set functionality
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("profile set command - not yet implemented")
+	},
+}
+
 // parseUserIdentifier parses user identifier, supports npub and hex pubkey
 func parseUserIdentifier(identifier string) (nostr.PubKey, error) {
 	// Try to decode as npub
@@ -89,4 +107,10 @@ func parseUserIdentifier(identifier string) (nostr.PubKey, error) {
 	}
 
 	return nostr.PubKey{}, fmt.Errorf("invalid user identifier, expected npub or 64-character hex pubkey")
+}
+
+func init() {
+	rootCmd.AddCommand(profileCmd)
+	profileCmd.AddCommand(profileGetCmd)
+	profileCmd.AddCommand(profileSetCmd)
 }
