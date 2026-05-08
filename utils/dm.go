@@ -24,7 +24,10 @@ func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.P
 		return err
 	}
 
-	ourRelays := app.WritableRelays()
+	ourRelays := app.ListDMRelays()
+	if len(ourRelays) == 0 {
+		ourRelays = app.ReadableRelays()
+	}
 	theirRelays, err := FetchRecipientDMRelays(ctx, app, recipientPubKey)
 	if err != nil {
 		return fmt.Errorf("failed to fetch recipient DM relays: %w", err)
@@ -79,14 +82,6 @@ func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.P
 		return fmt.Errorf("failed to publish to recipient: %w", err)
 	}
 
-	privateRelays := app.PrivateRelays()
-	if len(privateRelays) > 0 {
-		go func() {
-			app.Pool().PublishMany(context.Background(), privateRelays, toUs)
-			app.Pool().PublishMany(context.Background(), privateRelays, toThem)
-		}()
-	}
-
 	return nil
 }
 
@@ -108,6 +103,12 @@ func ListenForDMs(ctx context.Context, app *config.AppContext, since nostr.Times
 	ourDMRelays := app.ListDMRelays()
 	if len(ourDMRelays) == 0 {
 		ourDMRelays = app.ReadableRelays()
+	}
+
+	if len(ourDMRelays) == 0 {
+		ch := make(chan nostr.Event)
+		close(ch)
+		return ch
 	}
 
 	secretKey, err := app.GetMySecretKey()
@@ -133,9 +134,6 @@ func listenForDMEvents(ctx context.Context, app *config.AppContext, kr keyer.Key
 			return
 		}
 
-		privateRelays := app.PrivateRelays()
-		relays = append(relays, privateRelays...)
-
 		for ie := range app.Pool().SubscribeMany(ctx, relays, nostr.Filter{
 			Kinds: []nostr.Kind{nostr.KindGiftWrap},
 			Tags:  nostr.TagMap{"p": []string{pk.Hex()}},
@@ -150,12 +148,6 @@ func listenForDMEvents(ctx context.Context, app *config.AppContext, kr keyer.Key
 			if err != nil {
 				continue
 			}
-
-			go func() {
-				for _, relay := range privateRelays {
-					app.Pool().PublishMany(context.Background(), []string{relay}, ie.Event)
-				}
-			}()
 
 			ch <- rumor
 		}
