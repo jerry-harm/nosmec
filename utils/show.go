@@ -11,7 +11,7 @@ import (
 	"github.com/fatih/color"
 )
 
-// PrintEvent 打印 Nostr 事件
+// PrintEvent prints a Nostr event
 func PrintEvent(ev *nostr.Event, j bool) {
 	if j {
 		json.NewEncoder(os.Stdout).Encode(ev)
@@ -26,7 +26,8 @@ func PrintEvent(ev *nostr.Event, j bool) {
 	fmt.Print(ev.CreatedAt.Time().Format("2006-01-02T15:04:05") + "\n")
 
 	ctx := context.Background()
-	if profile, err := GetProfile(ctx, ev.PubKey); err == nil {
+	profile := GetProfile(ctx, ev.PubKey, nil)
+	if profile != nil {
 		var profileData map[string]interface{}
 		if err := json.Unmarshal([]byte(profile.Content), &profileData); err == nil {
 			if name, ok := profileData["name"].(string); ok && name != "" {
@@ -42,7 +43,7 @@ func PrintEvent(ev *nostr.Event, j bool) {
 	fmt.Println(npub)
 	color.Set(color.Reset)
 
-	// 打印内容
+	// Print content
 	fmt.Println(ev.Content)
 	fmt.Println()
 }

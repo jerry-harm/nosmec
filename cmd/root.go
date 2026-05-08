@@ -1,54 +1,105 @@
-/*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
+	"context"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
+type appContextKey struct{}
+
+var verbose bool
+
 var rootCmd = &cobra.Command{
 	Use:   "nosmec",
 	Short: "a cli for nostr",
 	Long:  ``,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if verbose {
+			logger.SetVerbose(true)
+		}
+	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+var app *config.AppContext
+
 func Execute() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		if app != nil {
+			app.Close()
+		}
+		os.Exit(0)
+	}()
+
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		handleError(err)
 	}
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	cobra.OnInitialize(initApp)
+	initCommands()
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.nosmec.yaml)")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug output")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	// 设置HTTP传输的代理
 	setupHTTPTransport()
 }
 
-// setupHTTPTransport 配置HTTP传输的代理设置
+func initApp() {
+	cfg := config.InitConfig()
+	config.SetProxyConfig(config.ProxyConfig{
+		Socks:    cfg.Proxy.Socks,
+		I2PSocks: cfg.Proxy.I2PSocks,
+	})
+	pool := config.GlobalPool()
+	store := config.GlobalLMDB()
+	app = config.NewAppContext(pool, store, cfg, config.GetViper())
+
+	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
+}
+
 func setupHTTPTransport() {
 	transport := &http.Transport{
 		Proxy: utils.ProxySelector,
 	}
 	http.DefaultTransport = transport
+}
+
+func getApp() *config.AppContext {
+	return app
+}
+
+func getAppFromContext(ctx context.Context) *config.AppContext {
+	if appPtr := ctx.Value(appContextKey{}); appPtr != nil {
+		return appPtr.(*config.AppContext)
+	}
+	return app
+}
+
+func reloadApp() {
+	if app != nil {
+		app.Close()
+	}
+	cfg := config.InitConfig()
+	config.SetProxyConfig(config.ProxyConfig{
+		Socks:    cfg.Proxy.Socks,
+		I2PSocks: cfg.Proxy.I2PSocks,
+	})
+	pool := config.GlobalPool()
+	store := config.GlobalLMDB()
+	app = config.NewAppContext(pool, store, cfg, config.GetViper())
+
+	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
 }

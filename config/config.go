@@ -1,87 +1,258 @@
 package config
 
 import (
-	"log"
+	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/lmdb"
+	"fiatjaf.com/nostr/khatru"
+	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/spf13/viper"
 )
 
 var (
-	globalPool   *nostr.Pool
-	oncePool     sync.Once
-	globalLMDB   *lmdb.LMDBBackend
-	onceLMDB     sync.Once
-	globalConfig Config = *LoadConfig()
+	globalPool      *nostr.Pool
+	globalLMDB      StoreInterface
+	globalConfig    Config
+	configDir       string
+	onceInit        sync.Once
+	initialized     bool
+	proxyConfig     ProxyConfig
+	localRelayURL   string
+	globalViper     *viper.Viper
 )
 
-func LoadConfig() *Config {
-	cachedir, _ := os.UserCacheDir()
+type ProxyConfig struct {
+	Socks  string
+	I2PSocks string
+}
 
-	dataDir := filepath.Join(cachedir, "nosmec")
+func SetProxyConfig(pc ProxyConfig) {
+	proxyConfig = pc
+}
 
-	os.MkdirAll(dataDir, 0755)
+func GetProxyConfig() ProxyConfig {
+	return proxyConfig
+}
 
-	viper.SetConfigName("nosmec")           // 读取名为config的配置文件
-	viper.SetConfigType("yaml")             // 指定文件类型为yaml
-	viper.AddConfigPath("$XDG_CONFIG_HOME") // 使用变量
-	viper.AddConfigPath("./")               // 在当前文件夹下寻找
-	viper.AddConfigPath(".")                // 在工作目录下查找
+func GetViper() *viper.Viper {
+	return globalViper
+}
 
-	// 设置默认值
-	viper.SetDefault("server.host", "localhost")
-	viper.SetDefault("server.port", 8080)
-	viper.SetDefault("data_dir", dataDir)
-	viper.SetDefault("i2p.enabled", true)
-	viper.SetDefault("i2p.sam_address", "127.0.0.1")
-	viper.SetDefault("i2p.sam_port", 7656)
-	viper.SetDefault("known_relays", []string{
-		"ws://nostr.jerryhome.i2p",
+func SetViper(v *viper.Viper) {
+	globalViper = v
+}
+
+func InitConfig() Config {
+	onceInit.Do(func() {
+		globalConfig = *loadConfig()
+		initialized = true
 	})
-	viper.SetDefault("private_key", "")
-	viper.SetDefault("proxy.i2p_socks", "")
-	viper.SetDefault("proxy.onion_socks", "")
-	viper.SetDefault("proxy.socks", "")
+	return globalConfig
+}
 
-	err := viper.ReadInConfig() // 读取配置
+func IsInitialized() bool {
+	return initialized
+}
+
+func loadConfig() *Config {
+	if globalViper == nil {
+		globalViper = viper.New()
+	}
+
+	cachedir, _ := os.UserCacheDir()
+	defaultDataDir := filepath.Join(cachedir, "nosmec")
+
+	configDir = filepath.Join(os.Getenv("HOME"), ".config", "nosmec")
+	os.MkdirAll(configDir, 0755)
+
+	globalViper.SetConfigName("nosmec")
+	globalViper.SetConfigType("yaml")
+	globalViper.AddConfigPath(configDir)
+	globalViper.AddConfigPath("$HOME/.config")
+	globalViper.AddConfigPath("./")
+	globalViper.AddConfigPath(".")
+
+	globalViper.SetEnvPrefix("NOSMEC")
+	globalViper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	globalViper.AutomaticEnv()
+
+	globalViper.SetDefault("local_relay.enabled", true)
+	globalViper.SetDefault("local_relay.port", "8989")
+	globalViper.SetDefault("local_relay.data_dir", defaultDataDir)
+	globalViper.SetDefault("known_relays", []string{})
+	globalViper.SetDefault("private_key", "")
+	globalViper.SetDefault("proxy.socks", "")
+	globalViper.SetDefault("proxy.i2p_socks", "")
+	globalViper.SetDefault("relay_list", []Relay{})
+	globalViper.SetDefault("dm_relays", []string{})
+	globalViper.SetDefault("search_relays", []string{})
+	globalViper.SetDefault("private_relays", []string{})
+	globalViper.SetDefault("cache_filters", []map[string]interface{}{
+		{"kinds": []int{0, 3, 10002, 10050}},
+	})
+
+	err := globalViper.ReadInConfig()
 	if err != nil {
-		log.Printf("Warning: Could not read config file, using defaults: %v", err)
-		viper.SafeWriteConfig()
+		logger.Warn("could not read config file, using defaults", "error", err.Error())
+	}
+
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		os.MkdirAll(configDir, 0755)
+	}
+
+	configFile := filepath.Join(configDir, "nosmec.yaml")
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		if err := globalViper.WriteConfigAs(configFile); err != nil {
+			logger.Warn("could not write config file", "error", err.Error())
+		}
+	} else if !globalViper.IsSet("cache_filters") {
+		globalViper.Set("cache_filters", []map[string]interface{}{
+			{"kinds": []int{0, 3, 10002, 10050}},
+		})
+		if err := globalViper.WriteConfigAs(configFile); err != nil {
+			logger.Warn("could not write config file", "error", err.Error())
+		}
 	}
 
 	var config Config
-	err = viper.Unmarshal(&config)
+	err = globalViper.Unmarshal(&config)
 	if err != nil {
-		log.Fatalf("Unable to decode config into struct: %v", err)
+		logger.Fatal("unable to decode config into struct", "error", err.Error())
+	}
+
+	config.ConfigDir = configDir
+
+	if config.LocalRelay.Port == "" {
+		config.LocalRelay.Port = "8989"
+	}
+	if config.LocalRelay.DataDir == "" {
+		config.LocalRelay.DataDir = defaultDataDir
+	}
+	os.MkdirAll(config.LocalRelay.DataDir, 0755)
+
+	if config.PrivateKey == "" {
+		sk := nostr.Generate()
+		config.PrivateKey = nip19.EncodeNsec(sk)
+		globalViper.Set("private_key", config.PrivateKey)
+		if err := globalViper.WriteConfig(); err != nil {
+			logger.Warn("could not save generated private key", "error", err.Error())
+		} else {
+			logger.Info("generated new private key and saved to config")
+		}
+	}
+
+	if config.CacheFilters == nil {
+		_, s, err := nip19.Decode(config.PrivateKey)
+		if err == nil {
+			if sk, ok := s.(nostr.SecretKey); ok {
+				pubKey := sk.Public()
+				var allKinds []nostr.Kind
+				config.CacheFilters = []nostr.Filter{
+					{Kinds: []nostr.Kind{0, 3, 10002, 10050}},
+					{Kinds: allKinds, Authors: []nostr.PubKey{pubKey}},
+				}
+			}
+		}
 	}
 
 	return &config
 }
 
-func GlobalPool() *nostr.Pool {
-	oncePool.Do(func() {
-		globalPool = nostr.NewPool(nostr.PoolOptions{
-			RelayOptions: nostr.RelayOptions{},
-		})
+func NewPool() *nostr.Pool {
+	return nostr.NewPool(nostr.PoolOptions{
+		RelayOptions: nostr.RelayOptions{},
 	})
+}
 
+func GlobalPool() *nostr.Pool {
+	if globalPool != nil {
+		return globalPool
+	}
+	globalPool = NewPool()
 	return globalPool
 }
 
-func GlobalLMDB() *lmdb.LMDBBackend {
-	onceLMDB.Do(func() {
-		globalLMDB = &lmdb.LMDBBackend{Path: filepath.Join(viper.GetString("data_dir"), "nosmec.db")}
-		if err := globalLMDB.Init(); err != nil {
-			log.Fatalf("Failed to initialize LMDB: %v", err)
+func SetPool(p *nostr.Pool) {
+	globalPool = p
+}
+
+func NewLMDB(dataDir string) (StoreInterface, error) {
+	lmdbStore := &lmdb.LMDBBackend{Path: filepath.Join(dataDir, "nosmec.db")}
+	if err := lmdbStore.Init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize LMDB: %w", err)
+	}
+	return lmdbStore, nil
+}
+
+func GlobalLMDB() StoreInterface {
+	if globalLMDB != nil {
+		return globalLMDB
+	}
+
+	dataDir := globalConfig.LocalRelay.DataDir
+	lmdbStore, err := NewLMDB(dataDir)
+	if err != nil {
+		logger.Fatal("failed to initialize LMDB", "error", err.Error())
+	}
+	globalLMDB = lmdbStore
+
+	if globalConfig.LocalRelay.Enabled {
+		if err := StartLocalRelay(lmdbStore); err != nil {
+			logger.Fatal("failed to start local relay", "error", err.Error())
 		}
-	})
+	}
 	return globalLMDB
 }
 
-func GlobalConfig() Config {
-	return globalConfig
+func SetStore(s StoreInterface) {
+	globalLMDB = s
+}
+
+func LocalRelayEnabled() bool {
+	return globalConfig.LocalRelay.Enabled
+}
+
+func StartLocalRelay(store StoreInterface) error {
+	port := globalConfig.LocalRelay.Port
+	if port == "" {
+		port = "8989"
+	}
+
+	relay := khatru.NewRelay()
+	relay.UseEventstore(store, 500)
+	relay.Info.Name = "nosmec-local"
+	relay.Info.Description = "Local relay for nosmec"
+
+	go func() {
+		addr := fmt.Sprintf(":%s", port)
+		logger.Info("starting local relay", "addr", addr)
+		if err := http.ListenAndServe(addr, relay); err != nil {
+			logger.Error("local relay error", "error", err.Error())
+		}
+	}()
+
+	localRelayURL = fmt.Sprintf("ws://localhost:%s", port)
+	return nil
+}
+
+func GetLocalRelayURL() string {
+	if !LocalRelayEnabled() {
+		return ""
+	}
+	return localRelayURL
+}
+
+func ConfigDir() string {
+	return configDir
+}
+
+func DataDir() string {
+	return globalConfig.LocalRelay.DataDir
 }

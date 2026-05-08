@@ -1,95 +1,115 @@
 package config
 
-import (
-	"fmt"
-
-	"fiatjaf.com/nostr"
-	"github.com/spf13/viper"
-)
-
-// RelayFilter 用于过滤具有特定属性的 relay
 type RelayFilter struct {
-	Read   *bool `json:"read,omitempty"`
-	Write  *bool `json:"write,omitempty"`
-	Search *bool `json:"search,omitempty"`
-	DM     *bool `json:"dm,omitempty"`
+	Read  *bool `json:"read,omitempty"`
+	Write *bool `json:"write,omitempty"`
 }
 
-// Matches 检查 relay 是否匹配过滤条件
-func (f *RelayFilter) matche(relay Relay) bool {
-	// 获取 relay 的实际值，处理 nil 指针
-	relayRead := true // 默认只可读
+func (f *RelayFilter) matchRelay(relay Relay) bool {
+	relayRead := true
 	if relay.Read != nil {
 		relayRead = *relay.Read
 	}
 
-	relayWrite := false // 默认不可写
+	relayWrite := false
 	if relay.Write != nil {
 		relayWrite = *relay.Write
 	}
 
-	relaySearch := false // 默认不可搜索
-	if relay.Search != nil {
-		relaySearch = *relay.Search
-	}
-
-	relayDM := false // 默认不可 DM
-	if relay.DM != nil {
-		relayDM = *relay.DM
-	}
-
-	// 检查过滤条件
-	// 如果过滤条件不为 nil，则必须匹配
 	if f.Read != nil && *f.Read != relayRead {
 		return false
 	}
 	if f.Write != nil && *f.Write != relayWrite {
 		return false
 	}
-	if f.Search != nil && *f.Search != relaySearch {
-		return false
-	}
-	if f.DM != nil && *f.DM != relayDM {
-		return false
-	}
 
 	return true
 }
 
-func (f *RelayFilter) Matches() []string {
+func (f *RelayFilter) Matches(relayList []Relay) []string {
 	res := make([]string, 0)
-	for k, v := range globalConfig.RelayList {
-		if f.matche(v) {
-			res = append(res, k)
+	for _, v := range relayList {
+		if f.matchRelay(v) {
+			res = append(res, v.URL)
 		}
 	}
 	return res
 }
 
-func SaveRelays() {
-	relays := make([]string, 0)
-	for k := range globalConfig.RelayList {
-		relays = append(relays, k)
-	}
-	if globalPool != nil {
-		globalPool.Relays.Range(func(key string, value *nostr.Relay) bool {
-			relays = append(relays, key)
-			return true
-		})
-	}
-	temp := append(globalConfig.KnownRelays, relays...)
-	set := make(map[string]struct{})
-	res := make([]string, 0)
-	for _, v := range temp {
-		if _, ok := set[v]; !ok {
-			set[v] = struct{}{}
-			res = append(res, v)
+func BoolPtr(b bool) *bool { return &b }
+
+func GetWritableRelaysFromList(relayList []Relay) []string {
+	return (&RelayFilter{Write: BoolPtr(true)}).Matches(relayList)
+}
+
+func GetReadableRelaysFromList(relayList []Relay) []string {
+	return (&RelayFilter{Read: BoolPtr(true)}).Matches(relayList)
+}
+
+func GetRelayFromList(url string, relayList []Relay) (Relay, bool) {
+	for _, r := range relayList {
+		if r.URL == url {
+			return r, true
 		}
 	}
-	// globalConfig.KnownRelays = res
-	viper.Set("known_relays", res)
-	// 保存配置
-	if err := viper.WriteConfig(); err != nil {
-		fmt.Printf("Warning: Failed to save config: %v\n", err)
+	return Relay{}, false
+}
+
+func AddRelayToList(url string, read, write bool, relayList []Relay) []Relay {
+	for i, r := range relayList {
+		if r.URL == url {
+			relayList[i].Read = &read
+			relayList[i].Write = &write
+			return relayList
+		}
 	}
+	return append(relayList, Relay{URL: url, Read: &read, Write: &write})
+}
+
+func RemoveRelayFromList(url string, relayList []Relay) []Relay {
+	newList := make([]Relay, 0)
+	for _, r := range relayList {
+		if r.URL != url {
+			newList = append(newList, r)
+		}
+	}
+	return newList
+}
+
+func AddDMRelayToList(url string, dmRelays []string) []string {
+	for _, u := range dmRelays {
+		if u == url {
+			return dmRelays
+		}
+	}
+	return append(dmRelays, url)
+}
+
+func RemoveDMRelayFromList(url string, dmRelays []string) []string {
+	newList := make([]string, 0)
+	for _, u := range dmRelays {
+		if u != url {
+			newList = append(newList, u)
+		}
+	}
+	return newList
+}
+
+func AddSearchRelayToList(url string, searchRelays []string) []string {
+	for _, u := range searchRelays {
+		if u == url {
+			return searchRelays
+		}
+	}
+	return append(searchRelays, url)
+}
+
+func RemoveSearchRelayFromList(url string, searchRelays []string) []string {
+	newList := make([]string, 0)
+	for _, u := range searchRelays {
+		if u != url {
+			newList = append(newList, u)
+		}
+	}
+	return newList
 }
