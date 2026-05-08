@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -22,6 +23,28 @@ type ProfileMetadata struct {
 	NIP05       string `json:"nip05,omitempty"`
 	Lud06       string `json:"lud06,omitempty"`
 	Lud16       string `json:"lud16,omitempty"`
+}
+
+type RelayInfo struct {
+	URL   string `json:"url"`
+	Read  bool   `json:"read"`
+	Write bool   `json:"write"`
+}
+
+type FollowInfo struct {
+	PubKey  string `json:"pubkey"`
+	NPub    string `json:"npub"`
+	Relay   string `json:"relay,omitempty"`
+	Petname string `json:"petname,omitempty"`
+}
+
+type FullProfile struct {
+	NPub      string        `json:"npub"`
+	PubKey    string        `json:"pubkey"`
+	Metadata  *ProfileMetadata `json:"metadata,omitempty"`
+	Relays    []RelayInfo   `json:"relays,omitempty"`
+	DMRelays  []string      `json:"dm_relays,omitempty"`
+	Follows   []FollowInfo  `json:"follows,omitempty"`
 }
 
 func profileConfigToMetadata(pc config.ProfileConfig) ProfileMetadata {
@@ -255,4 +278,88 @@ func FetchRecipientReadRelays(ctx context.Context, app *config.AppContext, recip
 	}
 
 	return readRelays, nil
+}
+
+func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) (*FullProfile, error) {
+	if opts == nil || opts.App == nil {
+		return nil, fmt.Errorf("nil options")
+	}
+
+	knownRelays := opts.App.Config().KnownRelays
+	if len(knownRelays) == 0 {
+		return nil, fmt.Errorf("no known relays")
+	}
+
+	fp := &FullProfile{
+		NPub:   nip19.EncodeNpub(pubKey),
+		PubKey: pubKey.Hex(),
+	}
+
+	metadataEvent := GetProfile(ctx, pubKey, opts)
+	if metadataEvent != nil {
+		var m ProfileMetadata
+		if err := json.Unmarshal([]byte(metadataEvent.Content), &m); err == nil {
+			fp.Metadata = &m
+		}
+	}
+
+	filter := nostr.Filter{
+		Kinds:   []nostr.Kind{nostr.KindRelayListMetadata},
+		Authors: []nostr.PubKey{pubKey},
+		Limit:   1,
+	}
+	result := opts.App.Pool().QuerySingle(ctx, knownRelays, filter, nostr.SubscriptionOptions{})
+	if result != nil && result.Event.ID != [32]byte{} {
+		for _, tag := range result.Event.Tags {
+			if len(tag) >= 2 && tag[0] == "r" {
+				r := RelayInfo{URL: tag[1]}
+				for _, p := range tag[2:] {
+					if p == "read" {
+						r.Read = true
+					} else if p == "write" {
+						r.Write = true
+					}
+				}
+				fp.Relays = append(fp.Relays, r)
+			}
+		}
+	}
+
+	dmRelays, _ := FetchRecipientDMRelays(ctx, opts.App, pubKey)
+	if dmRelays != nil {
+		fp.DMRelays = dmRelays
+	}
+
+	followFilter := nostr.Filter{
+		Kinds:   []nostr.Kind{nostr.KindFollowList},
+		Authors: []nostr.PubKey{pubKey},
+		Limit:   1,
+	}
+	followResult := opts.App.Pool().QuerySingle(ctx, knownRelays, followFilter, nostr.SubscriptionOptions{})
+	if followResult != nil && followResult.Event.ID != [32]byte{} {
+		for _, tag := range followResult.Event.Tags {
+			if len(tag) >= 2 && tag[0] == "p" {
+				pkHex := tag[1]
+				var pk nostr.PubKey
+				copy(pk[:], []byte(pkHex))
+				fi := FollowInfo{
+					PubKey: pkHex,
+					NPub:   nip19.EncodeNpub(pk),
+				}
+				if len(tag) >= 3 {
+					fi.Relay = tag[2]
+				}
+				if len(tag) >= 4 {
+					fi.Petname = tag[3]
+				}
+				fp.Follows = append(fp.Follows, fi)
+			}
+		}
+	}
+
+	return fp, nil
+}
+
+func SerializeProfile(fp *FullProfile) ([]byte, error) {
+	return json.MarshalIndent(fp, "", "  ")
 }
