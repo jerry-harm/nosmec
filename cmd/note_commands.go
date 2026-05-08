@@ -3,10 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
@@ -19,16 +19,16 @@ func registerNoteCommands() {
 
 	noteTimelineCmd := &cobra.Command{
 		Use:   "timeline",
-		Short: "Show timeline",
+		Short: "Show timeline with TUI",
 		Run: func(cmd *cobra.Command, args []string) {
 			filter := "followed"
 			if global, _ := cmd.Flags().GetBool("global"); global {
 				filter = "global"
-			} else if f, err := cmd.Flags().GetString("filter"); err == nil && f != "" {
-				filter = f
+			} else if mine, _ := cmd.Flags().GetBool("mine"); mine {
+				filter = "mine"
 			}
 
-			limit := 10
+			limit := 50
 			if l, err := cmd.Flags().GetInt("limit"); err == nil && l > 0 {
 				limit = l
 			}
@@ -38,57 +38,21 @@ func registerNoteCommands() {
 				hashtags = h
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-
 			app := getApp()
-			opts := &utils.GetOptions{App: app}
-
-			var events []utils.TimelineEvent
-			var err error
-
-			switch filter {
-			case "global":
-				nostrEvents, e := utils.GetGlobalTimeline(ctx, limit, opts)
-				if e != nil {
-					handleError(e)
-				}
-				for _, e := range nostrEvents {
-					events = append(events, utils.TimelineEvent{Event: e})
-				}
-			case "mine":
-				nostrEvents, e := utils.GetMyTimeline(ctx, limit, opts)
-				if e != nil {
-					handleError(e)
-				}
-				for _, e := range nostrEvents {
-					events = append(events, utils.TimelineEvent{Event: e})
-				}
-			default:
-				events, err = utils.GetFollowedTimeline(ctx, limit, hashtags, opts)
-				if err != nil {
-					handleError(err)
-				}
+			if err := timeline.RunTimeline(app, filter, hashtags, limit); err != nil {
+				handleError(err)
 			}
-
-			if len(events) == 0 {
-				fmt.Println("No notes found.")
-				return
-			}
-
-			printTimeline(events)
 		},
 	}
 
+	noteTimelineCmd.Flags().Bool("follow", false, "Show followed timeline (default)")
+	noteTimelineCmd.Flags().Bool("mine", false, "Show my timeline")
 	noteTimelineCmd.Flags().Bool("global", false, "Show global timeline")
-	noteTimelineCmd.Flags().StringP("filter", "f", "followed", "Timeline filter: followed, global, mine")
-	noteTimelineCmd.Flags().IntP("limit", "n", 10, "Number of notes to show")
+	noteTimelineCmd.Flags().IntP("limit", "n", 50, "Number of notes to show")
 	noteTimelineCmd.Flags().StringSliceP("hashtag", "t", nil, "Filter by hashtags")
 
-	noteTimelineCmd.RegisterFlagCompletionFunc("filter", completion.FilterCompletionFunc)
 	noteTimelineCmd.RegisterFlagCompletionFunc("limit", completion.LimitCompletionFunc)
 	noteTimelineCmd.RegisterFlagCompletionFunc("hashtag", completion.HashtagCompletionFunc)
-	noteTimelineCmd.RegisterFlagCompletionFunc("global", completion.GlobalCompletionFunc)
 
 	notePostCmd := &cobra.Command{
 		Use:   "post <content>",

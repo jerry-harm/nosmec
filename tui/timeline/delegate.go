@@ -1,101 +1,64 @@
 package timeline
 
 import (
-	"fmt"
-	"io"
-	"strings"
-
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
-	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
+	tea "charm.land/bubbletea/v2"
+	"github.com/jerry-harm/nosmec/utils"
 )
 
-type timelineDelegate struct {
-	list.DefaultDelegate
-	width  int
-	height int
+type delegateKeyMap struct {
+	open key.Binding
 }
 
-func newTimelineDelegate(width, height int) timelineDelegate {
+func newDelegateKeyMap() *delegateKeyMap {
+	return &delegateKeyMap{
+		open: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "view"),
+		),
+	}
+}
+
+func (d delegateKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{d.open}
+}
+
+func (d delegateKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{d.open}}
+}
+
+func newItemDelegate(keys *delegateKeyMap, sty *styles) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
-	d.ShowDescription = true
-	d.SetHeight(height)
-	d.SetSpacing(0)
 
-	return timelineDelegate{
-		DefaultDelegate: d,
-		width:          width,
-		height:         height,
-	}
-}
-
-func (d timelineDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
-	var title, desc string
-
-	if i, ok := item.(eventItem); ok {
-		title = i.Title()
-		desc = i.Description()
-	} else {
-		return
-	}
-
-	if m.Width() <= 0 {
-		return
-	}
-
-	textwidth := m.Width() - 4
-
-	title = ansi.Truncate(title, textwidth, ellipsis)
-
-	if d.ShowDescription {
-		var lines []string
-		for i, line := range strings.Split(desc, "\n") {
-			if i >= d.height-1 {
-				break
+	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
+		if kpm, ok := msg.(tea.KeyPressMsg); ok {
+			if key.Matches(kpm, keys.open) {
+				if i, ok := m.SelectedItem().(item); ok {
+					return func() tea.Msg {
+						return showDetailMsg{event: i.event}
+					}
+				}
 			}
-			lines = append(lines, ansi.Truncate(line, textwidth, ellipsis))
 		}
-		desc = strings.Join(lines, "\n")
+		return nil
 	}
 
-	isSelected := index == m.Index()
+	help := []key.Binding{keys.open}
 
-	if isSelected {
-		title = SelectedTitleStyle.Render(title)
-		desc = SelectedDescStyle.Render(desc)
-	} else {
-		title = NormalTitleStyle.Render(title)
-		desc = NormalDescStyle.Render(desc)
+	d.ShortHelpFunc = func() []key.Binding {
+		return help
 	}
 
-	if d.ShowDescription {
-		fmt.Fprintf(w, "%s\n%s", title, desc)
-		return
+	d.FullHelpFunc = func() [][]key.Binding {
+		return [][]key.Binding{help}
 	}
-	fmt.Fprintf(w, "%s", title)
+
+	return d
 }
 
-var (
-	ellipsis = "…"
+type showDetailMsg struct {
+	event utils.TimelineEvent
+}
 
-	NormalTitleStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#00FF00")).
-				Bold(true).
-				Padding(0, 0, 0, 2)
-
-	NormalDescStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#AAAAAA"))
-
-	SelectedTitleStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#00FF00")).
-				Bold(true).
-				Border(lipgloss.NormalBorder(), false, false, false, true).
-				BorderForeground(lipgloss.Color("#25A065")).
-				Padding(0, 0, 0, 1)
-
-	SelectedDescStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FFFFFF")).
-				Border(lipgloss.NormalBorder(), false, false, false, true).
-				BorderForeground(lipgloss.Color("#25A065")).
-				Padding(0, 0, 0, 1)
-)
+type closeDetailMsg struct{}

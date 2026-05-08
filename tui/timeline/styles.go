@@ -2,67 +2,48 @@ package timeline
 
 import "charm.land/lipgloss/v2"
 
-var (
-	TitleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#00FF00"))
+type styles struct {
+	app           lipgloss.Style
+	title         lipgloss.Style
+	statusMessage lipgloss.Style
+	helpStyle     lipgloss.Style
+	itemTitle     lipgloss.Style
+	itemDesc      lipgloss.Style
+	detailBox     lipgloss.Style
+	detailHeader  lipgloss.Style
+	detailContent lipgloss.Style
+	detailFooter  lipgloss.Style
+}
 
-	HelpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666"))
+func newStyles(darkBG bool) styles {
+	lightDark := lipgloss.LightDark(darkBG)
 
-	SpinnerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00"))
-
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF4444"))
-
-	EmptyStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888"))
-
-	DelegateItemStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FFFFFF"))
-
-	DelegateTitleStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#00AAFF"))
-
-	DelegateDescStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#AAAAAA"))
-
-	DelegateSelectedPrefix = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#00FF00"))
-
-	DelegateNormalPrefix = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#666666"))
-
-	CommunityStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFAA00")).
-			Bold(true)
-
-	NoteStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00AAFF"))
-
-	AuthorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#AAAAAA"))
-
-	TimeStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#666666"))
-
-	ContentStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#DDDDDD"))
-
-	EventIDStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#888888"))
-
-	ProfileNameStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00FF00")).
-		Bold(true)
-
-	NpubStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#AAAAAA"))
-
-	ReplyToStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#888888"))
-
-	QuoteStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#888888"))
-)
+	return styles{
+		app: lipgloss.NewStyle().
+			Padding(1, 2),
+		title: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#25A065")).
+			Padding(0, 1),
+		statusMessage: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#04B575"), lipgloss.Color("#059C4B"))),
+		helpStyle: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#9A9A9A"), lipgloss.Color("#6B6B6B"))),
+		itemTitle: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Bold(true),
+		itemDesc: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#AAAAAA"), lipgloss.Color("#7A7A7A"))),
+		detailBox: lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lightDark(lipgloss.Color("#25A065"), lipgloss.Color("#25A065"))).
+			Padding(1, 1),
+		detailHeader: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Bold(true),
+		detailContent: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#FFFFFF"), lipgloss.Color("#1A1A1A"))),
+		detailFooter: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#666666"), lipgloss.Color("#888888"))),
+	}
+}
