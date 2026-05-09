@@ -105,3 +105,40 @@ TUI详情页截断修复; 统一community命令ID格式; 修复CacheFilter初始
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Channel-based async queries + NOTICE suppression + TUI rate limit
+
+**Date**: 2026-05-09
+**Task**: Channel-based async queries + NOTICE suppression + TUI rate limit
+**Branch**: `main`
+
+### Summary
+
+Refactored all nostr query functions (GetMyTimeline, GetGlobalTimeline, GetFollowedTimeline, GetCommunityPosts, GetMyCreatedCommunities, GetPostedCommunities) to return chan *nostr.Event instead of ([]Event, error), yielding events as they arrive. Added NoticeHandler to config.NewPool() to suppress 'too many concurrent REQs' NOTICE noise (logs at DEBUG instead of stderr). Added 2-second refresh rate limit in TUI fetchTimeline via lastRefresh cooldown. All changes committed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b6a3884` | (see git log) |
+| `fe8fe19` | (see git log) |
+| `0dddf9e` | (see git log) |
+| `7917acb` | (see git log) |
+| `bc9ced4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

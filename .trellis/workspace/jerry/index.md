@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
+- **Total Sessions**: 4
 - **Last Active**: 2026-05-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~107 | Active |
+| `journal-1.md` | ~144 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-05-09 | Channel-based async queries + NOTICE suppression + TUI rate limit | `b6a3884`, `fe8fe19`, `0dddf9e`, `7917acb`, `bc9ced4` | `main` |
 | 3 | 2026-05-09 | Inline session: TUI fix, community commands, cache filter, bleve | - | `main` |
 | 2 | 2026-05-09 | 订阅功能配置化改进 | `021f731` | `main` |
 | 1 | 2026-05-09 | Clean up Manus planning files; commit all WIP changes | `dc5a9a3`, `a810e6a`, `bbc9637`, `759282a` | `main` |
