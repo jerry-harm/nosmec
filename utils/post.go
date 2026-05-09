@@ -27,7 +27,7 @@ func PostNote(ctx context.Context, app *config.AppContext, content string) (*nos
 		return nil, err
 	}
 
-	writableRelays := app.WritableRelays()
+	writableRelays := app.AllWritableRelays()
 	if len(writableRelays) > 0 {
 		resultChan := app.Pool().PublishMany(ctx, writableRelays, *event)
 		for result := range resultChan {
@@ -69,7 +69,7 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 		return nil, err
 	}
 
-	writableRelays := app.WritableRelays()
+	writableRelays := app.AllWritableRelays()
 	if len(writableRelays) > 0 {
 		resultChan := app.Pool().PublishMany(ctx, writableRelays, *event)
 		for result := range resultChan {
@@ -104,7 +104,7 @@ func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content st
 		return nil, err
 	}
 
-	writableRelays := app.WritableRelays()
+	writableRelays := app.AllWritableRelays()
 	if len(writableRelays) > 0 {
 		resultChan := app.Pool().PublishMany(ctx, writableRelays, *event)
 		for result := range resultChan {

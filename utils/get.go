@@ -113,8 +113,8 @@ func isReplaceableKind(kinds []nostr.Kind) bool {
 
 func shouldCache(event *nostr.Event, app *config.AppContext) bool {
 	filters := app.Config().CacheFilters
-	for _, f := range filters {
-		if f.Matches(*event) {
+	for _, cf := range filters {
+		if cf.ToNostr().Matches(*event) {
 			return true
 		}
 	}

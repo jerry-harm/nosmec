@@ -11,7 +11,7 @@ import (
 func (m *EventView) renderHeader() string {
 	e := m.event
 
-	author := e.PubKey.Hex()[:8]
+	author := e.PubKey.Hex()
 	if profileName := utils.GetProfileName(context.Background(), e.PubKey, &utils.GetOptions{App: m.app}); profileName != "" {
 		author = profileName
 	}
@@ -32,9 +32,9 @@ func (m *EventView) renderContent() string {
 			case "t":
 				tagParts = append(tagParts, m.styles.tags.Render("#"+tag[1]))
 			case "p":
-				tagParts = append(tagParts, m.styles.tags.Render("@"+tag[1][:8]))
+				tagParts = append(tagParts, m.styles.tags.Render("@"+tag[1]))
 			case "e":
-				tagParts = append(tagParts, m.styles.tags.Render("→"+tag[1][:8]))
+				tagParts = append(tagParts, m.styles.tags.Render("→"+tag[1]))
 			case "r":
 				tagParts = append(tagParts, m.styles.tags.Render(tag[1]))
 			}
@@ -58,7 +58,7 @@ func (m *EventView) renderContent() string {
 		out += strings.Join(tagParts, " ")
 	}
 
-	out += fmt.Sprintf("\nID: %s", m.styles.tags.Render(e.ID.Hex()[:16]+"..."))
+	out += fmt.Sprintf("\nID: %s", m.styles.tags.Render(e.ID.Hex()))
 
 	return out
 }

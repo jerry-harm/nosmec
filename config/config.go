@@ -9,7 +9,8 @@ import (
 	"sync"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore/lmdb"
+	"fiatjaf.com/nostr/eventstore/bleve"
+	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/logger"
@@ -94,9 +95,7 @@ func loadConfig() *Config {
 	globalViper.SetDefault("dm_relays", []string{})
 	globalViper.SetDefault("search_relays", []string{})
 	globalViper.SetDefault("private_relays", []string{})
-	globalViper.SetDefault("cache_filters", []map[string]interface{}{
-		{"kinds": []int{0, 3, 10002, 10050}},
-	})
+
 	globalViper.SetDefault("subscriptions", []Subscription{})
 
 	err := globalViper.ReadInConfig()
@@ -122,18 +121,6 @@ func loadConfig() *Config {
 		logger.Fatal("unable to decode config into struct", "error", err.Error())
 	}
 
-	if config.CacheFilters == nil || len(config.CacheFilters) == 0 {
-		config.CacheFilters = []nostr.Filter{
-			{Kinds: []nostr.Kind{0, 3, 10002, 10050}},
-		}
-		globalViper.Set("cache_filters", []map[string]interface{}{
-			{"kinds": []int{0, 3, 10002, 10050}},
-		})
-		if err := globalViper.WriteConfigAs(configFile); err != nil {
-			logger.Warn("could not write config file", "error", err.Error())
-		}
-	}
-
 	config.ConfigDir = configDir
 
 	if config.LocalRelay.Port == "" {
@@ -155,17 +142,25 @@ func loadConfig() *Config {
 		}
 	}
 
-	if config.CacheFilters == nil {
+	if config.CacheFilters == nil || len(config.CacheFilters) == 0 {
+		defaultFilters := []CacheFilter{
+			{Kinds: []int{0, 3, 10002, 10050}},
+		}
+
 		_, s, err := nip19.Decode(config.PrivateKey)
 		if err == nil {
 			if sk, ok := s.(nostr.SecretKey); ok {
 				pubKey := sk.Public()
-				var allKinds []nostr.Kind
-				config.CacheFilters = []nostr.Filter{
-					{Kinds: []nostr.Kind{0, 3, 10002, 10050}},
-					{Kinds: allKinds, Authors: []nostr.PubKey{pubKey}},
-				}
+				defaultFilters = append(defaultFilters, CacheFilter{
+					Authors: []string{pubKey.Hex()},
+				})
 			}
+		}
+
+		config.CacheFilters = defaultFilters
+		globalViper.Set("cache_filters", config.CacheFilters)
+		if err := globalViper.WriteConfigAs(configFile); err != nil {
+			logger.Warn("could not write config file", "error", err.Error())
 		}
 	}
 
@@ -191,11 +186,20 @@ func SetPool(p *nostr.Pool) {
 }
 
 func NewLMDB(dataDir string) (StoreInterface, error) {
-	lmdbStore := &lmdb.LMDBBackend{Path: filepath.Join(dataDir, "nosmec.db")}
-	if err := lmdbStore.Init(); err != nil {
-		return nil, fmt.Errorf("failed to initialize LMDB: %w", err)
+	boltStore := &boltdb.BoltBackend{Path: filepath.Join(dataDir, "nosmec.db")}
+	if err := boltStore.Init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize BoltDB: %w", err)
 	}
-	return lmdbStore, nil
+
+	bleveStore := &bleve.BleveBackend{
+		Path:          filepath.Join(dataDir, "bleve-index"),
+		RawEventStore: boltStore,
+	}
+	if err := bleveStore.Init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize Bleve: %w", err)
+	}
+
+	return bleveStore, nil
 }
 
 func GlobalLMDB() StoreInterface {

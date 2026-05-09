@@ -67,18 +67,18 @@ func registerCommunityCommands() {
 	communityCreateCmd.Flags().String("image", "", "Community image URL")
 
 	communityPostCmd := &cobra.Command{
-		Use:               "post <community-id> <content>",
+		Use:               "post <community-addr> <content>",
 		Short:             "Post to a community",
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: completion.CommunityCompletionFunc,
 		Run: func(cmd *cobra.Command, args []string) {
-			communityID := args[0]
+			communityAddr := args[0]
 			content := args[1]
 
 			app := getApp()
 			ctx := context.Background()
 
-			event, err := utils.PostToCommunity(ctx, app, communityID, content, "")
+			event, err := utils.PostToCommunity(ctx, app, communityAddr, content, "")
 			if err != nil {
 				handleError(newError("failed to post", err))
 			}
@@ -177,18 +177,17 @@ func registerCommunityCommands() {
 	}
 
 	communityInfoCmd := &cobra.Command{
-		Use:               "info <author> <id>",
+		Use:               "info <community-addr>",
 		Short:             "Show community info",
-		Args:              cobra.ExactArgs(2),
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.CommunityCompletionFunc,
 		Run: func(cmd *cobra.Command, args []string) {
-			authorIdentifier := args[0]
-			communityID := args[1]
+			communityAddr := args[0]
 
 			app := getApp()
-			authorPubKey, err := utils.ResolveAliasToPubKey(app, authorIdentifier)
+			authorPubKey, communityID, err := utils.ParseCommunityAddr(communityAddr)
 			if err != nil {
-				handleError(newError("failed to parse author", err))
+				handleError(newError("failed to parse community address", err))
 			}
 
 			ctx := context.Background()
@@ -222,18 +221,17 @@ func registerCommunityCommands() {
 	}
 
 	communityTimelineCmd := &cobra.Command{
-		Use:               "timeline <author> <id>",
+		Use:               "timeline <community-addr>",
 		Short:             "Show community timeline",
-		Args:              cobra.ExactArgs(2),
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.CommunityCompletionFunc,
 		Run: func(cmd *cobra.Command, args []string) {
-			authorIdentifier := args[0]
-			communityID := args[1]
+			communityAddr := args[0]
 
 			app := getApp()
-			authorPubKey, err := utils.ResolveAliasToPubKey(app, authorIdentifier)
+			authorPubKey, communityID, err := utils.ParseCommunityAddr(communityAddr)
 			if err != nil {
-				handleError(newError("failed to parse author", err))
+				handleError(newError("failed to parse community address", err))
 			}
 
 			limit := 10
@@ -252,7 +250,7 @@ func registerCommunityCommands() {
 				return
 			}
 
-			fmt.Printf("Recent posts in %s:%s:\n", authorIdentifier, communityID)
+			fmt.Printf("Recent posts in %s:\n", communityAddr)
 			fmt.Println(strings.Repeat("=", 50))
 			for i, event := range events {
 				fmt.Printf("\n[%d] %s\n", i+1, event.ID.Hex()[:16]+"...")
