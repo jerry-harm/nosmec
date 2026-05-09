@@ -1,0 +1,5 @@
+{"file": "config/types.go", "reason": "RelayList and DMRelays config fields that need publishing"}
+{"file": "config/context.go", "reason": "Relay helper methods and config mutation points"}
+{"file": "utils/post.go", "reason": "PublishEvent function pattern to follow for kind:10002/10050"}
+{"file": "utils/dm.go", "reason": "DM relay usage patterns"}
+{"file": "cmd/config_commands.go", "reason": "Where relay configs are mutated via CLI"}
