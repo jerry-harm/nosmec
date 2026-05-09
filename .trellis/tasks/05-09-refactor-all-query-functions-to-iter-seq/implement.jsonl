@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Defines how nostr relay interactions should be structured"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Defines code quality bar for Go changes (lint, typecheck)"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns (errors logged, not propagated)"}
+{"file": ".trellis/tasks/05-09-refactor-all-query-functions-to-iter-seq/prd.md", "reason": "Contains the full requirements and API shape for this refactor"}

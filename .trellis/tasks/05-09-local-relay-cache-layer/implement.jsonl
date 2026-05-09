@@ -1,0 +1,2 @@
+{"file": "utils/get.go", "reason": "Main file being refactored: QueryEventsCached and timeline functions returning iter.Seq[Event]"}
+{"file": "tui/timeline/model.go", "reason": "Main caller of QueryEventsCached/GetFollowedTimeline - needs to adapt to iter.Seq signatures"}

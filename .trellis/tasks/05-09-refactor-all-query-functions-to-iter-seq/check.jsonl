@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Verify no BoltDB access from client code, all reads go through WS relay"}
+{"file": ".trellis/tasks/05-09-refactor-all-query-functions-to-iter-seq/prd.md", "reason": "Verify API shape matches prd requirements"}

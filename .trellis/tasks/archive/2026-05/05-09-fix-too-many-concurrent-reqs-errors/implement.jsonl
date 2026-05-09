@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/05-09-fix-too-many-concurrent-reqs-errors/research/nostr-concurrency.md", "reason": "Confirmed no built-in throttle in nostr.Pool, NoticeHandler approach validated"}
+{"file": "config/config.go", "reason": "Where NoticeHandler was added to suppress NOTICE logs"}
+{"file": "tui/timeline/model.go", "reason": "Where lastRefresh rate limiting was added"}
