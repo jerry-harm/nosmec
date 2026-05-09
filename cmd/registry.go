@@ -26,7 +26,6 @@ func registerDefaultCommands() {
 	registerProfileCommands()
 	registerDMCommands()
 	registerCommunityCommands()
-	registerSubscribeCommands()
 }
 
 type commandGroup struct {
