@@ -74,3 +74,34 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Inline session: TUI fix, community commands, cache filter, bleve
+
+**Date**: 2026-05-09
+**Task**: Inline session: TUI fix, community commands, cache filter, bleve
+**Branch**: `main`
+
+### Summary
+
+TUI详情页截断修复; 统一community命令ID格式; 修复CacheFilter初始化逻辑和ToNostr PubKey转换; PostNote改用AllWritableRelays发布到本地relay; 存储从lmdb切换到boltdb+bleve支持全文搜索
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
