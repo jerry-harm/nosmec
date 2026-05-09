@@ -7,34 +7,15 @@ import (
 	"github.com/jerry-harm/nosmec/utils"
 )
 
-type delegateKeyMap struct {
-	open key.Binding
-}
-
-func newDelegateKeyMap() *delegateKeyMap {
-	return &delegateKeyMap{
-		open: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "view"),
-		),
-	}
-}
-
-func (d delegateKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{d.open}
-}
-
-func (d delegateKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{d.open}}
-}
-
-func newItemDelegate(keys *delegateKeyMap, sty *styles) list.DefaultDelegate {
+func newItemDelegate(keys *delegateKeyMap, styles *styles) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
-		if kpm, ok := msg.(tea.KeyPressMsg); ok {
-			if key.Matches(kpm, keys.open) {
-				if i, ok := m.SelectedItem().(item); ok {
+		if i, ok := m.SelectedItem().(item); ok {
+			switch msg := msg.(type) {
+			case tea.KeyPressMsg:
+				switch {
+				case key.Matches(msg, keys.open):
 					return func() tea.Msg {
 						return showDetailMsg{event: i.event}
 					}
@@ -55,6 +36,33 @@ func newItemDelegate(keys *delegateKeyMap, sty *styles) list.DefaultDelegate {
 	}
 
 	return d
+}
+
+type delegateKeyMap struct {
+	open key.Binding
+}
+
+func (d delegateKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		d.open,
+	}
+}
+
+func (d delegateKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			d.open,
+		},
+	}
+}
+
+func newDelegateKeyMap() *delegateKeyMap {
+	return &delegateKeyMap{
+		open: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "view"),
+		),
+	}
 }
 
 type showDetailMsg struct {

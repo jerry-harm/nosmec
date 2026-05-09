@@ -2,7 +2,6 @@ package timeline
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -10,8 +9,8 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/tui/window/event"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -29,28 +28,66 @@ type item struct {
 	event      utils.TimelineEvent
 	authorName string
 	kind       eventKind
-	width      int
 }
 
-func (i item) Title() string {
-	return formatItemTitle(i)
+func (i item) Title() string       { return formatItemTitle(i) }
+func (i item) Description() string { return formatItemDescription(i.event.Event.Content) }
+func (i item) FilterValue() string { return i.event.Event.Content }
+
+type styles struct {
+	app           lipgloss.Style
+	title         lipgloss.Style
+	statusMessage lipgloss.Style
+	itemTitle     lipgloss.Style
+	itemDesc      lipgloss.Style
+	itemSelected  lipgloss.Style
+	detailBox     lipgloss.Style
+	detailHeader  lipgloss.Style
+	detailContent lipgloss.Style
+	helpStyle     lipgloss.Style
 }
 
-func (i item) Description() string {
-	return formatItemDescription(i.event.Event.Content, i.width)
-}
+func newStyles(darkBG bool) styles {
+	lightDark := lipgloss.LightDark(darkBG)
 
-func (i item) FilterValue() string {
-	return i.event.Event.Content
+	return styles{
+		app: lipgloss.NewStyle().
+			Padding(1, 2),
+		title: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#25A065")).
+			Padding(0, 1),
+		statusMessage: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#04B575"), lipgloss.Color("#04B575"))),
+		itemTitle: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Bold(true),
+		itemDesc: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#AAAAAA"), lipgloss.Color("#7A7A7A"))),
+		itemSelected: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFF00")).
+			Bold(true),
+		detailBox: lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("#25A065")).
+			Padding(1, 1),
+		detailHeader: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Bold(true),
+		detailContent: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#FFFFFF"), lipgloss.Color("#1A1A1A"))),
+		helpStyle: lipgloss.NewStyle().
+			Foreground(lightDark(lipgloss.Color("#9A9A9A"), lipgloss.Color("#6B6B6B"))),
+	}
 }
 
 type model struct {
-	styles   styles
-	darkBG   bool
-	width    int
-	height   int
-	list     list.Model
-	keys     *keyMap
+	styles    styles
+	darkBG    bool
+	width     int
+	height    int
+	list      list.Model
+	keys      *listKeyMap
 	delegateKeys *delegateKeyMap
 
 	app      *config.AppContext
@@ -62,18 +99,18 @@ type model struct {
 	detailEvent   *utils.TimelineEvent
 }
 
-type keyMap struct {
+type listKeyMap struct {
 	refresh         key.Binding
 	quit            key.Binding
+	toggleSpinner   key.Binding
 	toggleTitleBar  key.Binding
 	toggleStatusBar key.Binding
 	togglePagination key.Binding
 	toggleHelpMenu  key.Binding
-	closeDetail     key.Binding
 }
 
-func newKeyMap() *keyMap {
-	return &keyMap{
+func newListKeyMap() *listKeyMap {
+	return &listKeyMap{
 		refresh: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "refresh"),
@@ -81,6 +118,10 @@ func newKeyMap() *keyMap {
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
+		),
+		toggleSpinner: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "toggle spinner"),
 		),
 		toggleTitleBar: key.NewBinding(
 			key.WithKeys("T"),
@@ -98,10 +139,6 @@ func newKeyMap() *keyMap {
 			key.WithKeys("H"),
 			key.WithHelp("H", "toggle help"),
 		),
-		closeDetail: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "close"),
-		),
 	}
 }
 
@@ -113,36 +150,26 @@ type errorMsg struct {
 	err error
 }
 
-type usernameMsg struct {
-	pubkey string
-	name   string
-}
-
 func NewModel(app *config.AppContext, filter string, hashtags []string, limit int) *model {
-	m := model{
+	m := &model{
 		app:      app,
 		filter:   filter,
 		hashtags: hashtags,
 		limit:    limit,
 	}
 	m.styles = newStyles(false)
-	m.keys = newKeyMap()
+	m.keys = newListKeyMap()
 	m.delegateKeys = newDelegateKeyMap()
 
 	delegate := newItemDelegate(m.delegateKeys, &m.styles)
-	l := list.New(nil, delegate, 0, 0)
-	l.SetShowTitle(true)
-	l.SetShowHelp(true)
-	l.SetShowStatusBar(true)
-	l.SetShowPagination(true)
-	l.SetFilteringEnabled(true)
-	l.Title = "Timeline"
-	l.Styles.Title = m.styles.title
-	m.list = l
+	groceryList := list.New(nil, delegate, 0, 0)
+	groceryList.Title = "Timeline"
+	groceryList.Styles.Title = m.styles.title
 
-	m.list.AdditionalFullHelpKeys = func() []key.Binding {
+	groceryList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			m.keys.refresh,
+			m.keys.toggleSpinner,
 			m.keys.toggleTitleBar,
 			m.keys.toggleStatusBar,
 			m.keys.togglePagination,
@@ -150,14 +177,25 @@ func NewModel(app *config.AppContext, filter string, hashtags []string, limit in
 		}
 	}
 
-	return &m
+	m.list = groceryList
+
+	return m
 }
 
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor,
+		m.list.StartSpinner(),
 		m.fetchTimeline(),
 	)
+}
+
+func (m *model) updateListProperties() {
+	h, v := m.styles.app.GetFrameSize()
+	m.list.SetSize(m.width-h, m.height-v)
+
+	m.styles = newStyles(m.darkBG)
+	m.list.Styles.Title = m.styles.title
 }
 
 func (m *model) fetchTimeline() tea.Cmd {
@@ -201,16 +239,9 @@ func (m *model) fetchTimeline() tea.Cmd {
 	}
 }
 
-func (m *model) updateListProperties() {
-	h, v := m.styles.app.GetFrameSize()
-	if !m.showingDetail {
-		m.list.SetSize(m.width-h, m.height-v)
-	}
-	m.styles = newStyles(m.darkBG)
-	m.list.Styles.Title = m.styles.title
-}
-
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
 		m.darkBG = msg.IsDark()
@@ -221,6 +252,26 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.updateListProperties()
 		return m, nil
+
+	case fetchMsg:
+		items := make([]list.Item, 0, len(msg.events))
+		for _, e := range msg.events {
+			kind := detectEventKind(e)
+			authorName := utils.GetProfileName(context.Background(), e.Event.PubKey, &utils.GetOptions{App: m.app})
+			items = append(items, item{
+				event:      e,
+				authorName: authorName,
+				kind:       kind,
+			})
+		}
+		m.list.SetItems(items)
+		m.list.StopSpinner()
+		return m, nil
+
+	case errorMsg:
+		statusCmd := m.list.NewStatusMessage(m.styles.statusMessage.Render("Error: " + msg.err.Error()))
+		m.list.StopSpinner()
+		return m, statusCmd
 
 	case showDetailMsg:
 		m.showingDetail = true
@@ -237,20 +288,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateDetail(msg)
 	}
 
-	return m.updateList(msg)
-}
-
-func (m *model) updateDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg.(type) {
-	case tea.KeyPressMsg:
-		return m, func() tea.Msg { return closeDetailMsg{} }
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.(tea.WindowSizeMsg).Width, msg.(tea.WindowSizeMsg).Height
-	}
-	return m, nil
-}
-
-func (m *model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if m.list.FilterState() == list.Filtering {
@@ -259,7 +296,12 @@ func (m *model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, m.keys.refresh):
-			return m, m.fetchTimeline()
+			cmds = append(cmds, m.list.StartSpinner())
+			cmds = append(cmds, m.fetchTimeline())
+
+		case key.Matches(msg, m.keys.toggleSpinner):
+			cmd := m.list.ToggleSpinner()
+			return m, cmd
 
 		case key.Matches(msg, m.keys.quit):
 			return m, tea.Quit
@@ -287,68 +329,27 @@ func (m *model) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	newListModel, cmd := m.list.Update(msg)
 	m.list = newListModel
-	return m, cmd
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *model) updateDetail(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg.(type) {
+	case tea.KeyPressMsg:
+		return m, func() tea.Msg { return closeDetailMsg{} }
+	}
+	return m, nil
 }
 
 func (m *model) View() tea.View {
-	if m.showingDetail {
-		v := tea.NewView(m.viewDetail())
-		v.AltScreen = true
-		return v
+	if m.showingDetail && m.detailEvent != nil {
+		ev := event.New(&m.detailEvent.Event, m.app, m.width, m.height)
+		return ev.View()
 	}
 	v := tea.NewView(m.styles.app.Render(m.list.View()))
 	v.AltScreen = true
 	return v
-}
-
-func (m *model) viewDetail() string {
-	if m.detailEvent == nil {
-		return ""
-	}
-
-	e := m.detailEvent.Event
-	author := e.PubKey.Hex()[:8]
-	if profileName := utils.GetProfileName(context.Background(), e.PubKey, &utils.GetOptions{App: m.app}); profileName != "" {
-		author = profileName
-	}
-
-	timeStr := e.CreatedAt.Time().Format("2006-01-02 15:04")
-	kindStr := fmt.Sprintf("Kind: %d", e.Kind)
-	idStr := "ID: " + e.ID.Hex()[:16] + "..."
-
-	content := e.Content
-	lines := strings.Split(content, "\n")
-	maxWidth := m.width - 10
-	if maxWidth < 20 {
-		maxWidth = 60
-	}
-	var wrappedLines []string
-	for _, line := range lines {
-		wrapped := lipgloss.Wrap(line, maxWidth, " \t")
-		wrappedLines = append(wrappedLines, strings.Split(wrapped, "\n")...)
-	}
-	content = strings.Join(wrappedLines, "\n")
-
-	var tagParts []string
-	for _, tag := range e.Tags {
-		if len(tag) >= 2 {
-			if tag[0] == "t" || tag[0] == "p" || tag[0] == "e" {
-				tagParts = append(tagParts, "#"+tag[1])
-			}
-		}
-	}
-	tagStr := strings.Join(tagParts, " ")
-
-	header := fmt.Sprintf("@%s | %s | %s\n%s | %s", author, timeStr, kindStr, idStr, tagStr)
-	helpLine := "esc: close | r: refresh"
-
-	headerText := m.styles.detailHeader.Render(header)
-	contentText := m.styles.detailContent.Render(content)
-	helpText := m.styles.helpStyle.Render(helpLine)
-
-	box := m.styles.detailBox.Render(headerText + "\n\n" + contentText)
-
-	return m.styles.app.Render(box + "\n" + helpText)
 }
 
 func detectEventKind(e utils.TimelineEvent) eventKind {
@@ -396,27 +397,15 @@ func formatItemTitle(i item) string {
 	return prefix
 }
 
-func formatItemDescription(content string, width int) string {
-	if width < 20 {
-		width = 60
+func formatItemDescription(content string) string {
+	if content == "" {
+		return ""
 	}
-	wrapped := lipgloss.Wrap(content, width-10, " \t\n")
+	wrapped := lipgloss.Wrap(content, 60, " \t\n")
 	lines := strings.Split(wrapped, "\n")
 	if len(lines) > 3 {
 		lines = lines[:3]
 		lines[len(lines)-1] = lines[len(lines)-1] + "..."
 	}
 	return strings.Join(lines, "\n")
-}
-
-func (m *model) fetchUsername(pubkeyHex string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		var pk nostr.PubKey
-		copy(pk[:], []byte(pubkeyHex))
-		name := utils.GetProfileName(ctx, pk, &utils.GetOptions{App: m.app})
-		return usernameMsg{pubkey: pubkeyHex, name: name}
-	}
 }
