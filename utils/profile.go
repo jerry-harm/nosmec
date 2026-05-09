@@ -38,13 +38,24 @@ type FollowInfo struct {
 	Petname string `json:"petname,omitempty"`
 }
 
+type CommunityInfo struct {
+	Addr  string `json:"addr"`
+	Relay string `json:"relay,omitempty"`
+}
+
+type HashtagInfo struct {
+	Tag string `json:"tag"`
+}
+
 type FullProfile struct {
-	NPub      string        `json:"npub"`
-	PubKey    string        `json:"pubkey"`
-	Metadata  *ProfileMetadata `json:"metadata,omitempty"`
-	Relays    []RelayInfo   `json:"relays,omitempty"`
-	DMRelays  []string      `json:"dm_relays,omitempty"`
-	Follows   []FollowInfo  `json:"follows,omitempty"`
+	NPub       string           `json:"npub"`
+	PubKey     string           `json:"pubkey"`
+	Metadata   *ProfileMetadata `json:"metadata,omitempty"`
+	Relays     []RelayInfo      `json:"relays,omitempty"`
+	DMRelays   []string         `json:"dm_relays,omitempty"`
+	Follows    []FollowInfo     `json:"follows,omitempty"`
+	Communities []CommunityInfo `json:"communities,omitempty"`
+	Hashtags   []HashtagInfo    `json:"hashtags,omitempty"`
 }
 
 func profileConfigToMetadata(pc config.ProfileConfig) ProfileMetadata {
@@ -353,6 +364,38 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 					fi.Petname = tag[3]
 				}
 				fp.Follows = append(fp.Follows, fi)
+			}
+		}
+	}
+
+	communityFilter := nostr.Filter{
+		Kinds:   []nostr.Kind{nostr.KindCommunityList},
+		Authors: []nostr.PubKey{pubKey},
+		Limit:   1,
+	}
+	communityResult := opts.App.Pool().QuerySingle(ctx, knownRelays, communityFilter, nostr.SubscriptionOptions{})
+	if communityResult != nil && communityResult.Event.ID != [32]byte{} {
+		for _, tag := range communityResult.Event.Tags {
+			if len(tag) >= 2 && tag[0] == "a" && len(tag[1]) > 0 {
+				ci := CommunityInfo{Addr: tag[1]}
+				if len(tag) >= 3 {
+					ci.Relay = tag[2]
+				}
+				fp.Communities = append(fp.Communities, ci)
+			}
+		}
+	}
+
+	hashtagFilter := nostr.Filter{
+		Kinds:   []nostr.Kind{nostr.KindInterestList},
+		Authors: []nostr.PubKey{pubKey},
+		Limit:   1,
+	}
+	hashtagResult := opts.App.Pool().QuerySingle(ctx, knownRelays, hashtagFilter, nostr.SubscriptionOptions{})
+	if hashtagResult != nil && hashtagResult.Event.ID != [32]byte{} {
+		for _, tag := range hashtagResult.Event.Tags {
+			if len(tag) >= 2 && tag[0] == "t" {
+				fp.Hashtags = append(fp.Hashtags, HashtagInfo{Tag: tag[1]})
 			}
 		}
 	}
