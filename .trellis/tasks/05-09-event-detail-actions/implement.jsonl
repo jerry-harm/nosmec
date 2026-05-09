@@ -1,0 +1,10 @@
+{"file": "neonmodem/ui/windowmanager/windowmanager.go", "reason": "Reference implementation for WindowManager stack-based window management"}
+{"file": "neonmodem/ui/toolkit/toolkit.go", "reason": "Reference for ToolKit focus/viewcache management"}
+{"file": "neonmodem/ui/toolkit/keymap.go", "reason": "Reference for keybinding registration and help strings"}
+{"file": "neonmodem/ui/toolkit/msg.go", "reason": "Reference for MsgHandling handler registry pattern"}
+{"file": "neonmodem/ui/windows/postshow/postshow.go", "reason": "Reference for how a window integrates ToolKit with NewModel pattern"}
+{"file": "neonmodem/ui/windows/postshow/handlers.go", "reason": "Reference for key handler implementation pattern"}
+{"file": "nosmec/tui/window/window.go", "reason": "Existing Window interface that must be compatible"}
+{"file": "nosmec/tui/window/event/event.go", "reason": "EventView to be refactored with ToolKit"}
+{"file": "nosmec/tui/timeline/model.go", "reason": "Timeline that opens event detail - needs WindowManager integration"}
+{"file": "nosmec/utils/post.go", "reason": "Existing post utilities - DeleteNote to be added here"}

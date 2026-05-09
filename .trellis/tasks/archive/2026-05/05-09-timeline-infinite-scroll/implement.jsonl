@@ -1,0 +1,5 @@
+{"file": "utils/get.go", "reason": "GetGlobalTimeline/GetMyTimeline/GetFollowedTimeline need until/since pagination params"}
+{"file": "tui/timeline/model.go", "reason": "Timeline pagination trigger detection (Paginator.Page == TotalPages-2) and append/insert logic"}
+{"file": "tui/timeline/delegate.go", "reason": "Timeline item delegate - review if any changes needed for new items"}
+{"file": "neonmodem/ui/toolkit/toolkit.go", "reason": "Reference for how ToolKit manages view state during list updates"}
+{"file": "neonmodem/ui/windows/postshow/postshow.go", "reason": "Reference for how a window integrates with list and handles async data loading"}
