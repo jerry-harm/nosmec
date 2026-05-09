@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -118,7 +119,9 @@ func (m *EventView) Init() tea.Cmd {
 
 func (m *EventView) fetchProfileName() tea.Cmd {
 	return func() tea.Msg {
-		name := utils.GetProfileName(context.Background(), m.event.PubKey, &utils.GetOptions{App: m.app})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		name := utils.GetProfileName(ctx, m.event.PubKey, &utils.GetOptions{App: m.app})
 		return ProfileLoadedMsg{Name: name}
 	}
 }
