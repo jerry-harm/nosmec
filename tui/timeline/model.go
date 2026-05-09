@@ -592,8 +592,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showDetailMsg:
 		// Create EventView and open it in WindowManager
 		ev := event.New(&msg.event.Event, m.app, m.width, m.height)
-		m.windowManager.Open(ev)
-		return m, nil
+		cmd := m.windowManager.Open(ev)
+		return m, cmd
 
 	case closeDetailMsg:
 		// Close the event window
@@ -604,6 +604,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Close event window when ESC is pressed in EventView
 		m.windowManager.Close(event.WindowID)
 		return m, nil
+
+	case event.ProfileLoadedMsg:
+		// Forward profile name result to EventView
+		_, cmd := m.windowManager.UpdateFocused(msg)
+		return m, cmd
 
 	case loadMoreMsg:
 		m.list.StopSpinner()

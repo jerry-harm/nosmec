@@ -22,8 +22,9 @@ func New() *WindowManager {
 	}
 }
 
-// Open adds a window to the manager and focuses it.
-func (wm *WindowManager) Open(win window.Window) {
+// Open adds a window to the manager and focuses it. It calls Init() on the window
+// and returns the resulting tea.Cmd.
+func (wm *WindowManager) Open(win window.Window) tea.Cmd {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
@@ -34,6 +35,9 @@ func (wm *WindowManager) Open(win window.Window) {
 	wm.removeFromStack(id)
 	wm.stack = append(wm.stack, id)
 	wm.focused = id
+
+	// Call Init on the window and return its command
+	return win.Init()
 }
 
 // Close removes a window from the manager.

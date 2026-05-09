@@ -108,8 +108,8 @@ func (h helpKeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-type profileLoadedMsg struct {
-	name string
+type ProfileLoadedMsg struct {
+	Name string
 }
 
 func (m *EventView) Init() tea.Cmd {
@@ -119,7 +119,7 @@ func (m *EventView) Init() tea.Cmd {
 func (m *EventView) fetchProfileName() tea.Cmd {
 	return func() tea.Msg {
 		name := utils.GetProfileName(context.Background(), m.event.PubKey, &utils.GetOptions{App: m.app})
-		return profileLoadedMsg{name: name}
+		return ProfileLoadedMsg{Name: name}
 	}
 }
 
@@ -222,9 +222,9 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case profileLoadedMsg:
-		if msg.name != "" {
-			m.authorName = msg.name
+	case ProfileLoadedMsg:
+		if msg.Name != "" {
+			m.authorName = msg.Name
 		}
 		m.fetchedName = true
 		return m, nil

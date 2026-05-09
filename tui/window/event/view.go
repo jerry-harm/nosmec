@@ -11,7 +11,18 @@ func (m *EventView) renderHeader() string {
 	timeStr := e.CreatedAt.Time().Format("2006-01-02 15:04")
 	kindStr := fmt.Sprintf("Kind: %d", e.Kind)
 
-	return fmt.Sprintf("@%s | %s | %s", m.styles.author.Render(m.authorName), m.styles.time.Render(timeStr), kindStr)
+	pubkeyStr := e.PubKey.Hex()
+	if m.authorName != "" && m.authorName != pubkeyStr[:8] {
+		return fmt.Sprintf("@%s (%s…) | %s | %s",
+			m.styles.author.Render(m.authorName),
+			m.styles.author.Render(pubkeyStr[:8]),
+			m.styles.time.Render(timeStr),
+			kindStr)
+	}
+	return fmt.Sprintf("@%s… | %s | %s",
+		m.styles.author.Render(pubkeyStr[:8]),
+		m.styles.time.Render(timeStr),
+		kindStr)
 }
 
 func (m *EventView) renderContent() string {
