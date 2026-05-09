@@ -232,6 +232,10 @@ func registerConfigCommands() {
 			if err := getApp().AddRelay(url, false, false); err != nil {
 				handleError(err)
 			}
+			ctx := context.Background()
+			if err := utils.PublishRelayList(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish relay list", err))
+			}
 			fmt.Printf("Relay added: %s\n", url)
 		},
 	}
@@ -245,6 +249,10 @@ func registerConfigCommands() {
 
 			if err := getApp().RemoveRelay(url); err != nil {
 				handleError(err)
+			}
+			ctx := context.Background()
+			if err := utils.PublishRelayList(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish relay list", err))
 			}
 			fmt.Printf("Relay removed: %s\n", url)
 		},
@@ -304,6 +312,9 @@ func registerConfigCommands() {
 			}
 
 			app.SyncRelayList(relayList)
+			if err := utils.PublishRelayList(ctx, app); err != nil {
+				handleError(newError("failed to publish relay list", err))
+			}
 			fmt.Printf("Synced %d relays from network\n", len(relayList))
 		},
 	}
@@ -451,7 +462,7 @@ func registerConfigCommands() {
 		},
 	}
 
-	configDMRelayAddCmd := &cobra.Command{
+configDMRelayAddCmd := &cobra.Command{
 		Use:   "add <url>",
 		Short: "Add DM relay",
 		Args:  cobra.ExactArgs(1),
@@ -459,17 +470,25 @@ func registerConfigCommands() {
 			if err := getApp().AddDMRelay(args[0]); err != nil {
 				handleError(err)
 			}
+			ctx := context.Background()
+			if err := utils.PublishRelayList(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish relay list", err))
+			}
 			fmt.Printf("DM relay added: %s\n", args[0])
 		},
 	}
 
 	configDMRelayRemoveCmd := &cobra.Command{
 		Use:   "remove <url>",
-		Short: "Remove DM relay",
+		Short: "Remove a DM relay",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := getApp().RemoveDMRelay(args[0]); err != nil {
 				handleError(err)
+			}
+			ctx := context.Background()
+			if err := utils.PublishRelayList(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish relay list", err))
 			}
 			fmt.Printf("DM relay removed: %s\n", args[0])
 		},
