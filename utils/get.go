@@ -170,7 +170,7 @@ func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event 
 	return GetEvent(ctx, filter, opts)
 }
 
-func GetMyTimeline(ctx context.Context, limit int, opts *GetOptions) ([]nostr.Event, error) {
+func GetMyTimeline(ctx context.Context, limit int, until nostr.Timestamp, opts *GetOptions) ([]nostr.Event, error) {
 	if opts == nil || opts.App == nil {
 		return nil, fmt.Errorf("nil options")
 	}
@@ -192,11 +192,14 @@ func GetMyTimeline(ctx context.Context, limit int, opts *GetOptions) ([]nostr.Ev
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   limit,
 	}
+	if until > 0 {
+		filter.Until = until
+	}
 
 	return QueryEventsCached(ctx, opts.App.Pool(), relays, filter, limit, opts)
 }
 
-func GetGlobalTimeline(ctx context.Context, limit int, opts *GetOptions) ([]nostr.Event, error) {
+func GetGlobalTimeline(ctx context.Context, limit int, until nostr.Timestamp, opts *GetOptions) ([]nostr.Event, error) {
 	if opts == nil || opts.App == nil {
 		return nil, fmt.Errorf("nil options")
 	}
@@ -212,6 +215,9 @@ func GetGlobalTimeline(ctx context.Context, limit int, opts *GetOptions) ([]nost
 		Kinds: []nostr.Kind{nostr.KindTextNote},
 		Limit: limit,
 	}
+	if until > 0 {
+		filter.Until = until
+	}
 
 	return QueryEventsCached(ctx, opts.App.Pool(), relays, filter, limit, opts)
 }
@@ -222,7 +228,7 @@ type TimelineEvent struct {
 	IsCommunity bool
 }
 
-func GetFollowedTimeline(ctx context.Context, limit int, hashtags []string, opts *GetOptions) ([]TimelineEvent, error) {
+func GetFollowedTimeline(ctx context.Context, limit int, until nostr.Timestamp, hashtags []string, opts *GetOptions) ([]TimelineEvent, error) {
 	if opts == nil || opts.App == nil {
 		return nil, fmt.Errorf("nil options")
 	}
@@ -267,6 +273,9 @@ func GetFollowedTimeline(ctx context.Context, limit int, hashtags []string, opts
 		filter := nostr.Filter{
 			Kinds: kinds,
 			Limit: limit * 3,
+		}
+		if until > 0 {
+			filter.Until = until
 		}
 
 		if len(authors) > 0 {

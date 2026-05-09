@@ -680,7 +680,7 @@ func registerConfigCommands() {
 			defer cancel()
 
 			app := getApp()
-			events, err := utils.GetFollowedTimeline(ctx, limit, hashtags, &utils.GetOptions{App: app})
+			events, err := utils.GetFollowedTimeline(ctx, limit, 0, hashtags, &utils.GetOptions{App: app})
 			if err != nil {
 				handleError(newError("failed to get timeline", err))
 			}
