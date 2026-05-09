@@ -2,11 +2,15 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore/bleve"
@@ -27,6 +31,7 @@ var (
 	proxyConfig     ProxyConfig
 	localRelayURL   string
 	globalViper     *viper.Viper
+	lockFile       *os.File
 )
 
 type ProxyConfig struct {
@@ -186,8 +191,37 @@ func SetPool(p *nostr.Pool) {
 }
 
 func NewLMDB(dataDir string) (StoreInterface, error) {
-	boltStore := &boltdb.BoltBackend{Path: filepath.Join(dataDir, "nosmec.db")}
+	dbPath := filepath.Join(dataDir, "nosmec.db")
+	lockPath := filepath.Join(dataDir, "nosmec.lock")
+
+	// Try to clean up stale lock file from crashed process
+	if data, err := os.ReadFile(lockPath); err == nil {
+		if pid, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil {
+			if !isProcessRunning(pid) {
+				logger.Warn("removing stale lock file from dead process", "pid", pid)
+				os.Remove(lockPath)
+			}
+		}
+	}
+
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("secondary")
+		}
+		return nil, fmt.Errorf("failed to acquire lock: %w", err)
+	}
+
+	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+		lockFile.Close()
+		os.Remove(lockPath)
+		return nil, fmt.Errorf("failed to write pid to lock file: %w", err)
+	}
+
+	boltStore := &boltdb.BoltBackend{Path: dbPath}
 	if err := boltStore.Init(); err != nil {
+		lockFile.Close()
+		os.Remove(lockPath)
 		return nil, fmt.Errorf("failed to initialize BoltDB: %w", err)
 	}
 
@@ -196,10 +230,21 @@ func NewLMDB(dataDir string) (StoreInterface, error) {
 		RawEventStore: boltStore,
 	}
 	if err := bleveStore.Init(); err != nil {
+		lockFile.Close()
+		os.Remove(lockPath)
 		return nil, fmt.Errorf("failed to initialize Bleve: %w", err)
 	}
 
 	return bleveStore, nil
+}
+
+func isProcessRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	err = process.Signal(syscall.Signal(0))
+	return err == nil
 }
 
 func GlobalLMDB() StoreInterface {
@@ -210,6 +255,17 @@ func GlobalLMDB() StoreInterface {
 	dataDir := globalConfig.LocalRelay.DataDir
 	lmdbStore, err := NewLMDB(dataDir)
 	if err != nil {
+		if err.Error() == "secondary" {
+			logger.Info("another instance is running, connecting to existing local relay")
+			if globalConfig.LocalRelay.Enabled {
+				port := globalConfig.LocalRelay.Port
+				if port == "" {
+					port = "8989"
+				}
+				localRelayURL = fmt.Sprintf("ws://localhost:%s", port)
+			}
+			return nil
+		}
 		logger.Fatal("failed to initialize LMDB", "error", err.Error())
 	}
 	globalLMDB = lmdbStore
@@ -236,6 +292,12 @@ func StartLocalRelay(store StoreInterface) error {
 		port = "8989"
 	}
 
+	if IsPortInUse(port) {
+		logger.Info("local relay already running on port", "port", port)
+		localRelayURL = fmt.Sprintf("ws://localhost:%s", port)
+		return nil
+	}
+
 	relay := khatru.NewRelay()
 	relay.UseEventstore(store, 500)
 	relay.Info.Name = "nosmec-local"
@@ -251,6 +313,16 @@ func StartLocalRelay(store StoreInterface) error {
 
 	localRelayURL = fmt.Sprintf("ws://localhost:%s", port)
 	return nil
+}
+
+func IsPortInUse(port string) bool {
+	addr := fmt.Sprintf("localhost:%s", port)
+	conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 func GetLocalRelayURL() string {

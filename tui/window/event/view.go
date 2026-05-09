@@ -1,25 +1,17 @@
 package event
 
 import (
-	"context"
 	"fmt"
 	"strings"
-
-	"github.com/jerry-harm/nosmec/utils"
 )
 
 func (m *EventView) renderHeader() string {
 	e := m.event
 
-	author := e.PubKey.Hex()
-	if profileName := utils.GetProfileName(context.Background(), e.PubKey, &utils.GetOptions{App: m.app}); profileName != "" {
-		author = profileName
-	}
-
 	timeStr := e.CreatedAt.Time().Format("2006-01-02 15:04")
 	kindStr := fmt.Sprintf("Kind: %d", e.Kind)
 
-	return fmt.Sprintf("@%s | %s | %s", m.styles.author.Render(author), m.styles.time.Render(timeStr), kindStr)
+	return fmt.Sprintf("@%s | %s | %s", m.styles.author.Render(m.authorName), m.styles.time.Render(timeStr), kindStr)
 }
 
 func (m *EventView) renderContent() string {

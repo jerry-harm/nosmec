@@ -116,3 +116,35 @@ func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content st
 
 	return event, nil
 }
+
+// DeleteNote sends a deletion request (Kind 5) for a given event ID.
+func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*nostr.Event, error) {
+	secretKey, err := app.GetMySecretKey()
+	if err != nil {
+		return nil, err
+	}
+
+	event := &nostr.Event{
+		Kind:      nostr.KindDeletion,
+		CreatedAt: nostr.Timestamp(time.Now().Unix()),
+		Tags:      nostr.Tags{{"e", eventID}},
+		Content:   "",
+		PubKey:    secretKey.Public(),
+	}
+
+	if err := event.Sign(secretKey); err != nil {
+		return nil, err
+	}
+
+	writableRelays := app.AllWritableRelays()
+	if len(writableRelays) > 0 {
+		resultChan := app.Pool().PublishMany(ctx, writableRelays, *event)
+		for result := range resultChan {
+			if result.Error != nil {
+				return nil, fmt.Errorf("failed to publish to %s: %w", result.RelayURL, result.Error)
+			}
+		}
+	}
+
+	return event, nil
+}
