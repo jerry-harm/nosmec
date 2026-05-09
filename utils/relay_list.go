@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip65"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -49,24 +50,35 @@ func syncRelayListFromNetwork(ctx context.Context, app *config.AppContext, pubKe
 		return nil
 	}
 
-	event := result.Event
-	relayList := make([]config.Relay, 0)
-	for _, tag := range event.Tags {
-		if len(tag) >= 2 && tag[0] == "r" {
-			url := tag[1]
-			relay := config.Relay{
-				URL:   url,
-				Read:  config.BoolPtr(false),
-				Write: config.BoolPtr(false),
-			}
-			for _, p := range tag[2:] {
-				if p == "read" {
-					relay.Read = config.BoolPtr(true)
-				} else if p == "write" {
-					relay.Write = config.BoolPtr(true)
+	readRelays, writeRelays := nip65.ParseRelayList(result.Event)
+
+	relayList := make([]config.Relay, 0, len(readRelays)+len(writeRelays))
+	seen := make(map[string]bool)
+
+	for _, url := range readRelays {
+		relayList = append(relayList, config.Relay{
+			URL:   url,
+			Read:  config.BoolPtr(true),
+			Write: config.BoolPtr(false),
+		})
+		seen[url] = true
+	}
+
+	for _, url := range writeRelays {
+		if seen[url] {
+			for i := range relayList {
+				if relayList[i].URL == url {
+					relayList[i].Write = config.BoolPtr(true)
+					break
 				}
 			}
-			relayList = append(relayList, relay)
+		} else {
+			relayList = append(relayList, config.Relay{
+				URL:   url,
+				Read:  config.BoolPtr(false),
+				Write: config.BoolPtr(true),
+			})
+			seen[url] = true
 		}
 	}
 

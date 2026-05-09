@@ -7,6 +7,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/keyer"
+	"fiatjaf.com/nostr/nip17"
 	"fiatjaf.com/nostr/nip59"
 	"github.com/jerry-harm/nosmec/config"
 )
@@ -18,11 +19,6 @@ func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.P
 	}
 
 	kr := keyer.NewPlainKeySigner(secretKey)
-
-	ourPubkey, err := kr.GetPublicKey(ctx)
-	if err != nil {
-		return err
-	}
 
 	ourRelays := app.ListDMRelays()
 	if len(ourRelays) == 0 {
@@ -44,59 +40,17 @@ func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.P
 		return fmt.Errorf("recipient has no public relay list (neither DM relays nor read relays found)")
 	}
 
-	rumor := nostr.Event{
-		Kind:      nostr.KindDirectMessage,
-		Content:   content,
-		Tags:      nostr.Tags{{"p", recipientPubKey.Hex()}},
-		CreatedAt: nostr.Now(),
-		PubKey:    ourPubkey,
-	}
-
-	toUs, err := nip59.GiftWrap(
-		rumor,
-		ourPubkey,
-		func(s string) (string, error) { return kr.Encrypt(ctx, s, ourPubkey) },
-		func(e *nostr.Event) error { return kr.SignEvent(ctx, e) },
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to giftwrap for ourselves: %w", err)
-	}
-
-	toThem, err := nip59.GiftWrap(
-		rumor,
+	return nip17.PublishMessage(
+		ctx,
+		content,
+		nostr.Tags{{"p", recipientPubKey.Hex()}},
+		app.Pool(),
+		ourRelays,
+		theirRelays,
+		kr,
 		recipientPubKey,
-		func(s string) (string, error) { return kr.Encrypt(ctx, s, recipientPubKey) },
-		func(e *nostr.Event) error { return kr.SignEvent(ctx, e) },
 		nil,
 	)
-	if err != nil {
-		return fmt.Errorf("failed to giftwrap for recipient: %w", err)
-	}
-
-	if err := publishDMEvents(ctx, app, ourRelays, toUs); err != nil {
-		return fmt.Errorf("failed to publish to our inbox: %w", err)
-	}
-
-	if err := publishDMEvents(ctx, app, theirRelays, toThem); err != nil {
-		return fmt.Errorf("failed to publish to recipient: %w", err)
-	}
-
-	return nil
-}
-
-func publishDMEvents(ctx context.Context, app *config.AppContext, relays []string, event nostr.Event) error {
-	if len(relays) == 0 {
-		return nil
-	}
-
-	resultChan := app.Pool().PublishMany(ctx, relays, event)
-	for result := range resultChan {
-		if result.Error != nil {
-			return result.Error
-		}
-	}
-	return nil
 }
 
 func ListenForDMs(ctx context.Context, app *config.AppContext, since nostr.Timestamp) chan nostr.Event {
@@ -120,40 +74,7 @@ func ListenForDMs(ctx context.Context, app *config.AppContext, since nostr.Times
 
 	kr := keyer.NewPlainKeySigner(secretKey)
 
-	return listenForDMEvents(ctx, app, kr, ourDMRelays, since)
-}
-
-func listenForDMEvents(ctx context.Context, app *config.AppContext, kr keyer.KeySigner, relays []string, since nostr.Timestamp) chan nostr.Event {
-	ch := make(chan nostr.Event)
-
-	go func() {
-		defer close(ch)
-
-		pk, err := kr.GetPublicKey(ctx)
-		if err != nil {
-			return
-		}
-
-		for ie := range app.Pool().SubscribeMany(ctx, relays, nostr.Filter{
-			Kinds: []nostr.Kind{nostr.KindGiftWrap},
-			Tags:  nostr.TagMap{"p": []string{pk.Hex()}},
-			Since: since,
-		}, nostr.SubscriptionOptions{Label: "mydms"}) {
-			rumor, err := nip59.GiftUnwrap(
-				ie.Event,
-				func(otherpubkey nostr.PubKey, ciphertext string) (string, error) {
-					return kr.Decrypt(ctx, ciphertext, otherpubkey)
-				},
-			)
-			if err != nil {
-				continue
-			}
-
-			ch <- rumor
-		}
-	}()
-
-	return ch
+	return nip17.ListenForMessages(ctx, app.Pool(), kr, ourDMRelays, since)
 }
 
 type Conversation struct {

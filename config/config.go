@@ -97,6 +97,7 @@ func loadConfig() *Config {
 	globalViper.SetDefault("cache_filters", []map[string]interface{}{
 		{"kinds": []int{0, 3, 10002, 10050}},
 	})
+	globalViper.SetDefault("subscriptions", []Subscription{})
 
 	err := globalViper.ReadInConfig()
 	if err != nil {
@@ -108,14 +109,8 @@ func loadConfig() *Config {
 	}
 
 	configFile := filepath.Join(configDir, "nosmec.yaml")
+
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		if err := globalViper.WriteConfigAs(configFile); err != nil {
-			logger.Warn("could not write config file", "error", err.Error())
-		}
-	} else if !globalViper.IsSet("cache_filters") {
-		globalViper.Set("cache_filters", []map[string]interface{}{
-			{"kinds": []int{0, 3, 10002, 10050}},
-		})
 		if err := globalViper.WriteConfigAs(configFile); err != nil {
 			logger.Warn("could not write config file", "error", err.Error())
 		}
@@ -125,6 +120,18 @@ func loadConfig() *Config {
 	err = globalViper.Unmarshal(&config)
 	if err != nil {
 		logger.Fatal("unable to decode config into struct", "error", err.Error())
+	}
+
+	if config.CacheFilters == nil || len(config.CacheFilters) == 0 {
+		config.CacheFilters = []nostr.Filter{
+			{Kinds: []nostr.Kind{0, 3, 10002, 10050}},
+		}
+		globalViper.Set("cache_filters", []map[string]interface{}{
+			{"kinds": []int{0, 3, 10002, 10050}},
+		})
+		if err := globalViper.WriteConfigAs(configFile); err != nil {
+			logger.Warn("could not write config file", "error", err.Error())
+		}
 	}
 
 	config.ConfigDir = configDir

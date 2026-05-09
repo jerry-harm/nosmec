@@ -1,8 +1,11 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
+
+	"fiatjaf.com/nostr"
 )
 
 var (
@@ -15,6 +18,9 @@ func init() {
 		Level: slog.LevelError,
 	})
 	logger = slog.New(handler)
+
+	nostr.InfoLogger.SetOutput(io.Discard)
+	nostr.DebugLogger.SetOutput(io.Discard)
 }
 
 func SetVerbose(v bool) {
@@ -23,6 +29,11 @@ func SetVerbose(v bool) {
 		logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}))
+		nostr.InfoLogger.SetOutput(os.Stderr)
+		nostr.DebugLogger.SetOutput(os.Stderr)
+	} else {
+		nostr.InfoLogger.SetOutput(io.Discard)
+		nostr.DebugLogger.SetOutput(io.Discard)
 	}
 }
 
@@ -43,11 +54,15 @@ func Info(msg string, args ...any) {
 }
 
 func Warn(msg string, args ...any) {
-	logger.Warn(msg, args...)
+	if verbose {
+		logger.Warn(msg, args...)
+	}
 }
 
 func Error(msg string, args ...any) {
-	logger.Error(msg, args...)
+	if verbose {
+		logger.Error(msg, args...)
+	}
 }
 
 func Fatal(msg string, args ...any) {
