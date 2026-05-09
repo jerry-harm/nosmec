@@ -4,6 +4,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -14,10 +15,13 @@ func newItemDelegate(keys *delegateKeyMap, styles *styles) list.DefaultDelegate 
 		if i, ok := m.SelectedItem().(item); ok {
 			switch msg := msg.(type) {
 			case tea.KeyPressMsg:
+				logger.Debug("delegate UpdateFunc received key", "key", msg.String())
 				switch {
 				case key.Matches(msg, keys.open):
+					logger.Debug("delegate matches open key")
 					return func() tea.Msg {
-						return showDetailMsg{event: i.event}
+						logger.Debug("delegate creating showDetailMsg")
+						return showDetailMsg{event: i.event, authorName: i.authorName}
 					}
 				}
 			}
@@ -66,7 +70,8 @@ func newDelegateKeyMap() *delegateKeyMap {
 }
 
 type showDetailMsg struct {
-	event utils.TimelineEvent
+	event      utils.TimelineEvent
+	authorName string
 }
 
 type closeDetailMsg struct{}

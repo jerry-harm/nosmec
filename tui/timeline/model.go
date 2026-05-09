@@ -13,6 +13,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/window/event"
 	"github.com/jerry-harm/nosmec/tui/windowmanager"
 	"github.com/jerry-harm/nosmec/utils"
@@ -590,18 +591,22 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, statusCmd
 
 	case showDetailMsg:
-		// Create EventView and open it in WindowManager
-		ev := event.New(&msg.event.Event, m.app, m.width, m.height)
+		logger.Debug("showDetailMsg received")
+		logger.Debug("about to call event.New")
+		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName)
+		logger.Debug("event.New returned")
+		logger.Debug("EventView created, about to Open")
 		cmd := m.windowManager.Open(ev)
+		logger.Debug("EventView opened, returning")
 		return m, cmd
 
 	case closeDetailMsg:
-		// Close the event window
+		logger.Debug("received closeDetailMsg, closing window")
 		m.windowManager.Close(event.WindowID)
 		return m, nil
 
 	case event.CloseMsg:
-		// Close event window when ESC is pressed in EventView
+		logger.Debug("received CloseMsg in timeline.Update, closing window")
 		m.windowManager.Close(event.WindowID)
 		return m, nil
 
@@ -697,12 +702,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// If we have open windows, route keys to the focused window
+	// If we have open windows, route messages to the focused window
 	if m.windowManager.WindowCount() > 0 {
 		switch msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			_, cmd := m.windowManager.UpdateFocused(msg)
 			return m, cmd
+		case event.CloseMsg:
+			logger.Debug("CloseMsg received in timeline, closing event window")
+			m.windowManager.Close(event.WindowID)
+			return m, nil
 		}
 	}
 

@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	logger  *slog.Logger
-	verbose bool
+	logger    *slog.Logger
+	debugFile *os.File
 )
 
 func init() {
@@ -23,46 +23,47 @@ func init() {
 	nostr.DebugLogger.SetOutput(io.Discard)
 }
 
-func SetVerbose(v bool) {
-	verbose = v
-	if v {
-		logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+func SetDebug(enabled bool) {
+	if enabled {
+		f, err := os.OpenFile("nosmec-debug.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+		if err != nil {
+			return
+		}
+		debugFile = f
+		handler := slog.NewJSONHandler(f, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
-		}))
-		nostr.InfoLogger.SetOutput(os.Stderr)
-		nostr.DebugLogger.SetOutput(os.Stderr)
+		})
+		logger = slog.New(handler)
+		nostr.InfoLogger.SetOutput(f)
+		nostr.DebugLogger.SetOutput(f)
 	} else {
+		if debugFile != nil {
+			debugFile.Close()
+			debugFile = nil
+		}
 		nostr.InfoLogger.SetOutput(io.Discard)
 		nostr.DebugLogger.SetOutput(io.Discard)
+		handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelError,
+		})
+		logger = slog.New(handler)
 	}
-}
-
-func IsVerbose() bool {
-	return verbose
 }
 
 func Debug(msg string, args ...any) {
-	if verbose {
-		logger.Debug(msg, args...)
-	}
+	logger.Debug(msg, args...)
 }
 
 func Info(msg string, args ...any) {
-	if verbose {
-		logger.Info(msg, args...)
-	}
+	logger.Info(msg, args...)
 }
 
 func Warn(msg string, args ...any) {
-	if verbose {
-		logger.Warn(msg, args...)
-	}
+	logger.Warn(msg, args...)
 }
 
 func Error(msg string, args ...any) {
-	if verbose {
-		logger.Error(msg, args...)
-	}
+	logger.Error(msg, args...)
 }
 
 func Fatal(msg string, args ...any) {

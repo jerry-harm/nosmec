@@ -6,6 +6,9 @@ import (
 )
 
 func (m *EventView) renderHeader() string {
+	if m.event == nil {
+		return m.styles.header.Render("Loading...")
+	}
 	e := m.event
 
 	timeStr := e.CreatedAt.Time().Format("2006-01-02 15:04")
@@ -26,6 +29,9 @@ func (m *EventView) renderHeader() string {
 }
 
 func (m *EventView) renderContent() string {
+	if m.event == nil {
+		return "Loading event..."
+	}
 	e := m.event
 
 	var tagParts []string

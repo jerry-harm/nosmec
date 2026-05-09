@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore/bleve"
 	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/nip19"
@@ -225,17 +224,7 @@ func NewLMDB(dataDir string) (StoreInterface, error) {
 		return nil, fmt.Errorf("failed to initialize BoltDB: %w", err)
 	}
 
-	bleveStore := &bleve.BleveBackend{
-		Path:          filepath.Join(dataDir, "bleve-index"),
-		RawEventStore: boltStore,
-	}
-	if err := bleveStore.Init(); err != nil {
-		lockFile.Close()
-		os.Remove(lockPath)
-		return nil, fmt.Errorf("failed to initialize Bleve: %w", err)
-	}
-
-	return bleveStore, nil
+	return boltStore, nil
 }
 
 func isProcessRunning(pid int) bool {

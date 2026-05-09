@@ -15,15 +15,15 @@ import (
 
 type appContextKey struct{}
 
-var verbose bool
+var debug bool
 
 var rootCmd = &cobra.Command{
 	Use:   "nosmec",
 	Short: "a cli for nostr",
 	Long:  ``,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if verbose {
-			logger.SetVerbose(true)
+		if debug {
+			logger.SetDebug(true)
 		}
 	},
 }
@@ -52,7 +52,7 @@ func init() {
 	cobra.OnInitialize(initApp)
 	initCommands()
 
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug output")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug file output")
 
 	setupHTTPTransport()
 }

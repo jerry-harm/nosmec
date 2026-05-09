@@ -12,8 +12,10 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/glamour/styles"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/toolkit"
 	"github.com/jerry-harm/nosmec/utils"
 )
@@ -40,7 +42,7 @@ type EventView struct {
 	help        help.Model
 }
 
-func New(event *nostr.Event, app *config.AppContext, width, height int) *EventView {
+func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string) *EventView {
 	helpModel := help.New()
 	helpModel.ShowAll = false
 
@@ -51,8 +53,8 @@ func New(event *nostr.Event, app *config.AppContext, width, height int) *EventVi
 		height:      height,
 		darkBG:      false,
 		tk:          toolkit.New(),
-		authorName:  event.PubKey.Hex()[:8], // placeholder until name loads
-		fetchedName: false,
+		authorName:  authorName,
+		fetchedName: authorName != "",
 		help:        helpModel,
 	}
 	m.styles = newStyles(m.darkBG)
@@ -60,18 +62,11 @@ func New(event *nostr.Event, app *config.AppContext, width, height int) *EventVi
 		viewport.WithWidth(width-4),
 		viewport.WithHeight(height-6),
 	)
+	m.glamour = nil
 
-	gl, _ := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(width-8),
-	)
-	m.glamour = gl
-
-	// Initialize help component
 	m.help = help.New()
 	m.help.ShowAll = false
 
-	// Register keymaps
 	m.tk.KeymapAdd("reply", "reply", "r")
 	m.tk.KeymapAdd("quote", "quote", "q")
 	m.tk.KeymapAdd("delete", "delete", "d")
@@ -79,7 +74,6 @@ func New(event *nostr.Event, app *config.AppContext, width, height int) *EventVi
 	m.tk.KeymapAdd("open", "open in browser", "o")
 	m.tk.KeymapAdd("quit", "close", "esc")
 
-	// Set up message handler
 	m.tk.SetMsgHandling(WindowID, m.handleMsg)
 	m.tk.Focus(WindowID)
 
@@ -114,14 +108,20 @@ type ProfileLoadedMsg struct {
 }
 
 func (m *EventView) Init() tea.Cmd {
+	logger.Debug("EventView.Init called", "fetchedName", m.fetchedName)
+	if m.fetchedName {
+		return nil
+	}
 	return m.fetchProfileName()
 }
 
 func (m *EventView) fetchProfileName() tea.Cmd {
 	return func() tea.Msg {
+		logger.Debug("fetchProfileName starting")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		name := utils.GetProfileName(ctx, m.event.PubKey, &utils.GetOptions{App: m.app})
+		logger.Debug("fetchProfileName done", "name", name)
 		return ProfileLoadedMsg{Name: name}
 	}
 }
@@ -129,25 +129,21 @@ func (m *EventView) fetchProfileName() tea.Cmd {
 // handleMsg processes key messages for the EventView.
 func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
+		logger.Debug("handleMsg received key", "key", msg.String())
 		switch msg.String() {
 		case "r":
-			// Reply to the note
 			return m.reply()
 		case "q":
-			// Quote/repost the note
 			return m.quote()
 		case "d":
-			// Delete the note
 			return m.delete()
 		case "f":
-			// Follow/unfollow the author
 			return m.follow()
 		case "o":
-			// Open in browser
 			return m.openInBrowser()
 		case "esc":
-			// Close the event window
+			logger.Debug("ESC pressed, sending CloseMsg")
 			return func() tea.Msg { return CloseMsg{} }
 		}
 	}
@@ -155,15 +151,18 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 }
 
 func (m *EventView) reply() tea.Cmd {
-	// TODO: Open reply input UI
-	// For now, just log the intent
-	fmt.Println("reply to:", m.event.ID.Hex())
+	if m.event == nil {
+		return nil
+	}
+	logger.Debug("reply not implemented", "eventID", m.event.ID.Hex())
 	return nil
 }
 
 func (m *EventView) quote() tea.Cmd {
-	// TODO: Open quote input UI
-	fmt.Println("quote:", m.event.ID.Hex())
+	if m.event == nil {
+		return nil
+	}
+	logger.Debug("quote not implemented", "eventID", m.event.ID.Hex())
 	return nil
 }
 
@@ -174,7 +173,7 @@ func (m *EventView) delete() tea.Cmd {
 	ctx := context.Background()
 	_, err := utils.DeleteNote(ctx, m.app, m.event.ID.Hex())
 	if err != nil {
-		fmt.Println("delete error:", err)
+		logger.Error("delete note failed", "error", err.Error())
 	}
 	return nil
 }
@@ -186,7 +185,6 @@ func (m *EventView) follow() tea.Cmd {
 	ctx := context.Background()
 	pubkeyHex := m.event.PubKey.Hex()
 
-	// Check if already following by checking subscriptions
 	isFollowing := false
 	for _, sub := range m.app.ListSubscriptions("user") {
 		if sub.ID == pubkeyHex {
@@ -197,10 +195,10 @@ func (m *EventView) follow() tea.Cmd {
 
 	if isFollowing {
 		utils.UnfollowUser(ctx, m.app, pubkeyHex)
-		fmt.Println("unfollowed:", pubkeyHex)
+		logger.Debug("unfollowed user", "pubkey", pubkeyHex)
 	} else {
 		utils.FollowUser(ctx, m.app, pubkeyHex, "", "")
-		fmt.Println("followed:", pubkeyHex)
+		logger.Debug("followed user", "pubkey", pubkeyHex)
 	}
 	return nil
 }
@@ -209,14 +207,10 @@ func (m *EventView) openInBrowser() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	// Build a nostr: URI
 	nostrURI := fmt.Sprintf("nostr:%s", m.event.ID.Hex())
-	// Try to open using xdg-open on Linux, open on macOS
-	var cmd *exec.Cmd
-	cmd = exec.Command("xdg-open", nostrURI)
+	cmd := exec.Command("xdg-open", nostrURI)
 	if err := cmd.Run(); err != nil {
-		// Fallback: just print
-		fmt.Println("open:", nostrURI)
+		logger.Debug("open in browser failed, fallback to copy", "uri", nostrURI)
 	}
 	return nil
 }
@@ -226,6 +220,7 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case ProfileLoadedMsg:
+		logger.Debug("ProfileLoadedMsg received", "name", msg.Name)
 		if msg.Name != "" {
 			m.authorName = msg.Name
 		}
@@ -238,32 +233,30 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetWidth(m.width - 4)
 		m.viewport.SetHeight(m.height - 6)
 
-		gl, _ := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
-			glamour.WithWordWrap(m.width-8),
-		)
-		m.glamour = gl
-
 	case tea.BackgroundColorMsg:
 		m.darkBG = msg.IsDark()
 		m.styles = newStyles(m.darkBG)
 
-		gl, _ := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
-			glamour.WithWordWrap(m.width-8),
-		)
-		m.glamour = gl
-
-	case tea.KeyMsg:
-		// Let the handler process the key
+	case tea.KeyPressMsg:
 		cmd = m.tk.HandleMsg(WindowID, msg)
 	}
 
-	m.viewport, cmd = m.viewport.Update(msg)
+	var viewportCmd tea.Cmd
+	m.viewport, viewportCmd = m.viewport.Update(msg)
+	if cmd == nil {
+		cmd = viewportCmd
+	}
 	return m, cmd
 }
 
 func (m *EventView) View() tea.View {
+	if m.glamour == nil {
+		renderer, _ := glamour.NewTermRenderer(
+			glamour.WithStyles(styles.DarkStyleConfig),
+			glamour.WithWordWrap(m.width-8),
+		)
+		m.glamour = renderer
+	}
 	content := m.renderContent()
 	m.viewport.SetContent(content)
 

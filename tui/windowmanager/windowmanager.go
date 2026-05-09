@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/window"
 )
 
@@ -45,6 +46,7 @@ func (wm *WindowManager) Close(id string) {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
+	logger.Debug("WindowManager.Close called", "id", id)
 	delete(wm.windows, id)
 	wm.removeFromStack(id)
 

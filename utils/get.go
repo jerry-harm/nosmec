@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
@@ -25,7 +26,6 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 		relays = opts.App.AllReadableRelays()
 	}
 	privateRelays := opts.App.PrivateRelays()
-	relays = append(relays, privateRelays...)
 
 	var event *nostr.Event
 
@@ -36,9 +36,27 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 			return false
 		})
 	} else {
-		result := opts.App.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
-		if result != nil {
-			event = &result.Event
+		localURL := config.GetLocalRelayURL()
+		remoteRelays := make([]string, 0, len(relays))
+		for _, r := range relays {
+			if r != localURL {
+				remoteRelays = append(remoteRelays, r)
+			}
+		}
+
+		ctxLocal, cancelLocal := context.WithTimeout(ctx, 2*time.Second)
+		defer cancelLocal()
+		if localURL != "" {
+			result := opts.App.Pool().QuerySingle(ctxLocal, []string{localURL}, filter, nostr.SubscriptionOptions{})
+			if result != nil {
+				event = &result.Event
+			}
+		}
+		if event == nil && len(remoteRelays) > 0 {
+			result := opts.App.Pool().QuerySingle(ctx, remoteRelays, filter, nostr.SubscriptionOptions{})
+			if result != nil {
+				event = &result.Event
+			}
 		}
 	}
 
