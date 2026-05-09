@@ -41,3 +41,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: 订阅功能配置化改进
+
+**Date**: 2026-05-09
+**Task**: 订阅功能配置化改进
+**Branch**: `main`
+
+### Summary
+
+扩展 profile --full 输出，支持从网络读取 Kind 3/10004/10015 获取 follows、communities、hashtags 完整列表
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `021f731` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
