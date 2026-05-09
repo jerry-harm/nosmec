@@ -31,7 +31,7 @@ func SyncRelaysFromNetwork(ctx context.Context, app *config.AppContext) error {
 		return fmt.Errorf("failed to sync relay list: %w", err)
 	}
 
-	if err := syncDMRelaysFromNetwork(ctx, app, pubKey, relays); err != nil {
+	if err := syncDMRelaysFromNetworkImpl(ctx, app, pubKey, relays); err != nil {
 		return fmt.Errorf("failed to sync DM relays: %w", err)
 	}
 
@@ -86,7 +86,27 @@ func syncRelayListFromNetwork(ctx context.Context, app *config.AppContext, pubKe
 	return nil
 }
 
-func syncDMRelaysFromNetwork(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey, relays []string) error {
+func SyncDMRelaysFromNetwork(ctx context.Context, app *config.AppContext) error {
+	pubKey, err := app.GetMyPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	relays := app.WritableRelays()
+	if len(relays) == 0 {
+		relays = app.ReadableRelays()
+	}
+	if len(relays) == 0 {
+		relays = app.Config().KnownRelays
+	}
+	if len(relays) == 0 {
+		return fmt.Errorf("no relays available to query")
+	}
+
+	return syncDMRelaysFromNetworkImpl(ctx, app, pubKey, relays)
+}
+
+func syncDMRelaysFromNetworkImpl(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey, relays []string) error {
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindDMRelayList},
 		Authors: []nostr.PubKey{pubKey},

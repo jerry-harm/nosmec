@@ -498,6 +498,20 @@ configDMRelayAddCmd := &cobra.Command{
 	configDMRelayCmd.AddCommand(configDMRelayAddCmd)
 	configDMRelayCmd.AddCommand(configDMRelayRemoveCmd)
 
+	configDMRelaySyncCmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Sync DM relays from network",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx := context.Background()
+			if err := utils.SyncDMRelaysFromNetwork(ctx, getApp()); err != nil {
+				handleError(newError("failed to sync DM relays", err))
+			}
+			fmt.Println("DM relays synced from network")
+		},
+	}
+	configDMRelayCmd.AddCommand(configDMRelaySyncCmd)
+
 	configSubscribeCmd := &cobra.Command{
 		Use:   "subscribe",
 		Short: "Manage subscriptions (followed users, communities, hashtags)",
@@ -576,6 +590,9 @@ configDMRelayAddCmd := &cobra.Command{
 			if err := utils.FollowUser(ctx, getApp(), identifier, relay, petname); err != nil {
 				handleError(newError("failed to subscribe", err))
 			}
+			if err := utils.PublishSubscriptions(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish subscriptions", err))
+			}
 
 			fmt.Printf("Subscribed to user: %s\n", identifier)
 		},
@@ -597,6 +614,9 @@ configDMRelayAddCmd := &cobra.Command{
 			if err := utils.FollowCommunity(ctx, getApp(), addr, relay); err != nil {
 				handleError(newError("failed to subscribe", err))
 			}
+			if err := utils.PublishSubscriptions(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish subscriptions", err))
+			}
 
 			fmt.Printf("Subscribed to community: %s\n", addr)
 		},
@@ -613,6 +633,9 @@ configDMRelayAddCmd := &cobra.Command{
 
 			if err := utils.FollowHashtag(ctx, getApp(), tag); err != nil {
 				handleError(newError("failed to subscribe", err))
+			}
+			if err := utils.PublishSubscriptions(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish subscriptions", err))
 			}
 
 			fmt.Printf("Subscribed to hashtag: %s\n", tag)
@@ -646,6 +669,11 @@ configDMRelayAddCmd := &cobra.Command{
 				}
 			default:
 				handleError(newError("invalid subscription type: "+subType, nil))
+			}
+
+			ctx := context.Background()
+			if err := utils.PublishSubscriptions(ctx, getApp()); err != nil {
+				handleError(newError("failed to publish subscriptions", err))
 			}
 
 			fmt.Printf("Removed subscription: %s (%s)\n", id, subType)
