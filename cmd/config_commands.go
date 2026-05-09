@@ -727,9 +727,10 @@ configDMRelayAddCmd := &cobra.Command{
 			defer cancel()
 
 			app := getApp()
-			events, err := utils.GetFollowedTimeline(ctx, limit, 0, hashtags, &utils.GetOptions{App: app})
-			if err != nil {
-				handleError(newError("failed to get timeline", err))
+			ch := utils.GetFollowedTimeline(ctx, limit, 0, hashtags, &utils.GetOptions{App: app})
+			var events []utils.TimelineEvent
+			for e := range ch {
+				events = append(events, utils.TimelineEvent{Event: *e})
 			}
 
 			if len(events) == 0 {

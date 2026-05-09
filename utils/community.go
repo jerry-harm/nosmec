@@ -204,7 +204,7 @@ func GetCommunity(ctx context.Context, app *config.AppContext, communityAuthor n
 	return event, nil
 }
 
-func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAuthor nostr.PubKey, communityID string, limit int) ([]nostr.Event, error) {
+func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAuthor nostr.PubKey, communityID string, limit int) chan *nostr.Event {
 	communityAddr := fmt.Sprintf("%d:%s:%s", nostr.KindCommunityDefinition, communityAuthor.Hex(), communityID)
 
 	relays := app.Config().KnownRelays
@@ -217,8 +217,16 @@ func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAut
 		Limit: limit,
 	}
 
-	opts := &GetOptions{App: app}
-	return QueryEventsCached(ctx, app.Pool(), relays, filter, limit, opts)
+	out := make(chan *nostr.Event)
+	go func() {
+		ch := app.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
+		for relayEvent := range ch {
+			CacheEvent(&relayEvent.Event, app)
+			out <- &relayEvent.Event
+		}
+		close(out)
+	}()
+	return out
 }
 
 func GetFollowedCommunities(ctx context.Context, app *config.AppContext) ([]string, error) {
@@ -298,7 +306,7 @@ func ReplyToCommunity(ctx context.Context, app *config.AppContext, parentPostID 
 	return PostToCommunity(ctx, app, communityAddr, content, parentPostID)
 }
 
-func GetMyCreatedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]nostr.Event, error) {
+func GetMyCreatedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) chan *nostr.Event {
 	relays := app.Config().KnownRelays
 	privateRelays := app.PrivateRelays()
 	relays = append(relays, privateRelays...)
@@ -309,11 +317,19 @@ func GetMyCreatedCommunities(ctx context.Context, app *config.AppContext, pubKey
 		Limit:   100,
 	}
 
-	opts := &GetOptions{App: app}
-	return QueryEventsCached(ctx, app.Pool(), relays, filter, 100, opts)
+	out := make(chan *nostr.Event)
+	go func() {
+		ch := app.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
+		for relayEvent := range ch {
+			CacheEvent(&relayEvent.Event, app)
+			out <- &relayEvent.Event
+		}
+		close(out)
+	}()
+	return out
 }
 
-func GetPostedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error) {
+func GetPostedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) chan string {
 	relays := app.Config().KnownRelays
 	privateRelays := app.PrivateRelays()
 	relays = append(relays, privateRelays...)
@@ -324,20 +340,23 @@ func GetPostedCommunities(ctx context.Context, app *config.AppContext, pubKey no
 		Limit:   500,
 	}
 
-	opts := &GetOptions{App: app}
-	events, err := QueryEventsCached(ctx, app.Pool(), relays, filter, 500, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	var addrs []string
-	for _, e := range events {
-		for _, tag := range e.Tags {
-			if len(tag) >= 2 && tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
-				addrs = append(addrs, tag[1])
+	out := make(chan string)
+	go func() {
+		seen := make(map[nostr.ID]bool)
+		ch := app.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
+		for relayEvent := range ch {
+			if seen[relayEvent.Event.ID] {
+				continue
+			}
+			seen[relayEvent.Event.ID] = true
+			CacheEvent(&relayEvent.Event, app)
+			for _, tag := range relayEvent.Event.Tags {
+				if len(tag) >= 2 && tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
+					out <- tag[1]
+				}
 			}
 		}
-	}
-
-	return addrs, nil
+		close(out)
+	}()
+	return out
 }

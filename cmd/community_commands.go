@@ -136,13 +136,15 @@ func registerCommunityCommands() {
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 			} else {
-				createdEvents, err := utils.GetMyCreatedCommunities(ctx, app, myPubKey)
-				if err != nil {
-					fmt.Printf("Error: %v\n", err)
-				} else if len(createdEvents) == 0 {
+				createdEvents := utils.GetMyCreatedCommunities(ctx, app, myPubKey)
+				var events []nostr.Event
+				for e := range createdEvents {
+					events = append(events, *e)
+				}
+				if len(events) == 0 {
 					fmt.Println("  (none)")
 				} else {
-					for _, event := range createdEvents {
+					for _, event := range events {
 						name := ""
 						if nameTag := event.Tags.Find("name"); len(nameTag) > 1 {
 							name = nameTag[1]
@@ -159,10 +161,12 @@ func registerCommunityCommands() {
 			fmt.Println()
 
 			fmt.Println("[Posted] (Kind 1111)")
-			postedAddrs, err := utils.GetPostedCommunities(ctx, app, myPubKey)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-			} else if len(postedAddrs) == 0 {
+			ch := utils.GetPostedCommunities(ctx, app, myPubKey)
+			var postedAddrs []string
+			for addr := range ch {
+				postedAddrs = append(postedAddrs, addr)
+			}
+			if len(postedAddrs) == 0 {
 				fmt.Println("  (none)")
 			} else {
 				seen := make(map[string]bool)
@@ -240,9 +244,10 @@ func registerCommunityCommands() {
 			}
 
 			ctx := context.Background()
-			events, err := utils.GetCommunityPosts(ctx, app, authorPubKey, communityID, limit)
-			if err != nil {
-				handleError(newError("failed to get posts", err))
+			ch := utils.GetCommunityPosts(ctx, app, authorPubKey, communityID, limit)
+			var events []nostr.Event
+			for e := range ch {
+				events = append(events, *e)
 			}
 
 			if len(events) == 0 {

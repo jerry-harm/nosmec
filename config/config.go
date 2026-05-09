@@ -173,7 +173,11 @@ func loadConfig() *Config {
 
 func NewPool() *nostr.Pool {
 	return nostr.NewPool(nostr.PoolOptions{
-		RelayOptions: nostr.RelayOptions{},
+		RelayOptions: nostr.RelayOptions{
+			NoticeHandler: func(relay *nostr.Relay, notice string) {
+				logger.Debug("NOTICE from %s: '%s'", relay.URL, notice)
+			},
+		},
 	})
 }
 

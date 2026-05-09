@@ -113,6 +113,7 @@ type model struct {
 	subCancel     context.CancelFunc
 	subStarted    bool
 	newestSince   nostr.Timestamp  // Timestamp of newest event for subscription
+	lastRefresh   time.Time       // Last refresh timestamp for rate limiting
 }
 
 type listKeyMap struct {
@@ -238,40 +239,32 @@ func (m *model) updateListProperties() {
 
 func (m *model) fetchTimeline() tea.Cmd {
 	return func() tea.Msg {
+		// Rate limit: skip if last refresh was within 2 seconds
+		if time.Since(m.lastRefresh) < 2*time.Second {
+			return nil
+		}
+		m.lastRefresh = time.Now()
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		opts := &utils.GetOptions{App: m.app}
 
-		var events []utils.TimelineEvent
-		var err error
-
+		var ch chan *nostr.Event
 		switch m.filter {
 		case "global":
-			nostrEvents, e := utils.GetGlobalTimeline(ctx, m.limit, 0, opts)
-			if e != nil {
-				err = e
-			} else {
-				for _, e := range nostrEvents {
-					events = append(events, utils.TimelineEvent{Event: e})
-				}
-			}
+			ch = utils.GetGlobalTimeline(ctx, m.limit, 0, opts)
 		case "mine":
-			nostrEvents, e := utils.GetMyTimeline(ctx, m.limit, 0, opts)
-			if e != nil {
-				err = e
-			} else {
-				for _, e := range nostrEvents {
-					events = append(events, utils.TimelineEvent{Event: e})
-				}
-			}
+			ch = utils.GetMyTimeline(ctx, m.limit, 0, opts)
 		default:
-			events, err = utils.GetFollowedTimeline(ctx, m.limit, 0, m.hashtags, opts)
+			ch = utils.GetFollowedTimeline(ctx, m.limit, 0, m.hashtags, opts)
 		}
 
-		if err != nil {
-			return errorMsg{err: err}
+		var events []utils.TimelineEvent
+		for e := range ch {
+			events = append(events, utils.TimelineEvent{Event: *e})
 		}
+
 		return fetchMsg{events: events}
 	}
 }
@@ -311,7 +304,6 @@ func (m *model) fetchMoreOld() tea.Cmd {
 
 		opts := &utils.GetOptions{App: m.app}
 
-		// Get the oldest event's timestamp for pagination
 		items := m.list.Items()
 		if len(items) == 0 {
 			m.isLoadingMore = false
@@ -326,43 +318,28 @@ func (m *model) fetchMoreOld() tea.Cmd {
 			return loadMoreErrorMsg{err: fmt.Errorf("invalid item type"), isNew: false}
 		}
 
-		until := oldestEvent.CreatedAt - 1 // Use timestamp just before the oldest
+		until := oldestEvent.CreatedAt - 1
 
-		var events []utils.TimelineEvent
-		var err error
-
+		var ch chan *nostr.Event
 		switch m.filter {
 		case "global":
-			nostrEvents, e := utils.GetGlobalTimeline(ctx, m.limit, until, opts)
-			if e != nil {
-				err = e
-			} else {
-				for _, e := range nostrEvents {
-					events = append(events, utils.TimelineEvent{Event: e})
-				}
-			}
+			ch = utils.GetGlobalTimeline(ctx, m.limit, until, opts)
 		case "mine":
-			nostrEvents, e := utils.GetMyTimeline(ctx, m.limit, until, opts)
-			if e != nil {
-				err = e
-			} else {
-				for _, e := range nostrEvents {
-					events = append(events, utils.TimelineEvent{Event: e})
-				}
-			}
+			ch = utils.GetMyTimeline(ctx, m.limit, until, opts)
 		default:
-			events, err = utils.GetFollowedTimeline(ctx, m.limit, until, m.hashtags, opts)
+			ch = utils.GetFollowedTimeline(ctx, m.limit, until, m.hashtags, opts)
+		}
+
+		var events []utils.TimelineEvent
+		for e := range ch {
+			events = append(events, utils.TimelineEvent{Event: *e})
 		}
 
 		m.isLoadingMore = false
 
-		if err != nil {
-			return loadMoreErrorMsg{err: err, isNew: false}
-		}
-
-		// If we got fewer events than limit, we've reached the end
-		if len(events) < m.limit {
+		if len(events) == 0 {
 			m.hasMoreOld = false
+			return loadMoreErrorMsg{err: fmt.Errorf("no more events"), isNew: false}
 		}
 
 		return loadMoreMsg{events: events, isNew: false}
@@ -439,7 +416,7 @@ func (m *model) startSubscription(since nostr.Timestamp) tea.Cmd {
 			}
 		}
 
-		m.subCh = m.app.Pool().SubscribeMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "timeline"})
+		m.subCh = utils.SubscribeWithCache(ctx, m.app.Pool(), relays, filter, nostr.SubscriptionOptions{Label: "timeline"}, m.app)
 		m.subStarted = true
 
 		// Return nil - subscription channel will be processed in Update via pollSubscription
