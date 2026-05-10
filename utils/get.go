@@ -240,14 +240,12 @@ func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *
 	} else {
 		found := make(chan struct{})
 		go func() {
-			ch := opts.App.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
-			for relayEvent := range ch {
-				if event == nil {
-					event = &relayEvent.Event
-					CacheEvent(&relayEvent.Event, opts.App)
-					close(found)
-					return
-				}
+			result := opts.App.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
+			if result != nil {
+				event = &result.Event
+				CacheEvent(&result.Event, opts.App)
+				close(found)
+				return
 			}
 			close(found)
 		}()
