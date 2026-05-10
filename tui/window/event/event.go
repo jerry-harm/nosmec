@@ -295,6 +295,10 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case CloseMsg:
+		logger.Debug("CloseMsg received, quitting")
+		return m, tea.Quit
+
 	case EventLoadedMsg:
 		logger.Debug("EventLoadedMsg received", "event", msg.Event)
 		m.event = msg.Event
