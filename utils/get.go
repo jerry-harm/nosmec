@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"sync"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -226,66 +225,41 @@ func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *
 	if len(relays) == 0 {
 		relays = opts.App.AllReadableRelays()
 	}
+	privateRelays := opts.App.PrivateRelays()
+	relays = append(relays, privateRelays...)
 
 	var event *nostr.Event
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	found := make(chan struct{})
 
-	localURL := config.GetLocalRelayURL()
-	remoteRelays := make([]string, 0, len(relays))
-	for _, r := range relays {
-		if r != localURL {
-			remoteRelays = append(remoteRelays, r)
+	if isReplaceableKind(filter.Kinds) {
+		results := opts.App.Pool().FetchManyReplaceable(ctx, relays, filter, nostr.SubscriptionOptions{})
+		results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
+			event = &ev
+			CacheEvent(&ev, opts.App)
+			return false
+		})
+	} else {
+		found := make(chan struct{})
+		go func() {
+			ch := opts.App.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
+			for relayEvent := range ch {
+				if event == nil {
+					event = &relayEvent.Event
+					CacheEvent(&relayEvent.Event, opts.App)
+					close(found)
+					return
+				}
+			}
+			close(found)
+		}()
+
+		select {
+		case <-found:
+		case <-ctx.Done():
 		}
 	}
 
-	ctxLocal, cancelLocal := context.WithTimeout(ctx, 2*time.Second)
-	defer cancelLocal()
-	if localURL != "" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			result := opts.App.Pool().QuerySingle(ctxLocal, []string{localURL}, filter, nostr.SubscriptionOptions{})
-			if result != nil {
-				mu.Lock()
-				if event == nil {
-					event = &result.Event
-					close(found)
-				}
-				mu.Unlock()
-			}
-		}()
-	}
-
-	if len(remoteRelays) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ctxRemote, cancelRemote := context.WithTimeout(ctx, 10*time.Second)
-			defer cancelRemote()
-			result := opts.App.Pool().QuerySingle(ctxRemote, remoteRelays, filter, nostr.SubscriptionOptions{})
-			if result != nil {
-				mu.Lock()
-				if event == nil {
-					event = &result.Event
-					close(found)
-				}
-				mu.Unlock()
-			}
-		}()
-	}
-
-	go func() {
-		wg.Wait()
-		close(found)
-	}()
-
-	<-found
-
 	if event != nil && shouldCache(event, opts.App) {
 		go func() {
-			privateRelays := opts.App.PrivateRelays()
 			opts.App.Pool().PublishMany(context.Background(), privateRelays, *event)
 		}()
 	}
