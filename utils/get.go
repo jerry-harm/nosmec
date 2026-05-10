@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -165,6 +166,131 @@ func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event 
 		Limit: 1,
 	}
 	return GetEvent(ctx, filter, opts)
+}
+
+func GetNoteAsync(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
+	var id nostr.ID
+	if len(noteID) != 64 {
+		return nil
+	}
+	copy(id[:], noteID)
+
+	filter := nostr.Filter{
+		IDs:   []nostr.ID{id},
+		Limit: 1,
+	}
+	return GetEventAsync(ctx, filter, opts)
+}
+
+func GetProfileNameAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) string {
+	if opts == nil || opts.App == nil {
+		return ""
+	}
+
+	profile := GetProfileAsync(ctx, pubKey, opts)
+	if profile == nil {
+		return ""
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(profile.Content), &data); err == nil {
+		if name, ok := data["name"].(string); ok && name != "" {
+			return name
+		}
+	}
+
+	for _, tag := range profile.Tags {
+		if len(tag) >= 2 && tag[0] == "name" {
+			return tag[1]
+		}
+	}
+
+	return ""
+}
+
+func GetProfileAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nostr.Event {
+	filter := nostr.Filter{
+		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
+		Authors: []nostr.PubKey{pubKey},
+		Limit:   1,
+	}
+	return GetEventAsync(ctx, filter, opts)
+}
+
+func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr.Event {
+	if opts == nil || opts.App == nil {
+		return nil
+	}
+
+	relays := opts.Relays
+	if len(relays) == 0 {
+		relays = opts.App.AllReadableRelays()
+	}
+
+	var event *nostr.Event
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	found := make(chan struct{})
+
+	localURL := config.GetLocalRelayURL()
+	remoteRelays := make([]string, 0, len(relays))
+	for _, r := range relays {
+		if r != localURL {
+			remoteRelays = append(remoteRelays, r)
+		}
+	}
+
+	ctxLocal, cancelLocal := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelLocal()
+	if localURL != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result := opts.App.Pool().QuerySingle(ctxLocal, []string{localURL}, filter, nostr.SubscriptionOptions{})
+			if result != nil {
+				mu.Lock()
+				if event == nil {
+					event = &result.Event
+					close(found)
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+
+	if len(remoteRelays) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctxRemote, cancelRemote := context.WithTimeout(ctx, 10*time.Second)
+			defer cancelRemote()
+			result := opts.App.Pool().QuerySingle(ctxRemote, remoteRelays, filter, nostr.SubscriptionOptions{})
+			if result != nil {
+				mu.Lock()
+				if event == nil {
+					event = &result.Event
+					close(found)
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(found)
+	}()
+
+	<-found
+
+	if event != nil && shouldCache(event, opts.App) {
+		go func() {
+			privateRelays := opts.App.PrivateRelays()
+			opts.App.Pool().PublishMany(context.Background(), privateRelays, *event)
+		}()
+	}
+
+	return event
 }
 
 func GetMyTimeline(ctx context.Context, limit int, until nostr.Timestamp, opts *GetOptions) chan *nostr.Event {

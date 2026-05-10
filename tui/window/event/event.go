@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
+	"charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/glamour/styles"
@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	WindowID = "event"
+	WindowID      = "event"
+	glamourGutter = 3
 )
 
 type CloseMsg struct{}
@@ -89,36 +90,10 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		loading:      false,
 		showRawJSON:  false,
 	}
-	m.styles = newStyles(m.darkBG)
-	m.viewport = viewport.New(
-		viewport.WithWidth(width-4),
-		viewport.WithHeight(height-6),
-	)
-	m.glamour = nil
-	m.help = help.New()
-	m.help.ShowAll = false
-
-	m.keys = eventKeyMap{
-		reply:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
-		quote:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
-		delete:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
-		follow:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
-		open:    key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
-		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
-		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
-	}
-
-	m.tk.KeymapAdd("reply", "reply", "r")
-	m.tk.KeymapAdd("quote", "quote", "q")
-	m.tk.KeymapAdd("delete", "delete", "d")
-	m.tk.KeymapAdd("follow", "follow", "f")
-	m.tk.KeymapAdd("open", "open in browser", "o")
-	m.tk.KeymapAdd("rawjson", "raw json", "j")
-	m.tk.KeymapAdd("quit", "close", "esc")
-
-	m.tk.SetMsgHandling(WindowID, m.handleMsg)
-	m.tk.Focus(WindowID)
-
+	m.initStyles()
+	m.initViewport(width, height)
+	m.initKeyBindings()
+	m.initToolkit()
 	return m
 }
 
@@ -135,15 +110,33 @@ func NewFromID(eventID string, app *config.AppContext, width, height int) *Event
 		loading:      true,
 		showRawJSON:  false,
 	}
-	m.styles = newStyles(m.darkBG)
-	m.viewport = viewport.New(
-		viewport.WithWidth(width-4),
-		viewport.WithHeight(height-6),
-	)
-	m.glamour = nil
-	m.help = help.New()
-	m.help.ShowAll = false
+	m.initStyles()
+	m.initViewport(width, height)
+	m.initKeyBindings()
+	m.initToolkit()
+	return m
+}
 
+func (m *EventView) initStyles() {
+	m.styles = newStyles(m.darkBG)
+}
+
+func (m *EventView) initViewport(width, height int) {
+	borderColor := lipgloss.Color("#25A065")
+	if m.darkBG {
+		borderColor = lipgloss.Color("#00875A")
+	}
+
+	m.viewport = viewport.New()
+	m.viewport.SetWidth(width)
+	m.viewport.SetHeight(height)
+	m.viewport.Style = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
+		PaddingRight(2)
+}
+
+func (m *EventView) initKeyBindings() {
 	m.keys = eventKeyMap{
 		reply:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
 		quote:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
@@ -153,7 +146,11 @@ func NewFromID(eventID string, app *config.AppContext, width, height int) *Event
 		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
 		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 	}
+	m.help = help.New()
+	m.help.ShowAll = false
+}
 
+func (m *EventView) initToolkit() {
 	m.tk.KeymapAdd("reply", "reply", "r")
 	m.tk.KeymapAdd("quote", "quote", "q")
 	m.tk.KeymapAdd("delete", "delete", "d")
@@ -164,8 +161,6 @@ func NewFromID(eventID string, app *config.AppContext, width, height int) *Event
 
 	m.tk.SetMsgHandling(WindowID, m.handleMsg)
 	m.tk.Focus(WindowID)
-
-	return m
 }
 
 func (m *EventView) ID() string {
@@ -176,35 +171,30 @@ func (m *EventView) Init() tea.Cmd {
 	logger.Debug("EventView.Init called", "fetchedName", m.fetchedName, "fetchedEvent", m.fetchedEvent, "loading", m.loading)
 
 	if m.fetchedEvent && !m.fetchedName {
-		return m.fetchProfileName()
+		return m.fetchProfileNameAsync()
 	}
 
 	if !m.fetchedEvent && m.eventID != "" {
-		return m.fetchEvent()
+		return m.fetchEventAsync()
 	}
 
 	return nil
 }
 
-func (m *EventView) fetchEvent() tea.Cmd {
+func (m *EventView) fetchEventAsync() tea.Cmd {
 	return func() tea.Msg {
-		logger.Debug("fetchEvent starting", "eventID", m.eventID)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		event := utils.GetNote(ctx, m.eventID, &utils.GetOptions{App: m.app})
-		logger.Debug("fetchEvent done", "event", event)
+		logger.Debug("fetchEventAsync starting", "eventID", m.eventID)
+		event := utils.GetNoteAsync(context.Background(), m.eventID, &utils.GetOptions{App: m.app})
+		logger.Debug("fetchEventAsync done", "event", event)
 		return EventLoadedMsg{Event: event}
 	}
 }
 
-func (m *EventView) fetchProfileName() tea.Cmd {
+func (m *EventView) fetchProfileNameAsync() tea.Cmd {
 	return func() tea.Msg {
-		logger.Debug("fetchProfileName starting")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		name := utils.GetProfileName(ctx, m.event.PubKey, &utils.GetOptions{App: m.app})
-		logger.Debug("fetchProfileName done", "name", name)
+		logger.Debug("fetchProfileNameAsync starting")
+		name := utils.GetProfileNameAsync(context.Background(), m.event.PubKey, &utils.GetOptions{App: m.app})
+		logger.Debug("fetchProfileNameAsync done", "name", name)
 		return ProfileLoadedMsg{Name: name}
 	}
 }
@@ -311,7 +301,7 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.fetchedEvent = true
 		if m.event != nil {
-			return m, m.fetchProfileName()
+			return m, m.fetchProfileNameAsync()
 		}
 		return m, nil
 
@@ -326,8 +316,8 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.viewport.SetWidth(m.width - 4)
-		m.viewport.SetHeight(m.height - 6)
+		m.viewport.SetWidth(msg.Width)
+		m.viewport.SetHeight(msg.Height)
 
 	case tea.BackgroundColorMsg:
 		m.darkBG = msg.IsDark()
@@ -349,27 +339,21 @@ func (m *EventView) View() tea.View {
 	if m.glamour == nil {
 		renderer, _ := glamour.NewTermRenderer(
 			glamour.WithStyles(styles.DarkStyleConfig),
-			glamour.WithWordWrap(m.width-8),
+			glamour.WithWordWrap(m.viewport.Width()-glamourGutter),
 		)
 		m.glamour = renderer
 	}
-	content := m.renderContent()
-	m.viewport.SetContent(content)
 
 	header := m.renderHeader()
 	if m.loading {
-		header = m.styles.header.Render("Loading...")
+		header = "Loading..."
 	}
 
-	v := tea.NewView(
-		m.styles.container.Render(header) +
-			"\n" +
-			m.viewport.View() +
-			"\n" +
-			m.styles.footer.Render(m.help.View(m.keys)),
-	)
-	v.AltScreen = true
-	return v
+	content := m.renderContent()
+	fullContent := header + "\n\n" + content
+	m.viewport.SetContent(fullContent)
+
+	return tea.NewView(m.viewport.View() + "\n" + m.help.View(m.keys))
 }
 
 func (m *EventView) Close() bool {
