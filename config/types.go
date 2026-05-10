@@ -105,6 +105,10 @@ type Config struct {
 	Profile ProfileConfig `mapstructure:"profile"`
 
 	CacheFilters []CacheFilter `mapstructure:"cache_filters"`
+
+	Query struct {
+		Timeout int `mapstructure:"timeout"`
+	} `mapstructure:"query"`
 }
 
 type ProfileConfig struct {

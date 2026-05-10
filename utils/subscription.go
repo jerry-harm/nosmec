@@ -104,7 +104,7 @@ func syncCommunitiesFromNetwork(ctx context.Context, app *config.AppContext, pub
 
 	var event nostr.Event
 	for _, relay := range readableRelays {
-		ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ctxTimeout, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 		result := app.Pool().QuerySingle(ctxTimeout, []string{relay}, filter, nostr.SubscriptionOptions{})
 		cancel()
 		if result != nil && result.Event.ID != [32]byte{} {
@@ -149,7 +149,7 @@ func syncUsersFromNetwork(ctx context.Context, app *config.AppContext, pubKey no
 
 	var event nostr.Event
 	for _, relay := range readableRelays {
-		ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ctxTimeout, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 		result := app.Pool().QuerySingle(ctxTimeout, []string{relay}, filter, nostr.SubscriptionOptions{})
 		cancel()
 		if result != nil && result.Event.ID != [32]byte{} {
@@ -204,7 +204,7 @@ func syncHashtagsFromNetwork(ctx context.Context, app *config.AppContext, pubKey
 
 	var event nostr.Event
 	for _, relay := range readableRelays {
-		ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ctxTimeout, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 		result := app.Pool().QuerySingle(ctxTimeout, []string{relay}, filter, nostr.SubscriptionOptions{})
 		cancel()
 		if result != nil && result.Event.ID != [32]byte{} {

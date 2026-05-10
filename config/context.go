@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
@@ -107,6 +108,15 @@ func (a *AppContext) localRelayURL() string {
 		port = "8989"
 	}
 	return fmt.Sprintf("ws://localhost:%s", port)
+}
+
+func (a *AppContext) QueryTimeout() time.Duration {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.cfg.Query.Timeout <= 0 {
+		return 5 * time.Second
+	}
+	return time.Duration(a.cfg.Query.Timeout) * time.Second
 }
 
 func (a *AppContext) LocalRelayEnabled() bool {

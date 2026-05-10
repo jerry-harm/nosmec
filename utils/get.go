@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
@@ -34,7 +33,8 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 			return false
 		})
 	} else {
-		ctxQuery, cancelQuery := context.WithTimeout(ctx, 5*time.Second)
+		timeout := opts.App.QueryTimeout()
+		ctxQuery, cancelQuery := context.WithTimeout(ctx, timeout)
 		defer cancelQuery()
 		result := opts.App.Pool().QuerySingle(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
 		if result != nil {
@@ -205,31 +205,24 @@ func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *
 		relays = opts.App.AllReadableRelays()
 	}
 
+	timeout := opts.App.QueryTimeout()
+	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	var event *nostr.Event
 
 	if isReplaceableKind(filter.Kinds) {
-		results := opts.App.Pool().FetchManyReplaceable(ctx, relays, filter, nostr.SubscriptionOptions{})
+		results := opts.App.Pool().FetchManyReplaceable(ctxTimeout, relays, filter, nostr.SubscriptionOptions{})
 		results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
 			event = &ev
 			CacheEvent(&ev, opts.App)
 			return false
 		})
 	} else {
-		found := make(chan struct{})
-		go func() {
-			result := opts.App.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
-			if result != nil {
-				event = &result.Event
-				CacheEvent(&result.Event, opts.App)
-				close(found)
-				return
-			}
-			close(found)
-		}()
-
-		select {
-		case <-found:
-		case <-ctx.Done():
+		result := opts.App.Pool().QuerySingle(ctxTimeout, relays, filter, nostr.SubscriptionOptions{})
+		if result != nil {
+			event = &result.Event
+			CacheEvent(&result.Event, opts.App)
 		}
 	}
 

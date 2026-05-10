@@ -237,7 +237,7 @@ func FetchRecipientDMRelays(ctx context.Context, app *config.AppContext, recipie
 		Limit:   1,
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 	defer cancel()
 
 	result := app.Pool().QuerySingle(ctx, knownRelays, filter, nostr.SubscriptionOptions{})
@@ -267,7 +267,7 @@ func FetchRecipientReadRelays(ctx context.Context, app *config.AppContext, recip
 		Limit:   1,
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 	defer cancel()
 
 	result := app.Pool().QuerySingle(ctx, knownRelays, filter, nostr.SubscriptionOptions{})
