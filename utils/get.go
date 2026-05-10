@@ -52,7 +52,9 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 			}
 		}
 		if event == nil && len(remoteRelays) > 0 {
-			result := opts.App.Pool().QuerySingle(ctx, remoteRelays, filter, nostr.SubscriptionOptions{})
+			ctxRemote, cancelRemote := context.WithTimeout(ctx, 10*time.Second)
+			defer cancelRemote()
+			result := opts.App.Pool().QuerySingle(ctxRemote, remoteRelays, filter, nostr.SubscriptionOptions{})
 			if result != nil {
 				event = &result.Event
 			}

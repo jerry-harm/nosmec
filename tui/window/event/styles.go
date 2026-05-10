@@ -25,7 +25,9 @@ func newStyles(darkBG bool) eventStyles {
 		container: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(borderColor).
-			Padding(1, 1),
+			Padding(1, 1).
+			Width(78).
+			Height(22),
 		header: lipgloss.NewStyle().
 			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
 			Bold(true),
