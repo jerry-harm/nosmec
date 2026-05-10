@@ -361,8 +361,6 @@ func (m *model) startSubscription(since nostr.Timestamp) tea.Cmd {
 		if len(relays) == 0 {
 			relays = m.app.AllReadableRelays()
 		}
-		privateRelays := m.app.PrivateRelays()
-		relays = append(relays, privateRelays...)
 
 		// Build filter based on timeline type
 		var filter nostr.Filter

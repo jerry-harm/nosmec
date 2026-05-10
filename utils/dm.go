@@ -109,11 +109,11 @@ func ListDMConversations(ctx context.Context, app *config.AppContext, limit int)
 		relays = app.Config().KnownRelays
 	}
 	if len(relays) == 0 {
+		relays = app.AllReadableRelays()
+	}
+	if len(relays) == 0 {
 		return nil, fmt.Errorf("no relays available to query")
 	}
-
-	privateRelays := app.PrivateRelays()
-	queryRelays := append(relays, privateRelays...)
 
 	filter := nostr.Filter{
 		Kinds: []nostr.Kind{nostr.KindGiftWrap},
@@ -124,7 +124,7 @@ func ListDMConversations(ctx context.Context, app *config.AppContext, limit int)
 	conversations := make(map[string]Conversation)
 	seen := make(map[string]bool)
 
-	for ie := range app.Pool().SubscribeMany(ctx, queryRelays, filter, nostr.SubscriptionOptions{Label: "dmconversations"}) {
+	for ie := range app.Pool().SubscribeMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "dmconversations"}) {
 		fromMe := ie.Event.PubKey == ourPubKey
 
 		var otherPubKey string
@@ -202,11 +202,11 @@ func QueryDMHistory(ctx context.Context, app *config.AppContext, recipientPubKey
 		relays = app.Config().KnownRelays
 	}
 	if len(relays) == 0 {
+		relays = app.AllReadableRelays()
+	}
+	if len(relays) == 0 {
 		return nil, fmt.Errorf("no relays available to query")
 	}
-
-	privateRelays := app.PrivateRelays()
-	queryRelays := append(relays, privateRelays...)
 
 	filter := nostr.Filter{
 		Kinds: []nostr.Kind{nostr.KindGiftWrap},
@@ -217,7 +217,7 @@ func QueryDMHistory(ctx context.Context, app *config.AppContext, recipientPubKey
 	var messages []DMMessage
 	seen := make(map[string]bool)
 
-	for ie := range app.Pool().SubscribeMany(ctx, queryRelays, filter, nostr.SubscriptionOptions{Label: "dmhistory"}) {
+	for ie := range app.Pool().SubscribeMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "dmhistory"}) {
 		rumor, err := nip59.GiftUnwrap(
 			ie.Event,
 			func(otherpubkey nostr.PubKey, ciphertext string) (string, error) {

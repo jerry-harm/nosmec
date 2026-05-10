@@ -91,8 +91,6 @@ type Config struct {
 
 	KnownRelays []string `mapstructure:"known_relays"`
 
-	PrivateRelays []string `mapstructure:"private_relays"`
-
 	LocalRelay LocalRelayConfig `mapstructure:"local_relay"`
 
 	Proxy struct {

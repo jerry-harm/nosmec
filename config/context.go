@@ -98,17 +98,6 @@ func (a *AppContext) AllReadableRelays() []string {
 	return relays
 }
 
-func (a *AppContext) PrivateRelays() []string {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	relays := make([]string, 0, len(a.cfg.PrivateRelays)+1)
-	if localURL := a.localRelayURL(); localURL != "" {
-		relays = append(relays, localURL)
-	}
-	relays = append(relays, a.cfg.PrivateRelays...)
-	return relays
-}
-
 func (a *AppContext) localRelayURL() string {
 	if !a.LocalRelayEnabled() {
 		return ""

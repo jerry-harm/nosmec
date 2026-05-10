@@ -74,12 +74,7 @@ func CreateCommunity(ctx context.Context, app *config.AppContext, def CommunityD
 		}
 	}
 
-	privateRelays := app.PrivateRelays()
-	if len(privateRelays) > 0 {
-		go func() {
-			app.Pool().PublishMany(context.Background(), privateRelays, *event)
-		}()
-	}
+	CacheEvent(event, app)
 
 	return event, nil
 }
@@ -144,12 +139,7 @@ func PostToCommunity(ctx context.Context, app *config.AppContext, communityAddr 
 		}
 	}
 
-	privateRelays := app.PrivateRelays()
-	if len(privateRelays) > 0 {
-		go func() {
-			app.Pool().PublishMany(context.Background(), privateRelays, *event)
-		}()
-	}
+	CacheEvent(event, app)
 
 	return event, nil
 }
@@ -208,8 +198,9 @@ func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAut
 	communityAddr := fmt.Sprintf("%d:%s:%s", nostr.KindCommunityDefinition, communityAuthor.Hex(), communityID)
 
 	relays := app.Config().KnownRelays
-	privateRelays := app.PrivateRelays()
-	relays = append(relays, privateRelays...)
+	if len(relays) == 0 {
+		relays = app.AllReadableRelays()
+	}
 
 	filter := nostr.Filter{
 		Kinds: []nostr.Kind{nostr.KindComment},
@@ -308,8 +299,9 @@ func ReplyToCommunity(ctx context.Context, app *config.AppContext, parentPostID 
 
 func GetMyCreatedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) chan *nostr.Event {
 	relays := app.Config().KnownRelays
-	privateRelays := app.PrivateRelays()
-	relays = append(relays, privateRelays...)
+	if len(relays) == 0 {
+		relays = app.AllReadableRelays()
+	}
 
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindCommunityDefinition},
@@ -331,8 +323,9 @@ func GetMyCreatedCommunities(ctx context.Context, app *config.AppContext, pubKey
 
 func GetPostedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) chan string {
 	relays := app.Config().KnownRelays
-	privateRelays := app.PrivateRelays()
-	relays = append(relays, privateRelays...)
+	if len(relays) == 0 {
+		relays = app.AllReadableRelays()
+	}
 
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindComment},

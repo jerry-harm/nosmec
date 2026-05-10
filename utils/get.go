@@ -23,7 +23,6 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 	if len(relays) == 0 {
 		relays = opts.App.AllReadableRelays()
 	}
-	privateRelays := opts.App.PrivateRelays()
 
 	var event *nostr.Event
 
@@ -35,36 +34,16 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 			return false
 		})
 	} else {
-		localURL := config.GetLocalRelayURL()
-		remoteRelays := make([]string, 0, len(relays))
-		for _, r := range relays {
-			if r != localURL {
-				remoteRelays = append(remoteRelays, r)
-			}
-		}
-
-		ctxLocal, cancelLocal := context.WithTimeout(ctx, 2*time.Second)
-		defer cancelLocal()
-		if localURL != "" {
-			result := opts.App.Pool().QuerySingle(ctxLocal, []string{localURL}, filter, nostr.SubscriptionOptions{})
-			if result != nil {
-				event = &result.Event
-			}
-		}
-		if event == nil && len(remoteRelays) > 0 {
-			ctxRemote, cancelRemote := context.WithTimeout(ctx, 10*time.Second)
-			defer cancelRemote()
-			result := opts.App.Pool().QuerySingle(ctxRemote, remoteRelays, filter, nostr.SubscriptionOptions{})
-			if result != nil {
-				event = &result.Event
-			}
+		ctxQuery, cancelQuery := context.WithTimeout(ctx, 5*time.Second)
+		defer cancelQuery()
+		result := opts.App.Pool().QuerySingle(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+		if result != nil {
+			event = &result.Event
 		}
 	}
 
 	if event != nil && shouldCache(event, opts.App) {
-		go func() {
-			opts.App.Pool().PublishMany(context.Background(), privateRelays, *event)
-		}()
+		CacheEvent(event, opts.App)
 	}
 
 	return event
@@ -109,12 +88,12 @@ func CacheEvent(event *nostr.Event, app *config.AppContext) {
 	if !shouldCache(event, app) {
 		return
 	}
-	privateRelays := app.PrivateRelays()
-	if len(privateRelays) == 0 {
+	localURL := config.GetLocalRelayURL()
+	if localURL == "" {
 		return
 	}
 	go func() {
-		app.Pool().PublishMany(context.Background(), privateRelays, *event)
+		app.Pool().PublishMany(context.Background(), []string{localURL}, *event)
 	}()
 }
 
@@ -225,8 +204,6 @@ func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *
 	if len(relays) == 0 {
 		relays = opts.App.AllReadableRelays()
 	}
-	privateRelays := opts.App.PrivateRelays()
-	relays = append(relays, privateRelays...)
 
 	var event *nostr.Event
 
@@ -256,12 +233,6 @@ func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *
 		}
 	}
 
-	if event != nil && shouldCache(event, opts.App) {
-		go func() {
-			opts.App.Pool().PublishMany(context.Background(), privateRelays, *event)
-		}()
-	}
-
 	return event
 }
 
@@ -283,8 +254,6 @@ func GetMyTimeline(ctx context.Context, limit int, until nostr.Timestamp, opts *
 	if len(relays) == 0 {
 		relays = opts.App.AllReadableRelays()
 	}
-	privateRelays := opts.App.PrivateRelays()
-	relays = append(relays, privateRelays...)
 
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindTextNote},
@@ -318,8 +287,9 @@ func GetGlobalTimeline(ctx context.Context, limit int, until nostr.Timestamp, op
 	if len(relays) == 0 {
 		relays = opts.App.Config().KnownRelays
 	}
-	privateRelays := opts.App.PrivateRelays()
-	relays = append(relays, privateRelays...)
+	if len(relays) == 0 {
+		relays = opts.App.AllReadableRelays()
+	}
 
 	filter := nostr.Filter{
 		Kinds: []nostr.Kind{nostr.KindTextNote},
@@ -360,8 +330,9 @@ func GetFollowedTimeline(ctx context.Context, limit int, until nostr.Timestamp, 
 	if len(relays) == 0 {
 		relays = opts.App.Config().KnownRelays
 	}
-	privateRelays := opts.App.PrivateRelays()
-	relays = append(relays, privateRelays...)
+	if len(relays) == 0 {
+		relays = opts.App.AllReadableRelays()
+	}
 
 	var authors []nostr.PubKey
 	var communityAddrs []string
