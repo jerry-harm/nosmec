@@ -51,19 +51,11 @@ func (m *EventView) renderContent() string {
 
 	e := m.event
 
-	var tagParts []string
-	for _, tag := range e.Tags {
-		if len(tag) >= 2 {
-			switch tag[0] {
-			case "t":
-				tagParts = append(tagParts, m.styles.tags.Render("#"+tag[1]))
-			case "p":
-				tagParts = append(tagParts, m.styles.tags.Render("@"+tag[1]))
-			case "e":
-				tagParts = append(tagParts, m.styles.tags.Render("→"+tag[1]))
-			case "r":
-				tagParts = append(tagParts, m.styles.tags.Render(tag[1]))
-			}
+	var tagLines []string
+	for i, tag := range e.Tags {
+		if len(tag) >= 1 {
+			tagStr := strings.Join(tag, " ")
+			tagLines = append(tagLines, fmt.Sprintf("[%d] %s", i, m.styles.tags.Render(tagStr)))
 		}
 	}
 
@@ -78,13 +70,17 @@ func (m *EventView) renderContent() string {
 	var out string
 	out += content
 	out += "\n"
-	out += "\n"
 
-	if len(tagParts) > 0 {
-		out += strings.Join(tagParts, " ")
+	if len(tagLines) > 0 {
+		out += "\n--- Tags ---\n"
+		for _, tagLine := range tagLines {
+			out += tagLine + "\n"
+		}
 	}
 
-	out += fmt.Sprintf("\nID: %s", m.styles.tags.Render(e.ID.Hex()))
+	out += "\n--- Signature ---\n"
+	out += fmt.Sprintf("ID: %s\n", m.styles.tags.Render(e.ID.Hex()))
+	out += fmt.Sprintf("Sig: %x\n", e.Sig)
 
 	return out
 }
