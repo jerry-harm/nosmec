@@ -1,0 +1,8 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": "tui/window/event/event.go", "reason": "EventView主结构,需要修改支持异步加载和raw JSON查看"}
+{"file": "tui/window/event/view.go", "reason": "renderHeader和renderContent,需要修改header为两行,移除截断,支持raw JSON"}
+{"file": "tui/window/event/styles.go", "reason": "event样式定义"}
+{"file": "cmd/note_commands.go", "reason": "命令注册模式参考"}
+{"file": "utils/get.go", "reason": "GetNote函数用于异步获取event"}
+{"file": "tui/windowmanager/windowmanager.go", "reason": "WindowManager管理窗口栈"}
+{"file": "cmd/root.go", "reason": "getApp和app初始化"}
