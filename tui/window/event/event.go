@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
@@ -24,15 +22,12 @@ const (
 	WindowID = "event"
 )
 
-// CloseMsg is sent when the event view should be closed.
 type CloseMsg struct{}
 
-// EventLoadedMsg is sent when the event has been fetched asynchronously.
 type EventLoadedMsg struct {
 	Event *nostr.Event
 }
 
-// ProfileLoadedMsg is sent when the profile name has been fetched.
 type ProfileLoadedMsg struct {
 	Name string
 }
@@ -53,14 +48,9 @@ type EventView struct {
 	showRawJSON  bool
 	loading      bool
 	fetchedEvent bool
-	help         help.Model
 }
 
-// New creates an EventView with an already-loaded event.
 func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string) *EventView {
-	helpModel := help.New()
-	helpModel.ShowAll = false
-
 	m := &EventView{
 		event:        event,
 		app:          app,
@@ -73,7 +63,6 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		fetchedEvent: true,
 		loading:      false,
 		showRawJSON:  false,
-		help:         helpModel,
 	}
 	m.styles = newStyles(m.darkBG)
 	m.viewport = viewport.New(
@@ -81,9 +70,6 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		viewport.WithHeight(height-6),
 	)
 	m.glamour = nil
-
-	m.help = help.New()
-	m.help.ShowAll = false
 
 	m.tk.KeymapAdd("reply", "reply", "r")
 	m.tk.KeymapAdd("quote", "quote", "q")
@@ -99,11 +85,7 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 	return m
 }
 
-// NewFromID creates an EventView and starts async event loading.
 func NewFromID(eventID string, app *config.AppContext, width, height int) *EventView {
-	helpModel := help.New()
-	helpModel.ShowAll = false
-
 	m := &EventView{
 		eventID:      eventID,
 		app:          app,
@@ -115,7 +97,6 @@ func NewFromID(eventID string, app *config.AppContext, width, height int) *Event
 		fetchedEvent: false,
 		loading:      true,
 		showRawJSON:  false,
-		help:         helpModel,
 	}
 	m.styles = newStyles(m.darkBG)
 	m.viewport = viewport.New(
@@ -123,9 +104,6 @@ func NewFromID(eventID string, app *config.AppContext, width, height int) *Event
 		viewport.WithHeight(height-6),
 	)
 	m.glamour = nil
-
-	m.help = help.New()
-	m.help.ShowAll = false
 
 	m.tk.KeymapAdd("reply", "reply", "r")
 	m.tk.KeymapAdd("quote", "quote", "q")
@@ -145,35 +123,13 @@ func (m *EventView) ID() string {
 	return WindowID
 }
 
-type helpKeyMap struct {
-	reply   key.Binding
-	quote   key.Binding
-	delete  key.Binding
-	follow  key.Binding
-	open    key.Binding
-	rawjson key.Binding
-	quit    key.Binding
-}
-
-func (h helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{h.reply, h.quote, h.delete, h.follow, h.open, h.rawjson, h.quit}
-}
-
-func (h helpKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{h.reply, h.quote, h.delete, h.follow, h.open, h.rawjson, h.quit},
-	}
-}
-
 func (m *EventView) Init() tea.Cmd {
 	logger.Debug("EventView.Init called", "fetchedName", m.fetchedName, "fetchedEvent", m.fetchedEvent, "loading", m.loading)
 
-	// If event is already loaded, just fetch profile name if needed
 	if m.fetchedEvent && !m.fetchedName {
 		return m.fetchProfileName()
 	}
 
-	// If event needs to be fetched
 	if !m.fetchedEvent && m.eventID != "" {
 		return m.fetchEvent()
 	}
@@ -204,7 +160,6 @@ func (m *EventView) fetchProfileName() tea.Cmd {
 	}
 }
 
-// handleMsg processes key messages for the EventView.
 func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -307,7 +262,6 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.fetchedEvent = true
 		if m.event != nil {
-			// Now fetch profile name
 			return m, m.fetchProfileName()
 		}
 		return m, nil
@@ -358,38 +312,25 @@ func (m *EventView) View() tea.View {
 		header = m.styles.header.Render("Loading...")
 	}
 
+	helpView := m.renderFooterHelp()
+
 	v := tea.NewView(
 		m.styles.container.Render(header) +
 			"\n" +
 			m.viewport.View() +
 			"\n" +
-			m.styles.footer.Render(m.help.View(m.helpKeyMap())),
+			m.styles.footer.Render(helpView),
 	)
 	v.AltScreen = true
 	return v
 }
-
-func (m *EventView) helpKeyMap() help.KeyMap {
-	return helpKeyMap{
-		reply:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
-		quote:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
-		delete:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
-		follow:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
-		open:    key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
-		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
-		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
-	}
-}
-
-var _ help.KeyMap = (*helpKeyMap)(nil)
 
 func (m *EventView) renderFooterHelp() string {
 	helps := m.tk.KeymapHelpStrings()
 	if len(helps) == 0 {
 		return ""
 	}
-	joined := strings.Join(helps, " · ")
-	return joined
+	return strings.Join(helps, " · ")
 }
 
 func (m *EventView) Close() bool {
