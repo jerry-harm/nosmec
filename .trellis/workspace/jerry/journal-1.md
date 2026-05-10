@@ -142,3 +142,40 @@ Refactored all nostr query functions (GetMyTimeline, GetGlobalTimeline, GetFollo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: Implement event detail command with async loading
+
+**Date**: 2026-05-10
+**Task**: Implement event detail command with async loading
+**Branch**: `main`
+
+### Summary
+
+Implemented nosmec event command with async relay queries, QuerySingle for non-replaceable events, FetchManyReplaceable for replaceable kinds, proper TUI with viewport, j key for raw JSON toggle, and bubbles/help
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e3486a2` | (see git log) |
+| `df8891b` | (see git log) |
+| `d1178a7` | (see git log) |
+| `952a514` | (see git log) |
+| `0dda5fc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

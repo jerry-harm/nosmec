@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 4
-- **Last Active**: 2026-05-09
+- **Total Sessions**: 5
+- **Last Active**: 2026-05-10
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~144 | Active |
+| `journal-1.md` | ~181 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 5 | 2026-05-10 | Implement event detail command with async loading | `e3486a2`, `df8891b`, `d1178a7`, `952a514`, `0dda5fc` | `main` |
 | 4 | 2026-05-09 | Channel-based async queries + NOTICE suppression + TUI rate limit | `b6a3884`, `fe8fe19`, `0dddf9e`, `7917acb`, `bc9ced4` | `main` |
 | 3 | 2026-05-09 | Inline session: TUI fix, community commands, cache filter, bleve | - | `main` |
 | 2 | 2026-05-09 | 订阅功能配置化改进 | `021f731` | `main` |
