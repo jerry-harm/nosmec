@@ -27,35 +27,53 @@ const (
 // CloseMsg is sent when the event view should be closed.
 type CloseMsg struct{}
 
-type EventView struct {
-	event       *nostr.Event
-	app         *config.AppContext
-	viewport    viewport.Model
-	glamour     *glamour.TermRenderer
-	width       int
-	height      int
-	darkBG      bool
-	styles      eventStyles
-	tk          *toolkit.ToolKit
-	authorName  string
-	fetchedName bool
-	help        help.Model
+// EventLoadedMsg is sent when the event has been fetched asynchronously.
+type EventLoadedMsg struct {
+	Event *nostr.Event
 }
 
+// ProfileLoadedMsg is sent when the profile name has been fetched.
+type ProfileLoadedMsg struct {
+	Name string
+}
+
+type EventView struct {
+	event        *nostr.Event
+	eventID      string
+	app          *config.AppContext
+	viewport     viewport.Model
+	glamour      *glamour.TermRenderer
+	width        int
+	height       int
+	darkBG       bool
+	styles       eventStyles
+	tk           *toolkit.ToolKit
+	authorName   string
+	fetchedName  bool
+	showRawJSON  bool
+	loading      bool
+	fetchedEvent bool
+	help         help.Model
+}
+
+// New creates an EventView with an already-loaded event.
 func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string) *EventView {
 	helpModel := help.New()
 	helpModel.ShowAll = false
 
 	m := &EventView{
-		event:       event,
-		app:         app,
-		width:       width,
-		height:      height,
-		darkBG:      false,
-		tk:          toolkit.New(),
-		authorName:  authorName,
-		fetchedName: authorName != "",
-		help:        helpModel,
+		event:        event,
+		app:          app,
+		width:        width,
+		height:       height,
+		darkBG:       false,
+		tk:           toolkit.New(),
+		authorName:   authorName,
+		fetchedName:  authorName != "",
+		fetchedEvent: true,
+		loading:      false,
+		showRawJSON:  false,
+		help:         helpModel,
 	}
 	m.styles = newStyles(m.darkBG)
 	m.viewport = viewport.New(
@@ -72,6 +90,49 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 	m.tk.KeymapAdd("delete", "delete", "d")
 	m.tk.KeymapAdd("follow", "follow", "f")
 	m.tk.KeymapAdd("open", "open in browser", "o")
+	m.tk.KeymapAdd("rawjson", "raw json", "j")
+	m.tk.KeymapAdd("quit", "close", "esc")
+
+	m.tk.SetMsgHandling(WindowID, m.handleMsg)
+	m.tk.Focus(WindowID)
+
+	return m
+}
+
+// NewFromID creates an EventView and starts async event loading.
+func NewFromID(eventID string, app *config.AppContext, width, height int) *EventView {
+	helpModel := help.New()
+	helpModel.ShowAll = false
+
+	m := &EventView{
+		eventID:      eventID,
+		app:          app,
+		width:        width,
+		height:       height,
+		darkBG:       false,
+		tk:           toolkit.New(),
+		fetchedName:  false,
+		fetchedEvent: false,
+		loading:      true,
+		showRawJSON:  false,
+		help:         helpModel,
+	}
+	m.styles = newStyles(m.darkBG)
+	m.viewport = viewport.New(
+		viewport.WithWidth(width-4),
+		viewport.WithHeight(height-6),
+	)
+	m.glamour = nil
+
+	m.help = help.New()
+	m.help.ShowAll = false
+
+	m.tk.KeymapAdd("reply", "reply", "r")
+	m.tk.KeymapAdd("quote", "quote", "q")
+	m.tk.KeymapAdd("delete", "delete", "d")
+	m.tk.KeymapAdd("follow", "follow", "f")
+	m.tk.KeymapAdd("open", "open in browser", "o")
+	m.tk.KeymapAdd("rawjson", "raw json", "j")
 	m.tk.KeymapAdd("quit", "close", "esc")
 
 	m.tk.SetMsgHandling(WindowID, m.handleMsg)
@@ -85,34 +146,51 @@ func (m *EventView) ID() string {
 }
 
 type helpKeyMap struct {
-	reply  key.Binding
-	quote  key.Binding
-	delete key.Binding
-	follow key.Binding
-	open   key.Binding
-	quit   key.Binding
+	reply   key.Binding
+	quote   key.Binding
+	delete  key.Binding
+	follow  key.Binding
+	open    key.Binding
+	rawjson key.Binding
+	quit    key.Binding
 }
 
 func (h helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{h.reply, h.quote, h.delete, h.follow, h.open, h.quit}
+	return []key.Binding{h.reply, h.quote, h.delete, h.follow, h.open, h.rawjson, h.quit}
 }
 
 func (h helpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{h.reply, h.quote, h.delete, h.follow, h.open, h.quit},
+		{h.reply, h.quote, h.delete, h.follow, h.open, h.rawjson, h.quit},
 	}
-}
-
-type ProfileLoadedMsg struct {
-	Name string
 }
 
 func (m *EventView) Init() tea.Cmd {
-	logger.Debug("EventView.Init called", "fetchedName", m.fetchedName)
-	if m.fetchedName {
-		return nil
+	logger.Debug("EventView.Init called", "fetchedName", m.fetchedName, "fetchedEvent", m.fetchedEvent, "loading", m.loading)
+
+	// If event is already loaded, just fetch profile name if needed
+	if m.fetchedEvent && !m.fetchedName {
+		return m.fetchProfileName()
 	}
-	return m.fetchProfileName()
+
+	// If event needs to be fetched
+	if !m.fetchedEvent && m.eventID != "" {
+		return m.fetchEvent()
+	}
+
+	return nil
+}
+
+func (m *EventView) fetchEvent() tea.Cmd {
+	return func() tea.Msg {
+		logger.Debug("fetchEvent starting", "eventID", m.eventID)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		event := utils.GetNote(ctx, m.eventID, &utils.GetOptions{App: m.app})
+		logger.Debug("fetchEvent done", "event", event)
+		return EventLoadedMsg{Event: event}
+	}
 }
 
 func (m *EventView) fetchProfileName() tea.Cmd {
@@ -142,6 +220,10 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 			return m.follow()
 		case "o":
 			return m.openInBrowser()
+		case "j":
+			m.showRawJSON = !m.showRawJSON
+			logger.Debug("toggled showRawJSON", "showRawJSON", m.showRawJSON)
+			return nil
 		case "esc":
 			logger.Debug("ESC pressed, sending CloseMsg")
 			return func() tea.Msg { return CloseMsg{} }
@@ -219,6 +301,17 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case EventLoadedMsg:
+		logger.Debug("EventLoadedMsg received", "event", msg.Event)
+		m.event = msg.Event
+		m.loading = false
+		m.fetchedEvent = true
+		if m.event != nil {
+			// Now fetch profile name
+			return m, m.fetchProfileName()
+		}
+		return m, nil
+
 	case ProfileLoadedMsg:
 		logger.Debug("ProfileLoadedMsg received", "name", msg.Name)
 		if msg.Name != "" {
@@ -260,8 +353,13 @@ func (m *EventView) View() tea.View {
 	content := m.renderContent()
 	m.viewport.SetContent(content)
 
+	header := m.renderHeader()
+	if m.loading {
+		header = m.styles.header.Render("Loading...")
+	}
+
 	v := tea.NewView(
-		m.styles.container.Render(m.styles.header.Render(m.renderHeader())) +
+		m.styles.container.Render(header) +
 			"\n" +
 			m.viewport.View() +
 			"\n" +
@@ -273,12 +371,13 @@ func (m *EventView) View() tea.View {
 
 func (m *EventView) helpKeyMap() help.KeyMap {
 	return helpKeyMap{
-		reply:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
-		quote:  key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
-		delete: key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
-		follow: key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
-		open:   key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
-		quit:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
+		reply:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
+		quote:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
+		delete:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
+		follow:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
+		open:    key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
+		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
+		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 	}
 }
 
