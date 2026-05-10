@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
@@ -48,7 +49,31 @@ type EventView struct {
 	showRawJSON  bool
 	loading      bool
 	fetchedEvent bool
+	help         help.Model
+	keys         eventKeyMap
 }
+
+type eventKeyMap struct {
+	reply   key.Binding
+	quote   key.Binding
+	delete  key.Binding
+	follow  key.Binding
+	open    key.Binding
+	rawjson key.Binding
+	quit    key.Binding
+}
+
+func (k eventKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.reply, k.quote, k.delete, k.follow, k.open, k.rawjson, k.quit}
+}
+
+func (k eventKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.reply, k.quote, k.delete, k.follow, k.open, k.rawjson, k.quit},
+	}
+}
+
+var _ help.KeyMap = (*eventKeyMap)(nil)
 
 func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string) *EventView {
 	m := &EventView{
@@ -70,6 +95,18 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		viewport.WithHeight(height-6),
 	)
 	m.glamour = nil
+	m.help = help.New()
+	m.help.ShowAll = false
+
+	m.keys = eventKeyMap{
+		reply:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
+		quote:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
+		delete:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
+		follow:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
+		open:    key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
+		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
+		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
+	}
 
 	m.tk.KeymapAdd("reply", "reply", "r")
 	m.tk.KeymapAdd("quote", "quote", "q")
@@ -104,6 +141,18 @@ func NewFromID(eventID string, app *config.AppContext, width, height int) *Event
 		viewport.WithHeight(height-6),
 	)
 	m.glamour = nil
+	m.help = help.New()
+	m.help.ShowAll = false
+
+	m.keys = eventKeyMap{
+		reply:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reply")),
+		quote:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quote")),
+		delete:  key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
+		follow:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
+		open:    key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
+		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
+		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
+	}
 
 	m.tk.KeymapAdd("reply", "reply", "r")
 	m.tk.KeymapAdd("quote", "quote", "q")
@@ -312,25 +361,15 @@ func (m *EventView) View() tea.View {
 		header = m.styles.header.Render("Loading...")
 	}
 
-	helpView := m.renderFooterHelp()
-
 	v := tea.NewView(
 		m.styles.container.Render(header) +
 			"\n" +
 			m.viewport.View() +
 			"\n" +
-			m.styles.footer.Render(helpView),
+			m.styles.footer.Render(m.help.View(m.keys)),
 	)
 	v.AltScreen = true
 	return v
-}
-
-func (m *EventView) renderFooterHelp() string {
-	helps := m.tk.KeymapHelpStrings()
-	if len(helps) == 0 {
-		return ""
-	}
-	return strings.Join(helps, " · ")
 }
 
 func (m *EventView) Close() bool {
