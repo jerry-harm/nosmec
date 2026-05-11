@@ -133,11 +133,10 @@ func GetProfileName(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 }
 
 func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
-	var id nostr.ID
-	if len(noteID) != 64 {
+	id, err := nostr.IDFromHex(noteID)
+	if err != nil {
 		return nil
 	}
-	copy(id[:], noteID)
 
 	filter := nostr.Filter{
 		IDs:   []nostr.ID{id},
@@ -147,11 +146,10 @@ func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event 
 }
 
 func GetNoteAsync(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
-	var id nostr.ID
-	if len(noteID) != 64 {
+	id, err := nostr.IDFromHex(noteID)
+	if err != nil {
 		return nil
 	}
-	copy(id[:], noteID)
 
 	filter := nostr.Filter{
 		IDs:   []nostr.ID{id},
