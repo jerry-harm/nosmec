@@ -98,12 +98,49 @@ func CacheEvent(event *nostr.Event, app *config.AppContext) {
 }
 
 func GetProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nostr.Event {
+	// Discover user relays first
+	var userRelays []string
+	if opts != nil && opts.App != nil {
+		discovered, err := DiscoverUserRelays(ctx, opts.App, pubKey)
+		if err == nil {
+			userRelays = discovered
+		}
+	}
+
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   1,
 	}
-	return GetEvent(ctx, filter, opts)
+
+	// Build relay list: local + user + known
+	relayOpts := opts
+	if relayOpts != nil && len(userRelays) > 0 {
+		// Prepend user relays to the app's readable relays
+		baseRelays := opts.App.AllReadableRelays()
+		combined := make([]string, 0, len(userRelays)+len(baseRelays))
+		seen := make(map[string]bool)
+		// Add user relays first (they are most specific)
+		for _, r := range userRelays {
+			if !seen[r] {
+				combined = append(combined, r)
+				seen[r] = true
+			}
+		}
+		// Add base relays (local + known)
+		for _, r := range baseRelays {
+			if !seen[r] {
+				combined = append(combined, r)
+				seen[r] = true
+			}
+		}
+		relayOpts = &GetOptions{
+			App:    opts.App,
+			Relays: combined,
+		}
+	}
+
+	return GetEvent(ctx, filter, relayOpts)
 }
 
 func GetProfileName(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) string {
