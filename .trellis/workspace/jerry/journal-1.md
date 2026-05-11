@@ -314,3 +314,36 @@ Added unit tests for utils modules (search, dm, post) covering NIP-50 filter par
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: Add utils tests (search, dm, post)
+
+**Date**: 2026-05-11
+**Task**: Add utils tests (search, dm, post)
+**Branch**: `main`
+
+### Summary
+
+Added unit tests for utils modules: search (ParseSearchFilter), dm (Conversation/DMMessage/filter), post (tag construction). go test ./... passes.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `80c4812` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
