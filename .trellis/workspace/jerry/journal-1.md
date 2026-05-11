@@ -179,3 +179,38 @@ Implemented nosmec event command with async relay queries, QuerySingle for non-r
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Fix GetNote ID parsing and add NIP-19 format output
+
+**Date**: 2026-05-11
+**Task**: Fix GetNote ID parsing and add NIP-19 format output
+**Branch**: `main`
+
+### Summary
+
+Fixed GetNote/GetNoteAsync using copy() instead of nostr.IDFromHex. Updated all CLI and TUI output to use npub/nevent format. Added nevent input support to event command. Documented the bug and NIP-19 convention in spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e6fe409` | (see git log) |
+| `77a1bcc` | (see git log) |
+| `3bcf4fb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
