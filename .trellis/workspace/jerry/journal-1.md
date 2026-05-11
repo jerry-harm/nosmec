@@ -214,3 +214,37 @@ Fixed GetNote/GetNoteAsync using copy() instead of nostr.IDFromHex. Updated all 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: NIP-65 relay discovery via relay pool
+
+**Date**: 2026-05-11
+**Task**: NIP-65 relay discovery via relay pool
+**Branch**: `main`
+
+### Summary
+
+Implemented NIP-65 relay discovery that queries local relay (cache) + remote relays simultaneously using FetchManyReplaceable for Kind 10002. Discovered relays are registered in global pool via EnsureRelay (lazy connection), cached to local relay via CacheEvent, and tracked in known_relays. GetProfile triggers discovery before querying.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3157560` | (see git log) |
+| `0b9be9f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
