@@ -248,3 +248,36 @@ Implemented NIP-65 relay discovery that queries local relay (cache) + remote rel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Implement NIP-50 search and DM TUI
+
+**Date**: 2026-05-11
+**Task**: Implement NIP-50 search and DM TUI
+**Branch**: `main`
+
+### Summary
+
+Implemented NIP-50 search (search command with kinds:/authors:/#t: filters, Bleve full-text index, local relay + remote relay dual-source) and DM TUI (dm npub command, viewport+textarea, NIP-17 GiftWrap send/receive, network-confirmed messaging).
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `415e892` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
