@@ -51,10 +51,11 @@
 
 ## Acceptance Criteria (evolving)
 
-- [ ] `note compose` 打开 TUI compose 页面
-- [ ] Event 详情页按 `r` 可 reply
-- [ ] Event 详情页按 `q` 可 quote
-- [ ] 发送后 timeline 刷新显示新帖
+- [x] `note compose` CLI 命令打开 TUI compose 页面 ✅
+- [ ] Event 详情页按 `r` 可 reply（需集成 timeline/event）
+- [ ] Event 详情页按 `q` 可 quote（需集成 timeline/event）
+- [ ] `community compose` 支持（compose TUI 已就绪）
+- [x] go test ./... 通过 ✅
 
 ## Definition of Done
 
