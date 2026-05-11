@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"iter"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore/bleve"
 	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/nip19"
@@ -295,6 +298,50 @@ func StartLocalRelay(store StoreInterface) error {
 	relay.UseEventstore(store, 500)
 	relay.Info.Name = "nosmec-local"
 	relay.Info.Description = "Local relay for nosmec"
+
+	// Add NIP-50 support via Bleve search index
+	searchIndexPath := filepath.Join(globalConfig.LocalRelay.DataDir, "search_index")
+	if err := os.MkdirAll(searchIndexPath, 0755); err != nil {
+		logger.Warn("failed to create search index directory", "path", searchIndexPath, "error", err.Error())
+	}
+
+	bleveStore := &bleve.BleveBackend{
+		Path:         searchIndexPath,
+		RawEventStore: store,
+	}
+	if err := bleveStore.Init(); err != nil {
+		logger.Warn("failed to initialize bleve search index, search will not be available", "error", err.Error())
+	} else {
+		// Configure query to use Bleve for search queries
+		relay.QueryStored = func(ctx context.Context, filter nostr.Filter) iter.Seq[nostr.Event] {
+			if filter.Search != "" {
+				// Use Bleve for search queries
+				return bleveStore.QueryEvents(filter, 1000)
+			}
+			// Use BoltDB for regular queries
+			return store.QueryEvents(filter, 1000)
+		}
+
+		// Store events in both stores
+		relay.StoreEvent = func(ctx context.Context, event nostr.Event) error {
+			if err := store.SaveEvent(event); err != nil {
+				return err
+			}
+			return bleveStore.SaveEvent(event)
+		}
+
+		// Delete events from both stores
+		relay.DeleteEvent = func(ctx context.Context, id nostr.ID) error {
+			if err := store.DeleteEvent(id); err != nil {
+				return err
+			}
+			return bleveStore.DeleteEvent(id)
+		}
+
+		// Add NIP-50 to supported NIPs
+		relay.Info.SupportedNIPs = append(relay.Info.SupportedNIPs, 50)
+		logger.Info("NIP-50 search enabled on local relay")
+	}
 
 	go func() {
 		addr := fmt.Sprintf(":%s", port)

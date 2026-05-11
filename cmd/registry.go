@@ -27,6 +27,7 @@ func registerDefaultCommands() {
 	registerDMCommands()
 	registerCommunityCommands()
 	registerEventCommands()
+	registerSearchCommands()
 }
 
 type commandGroup struct {
