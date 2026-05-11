@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/05-11-fix-getnote-id-parsing/prd.md", "reason": "Task requirements for verification"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index for quality guidelines"}
+{"file": ".trellis/tasks/05-11-fix-getnote-id-parsing/research/nip19-encoding.md", "reason": "NIP-19 encoding reference for user-facing output verification"}
