@@ -1,5 +1,10 @@
 # Design Decisions — 2026-05-10
 
+> **Superseded by**: `docs/DESIGN_PRINCIPLES.md`
+> Most of these decisions have been implemented. See the new design principles doc for current state.
+
+## 1. Relay查询架构简化
+
 ## 1. Relay查询架构简化
 
 ### 现状问题

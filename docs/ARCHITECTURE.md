@@ -6,12 +6,15 @@
 nosmec/
 ├── cmd/                    # Cobra 命令定义
 │   ├── root.go            # 根命令
-│   ├── note.go            # 笔记命令
+│   ├── note_commands.go   # 笔记命令 (Kind 1)
+│   ├── event_commands.go  # 事件命令 (通用 event)
 │   ├── relay.go           # Relay 管理命令
-│   ├── profile.go         # Profile 命令
-│   ├── community.go       # Community 命令
+│   ├── profile_commands.go # Profile 命令
+│   ├── community_commands.go # Community 命令 (NIP-72)
 │   ├── alias.go           # 别名命令
-│   └── dm.go              # DM 命令 (空，待实现)
+│   ├── dm_commands.go     # DM 命令 (NIP-17)
+│   ├── subscription.go    # 订阅命令 (NIP-02)
+│   └── config_commands.go # 配置命令
 │
 ├── config/                # 配置管理
 │   ├── config.go         # Viper 初始化和管理函数
@@ -19,15 +22,17 @@ nosmec/
 │   └── relay.go          # Relay 相关配置和过滤器
 │
 ├── utils/                 # 工具函数
-│   ├── utils.go          # 通用工具 (GetMyPubKey, GetMySecretKey, ParsePubKey)
-│   ├── post.go           # 发布函数 (PostNote, ReplyToNote, QuoteNote)
 │   ├── get.go            # 查询函数 (GetEvent, GetNote, GetTimeline)
+│   ├── post.go           # 发布函数 (PostNote, ReplyToNote, QuoteNote)
 │   ├── profile.go         # Profile 相关
-│   ├── community.go       # Community 相关
-│   ├── relay.go          # Relay 服务器相关
+│   ├── community.go       # Community 相关 (NIP-72)
+│   ├── subscription.go    # 订阅相关 (NIP-02)
+│   ├── relay_list.go     # Relay 列表相关
+│   ├── dm.go             # DM 相关 (NIP-17)
 │   ├── alias.go          # 别名相关
-│   ├── completion.go      # Shell 补全
-│   ├── show.go           # 显示函数
+│   ├── show.go           # 显示格式化 (NIP-19 编码)
+│   ├── sync.go           # 同步相关
+│   ├── proxy.go          # 代理相关
 │   └── types.go          # 类型定义
 │
 ├── docs/                  # 文档
@@ -161,10 +166,11 @@ Kind 10050 事件格式：
 
 ## 数据库
 
-使用 LMDB (Lightning Memory-Mapped Database) 作为本地存储：
+使用 BoltDB 作为本地存储（2026-05-10 从 LMDB 切换）：
 
 - 路径: `~/.cache/nosmec/nosmec.db`
 - 存储内容: 事件、Relay 信息缓存
+- 全文搜索: 集成 Bleve
 
 ## I2P 支持
 
