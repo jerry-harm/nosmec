@@ -7,15 +7,6 @@
 ## 配置结构
 
 ```yaml
-server:
-  host: localhost
-  port: 8080
-
-i2p:
-  enabled: true
-  sam_address: 127.0.0.1
-  sam_port: 7656
-
 private_key: ""  # nsec 格式
 
 relay_list: []    # Read/Write relay 列表
@@ -26,8 +17,6 @@ search_relays: [] # Search relay 列表
 
 known_relays: [] # 已知 relay 列表（程序结束时自动维护）
 
-private_relays: []  # 私有中继列表（用于自动缓存）
-
 cache_filters: [] # 缓存过滤器列表，默认动态生成
 
 local_relay:
@@ -37,7 +26,6 @@ local_relay:
 
 proxy:
   i2p_socks: ""
-  onion_socks: ""
   socks: ""
 
 alias: {}  # 别名映射
@@ -52,60 +40,57 @@ alias: {}  # 别名映射
 | `private_key` | `NOSMEC_PRIVATE_KEY` | 私钥 (nsec 格式) |
 | `relay_list` | `NOSMEC_RELAY_LIST` | Relay 列表 |
 | `dm_relays` | `NOSMEC_DM_RELAYS` | DM relay 列表 |
+| `search_relays` | `NOSMEC_SEARCH_RELAYS` | Search relay 列表 |
 | `known_relays` | `NOSMEC_KNOWN_RELAYS` | 已知 relay |
-| `private_relays` | `NOSMEC_PRIVATE_RELAYS` | 私有中继列表 |
 | `local_relay.enabled` | `NOSMEC_LOCAL_RELAY_ENABLED` | 本地 relay 开关 |
 | `local_relay.port` | `NOSMEC_LOCAL_RELAY_PORT` | 本地 relay 端口 |
-| `server.host` | `NOSMEC_SERVER_HOST` | 服务器地址 |
-| `server.port` | `NOSMEC_SERVER_PORT` | 服务器端口 |
 | `proxy.i2p_socks` | `NOSMEC_PROXY_I2P_SOCKS` | I2P 代理 |
-| `proxy.onion_socks` | `NOSMEC_PROXY_ONION_SOCKS` | Tor 代理 |
 | `proxy.socks` | `NOSMEC_PROXY_SOCKS` | 通用 SOCKS 代理 |
 
 ## 配置管理函数
 
-在 `config/config.go` 中定义：
+在 `AppContext` 中定义（`config/context.go`）：
 
 ### Relay 管理
 
 ```go
-config.AddRelay(url string, read, write bool) error
-config.RemoveRelay(url string) error
-config.GetRelay(url string) (Relay, bool)
-config.ListRelays() []Relay
-config.SetRelayRead(url string, read bool) error
-config.SetRelayWrite(url string, write bool) error
+app.AddRelay(url string, read, write bool) error
+app.RemoveRelay(url string) error
+app.GetRelay(url string) (Relay, bool)
+app.ListRelays() []Relay
+app.SetRelayRead(url string, read bool) error
+app.SetRelayWrite(url string, write bool) error
 ```
 
 ### DM/Search Relay 管理
 
 ```go
-config.AddDMRelay(url string) error
-config.RemoveDMRelay(url string) error
-config.ListDMRelays() []string
+app.AddDMRelay(url string) error
+app.RemoveDMRelay(url string) error
+app.ListDMRelays() []string
 
-config.AddSearchRelay(url string) error
-config.RemoveSearchRelay(url string) error
-config.ListSearchRelays() []string
+app.AddSearchRelay(url string) error
+app.RemoveSearchRelay(url string) error
+app.ListSearchRelays() []string
 ```
 
 ### 同步
 
 ```go
-config.SyncRelayList(relays []Relay)    // 从远程同步
-config.SyncDMRelays(relays []string)     // 从远程同步 DM relay
+app.SyncRelayList(relays []Relay)    // 从远程同步
+app.SyncDMRelays(relays []string)     // 从远程同步 DM relay
 ```
 
 ### 过滤
 
 ```go
-app.WritableRelays() []string  // 获取可写 relay（通过 AppContext）
-app.ReadableRelays() []string   // 获取可读 relay（通过 AppContext）
+app.WritableRelays() []string  // 获取可写 relay
+app.ReadableRelays() []string   // 获取可读 relay
 ```
 
 ### 缓存过滤器 (CacheFilters)
 
-`CacheFilters` 用于指定哪些事件应该被缓存到本地 LMDB store。如果不设置，程序会自动生成默认过滤器。
+`CacheFilters` 用于指定哪些事件应该被缓存到本地 BoltDB store。如果不设置，程序会自动生成默认过滤器。
 
 ```yaml
 cache_filters:
@@ -182,10 +167,12 @@ type Config struct {
     SearchRelays   []string
     PrivateKey     string
     KnownRelays    []string
-    PrivateRelays  []string
     LocalRelay     LocalRelayConfig
     Proxy          ProxyConfig
     Alias          map[string]string
+    Subscriptions  []Subscription
+    Profile        ProfileConfig
+    CacheFilters   []CacheFilter
 }
 
 type LocalRelayConfig struct {
@@ -228,4 +215,4 @@ if err := viper.WriteConfigAs(configFile); err != nil {
 | 路径 | 说明 |
 |------|------|
 | `~/.config/nosmec/nosmec.yaml` | 配置文件 |
-| `~/.cache/nosmec/nosmec.db` | LMDB 数据库 |
+| `~/.cache/nosmec/nosmec.db` | BoltDB 数据库 |

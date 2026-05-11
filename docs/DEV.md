@@ -3,7 +3,7 @@
 ## Environment Setup
 
 ```bash
-# Check Go version (requires 1.23+)
+# Check Go version (requires 1.25.5+)
 go version
 
 # Install dependencies
@@ -26,6 +26,7 @@ go build -o nosmec .
 - [x] Reply and quote notes
 - [x] Relay management (NIP-65, Kind 10002)
 - [x] DM relay management (NIP-17, Kind 10050)
+- [x] DM messaging (NIP-17 with nip59 GiftWrap)
 - [x] Profile management (Kind 0)
 - [x] Community support (NIP-72, Kind 34550, 1111)
 - [x] Subscription/follow system (NIP-02 Kind 3, NIP-51 Kind 10004/10015)
@@ -40,9 +41,9 @@ go build -o nosmec .
 
 ### Planned Features
 
-- [ ] DM functionality (NIP-17 actual messaging)
 - [ ] NIP-46 Remote Signing
-- [ ] Search functionality
+- [ ] NIP-47 Nostr Wallet Connect
+- [ ] Search functionality (NIP-50)
 - [ ] Event cache management
 - [ ] Offline mode
 
@@ -51,7 +52,7 @@ go build -o nosmec .
 - Use `gofmt` for formatting
 - Error handling: `fmt.Fprintf(os.Stderr, "Error: %v\n", err)` + `os.Exit(1)`
 - Logging: use `logger.Info/Warn/Debug/Error` package
-- Config changes: 通过 `AppContext.ConfigManager()` 访问和修改配置
+- Config changes: 通过 `AppContext` 方法访问和修改配置
 - Use `charm.land/` v2 packages for TUI components
 
 ## Adding New Commands

@@ -5,21 +5,20 @@
 ```
 nosmec/
 ├── cmd/                    # Cobra 命令定义
-│   ├── root.go            # 根命令
 │   ├── note_commands.go   # 笔记命令 (Kind 1)
 │   ├── event_commands.go  # 事件命令 (通用 event)
-│   ├── relay.go           # Relay 管理命令
+│   ├── relay_commands.go  # Relay 管理命令
 │   ├── profile_commands.go # Profile 命令
 │   ├── community_commands.go # Community 命令 (NIP-72)
-│   ├── alias.go           # 别名命令
+│   ├── alias_commands.go  # 别名命令
 │   ├── dm_commands.go     # DM 命令 (NIP-17)
-│   ├── subscription.go    # 订阅命令 (NIP-02)
+│   ├── subscription_commands.go # 订阅命令 (NIP-02)
 │   └── config_commands.go # 配置命令
 │
 ├── config/                # 配置管理
-│   ├── config.go         # Viper 初始化和管理函数
+│   ├── config.go         # Viper 初始化和 AppContext
 │   ├── types.go          # 配置结构体定义
-│   └── relay.go          # Relay 相关配置和过滤器
+│   └── context.go        # AppContext 依赖注入
 │
 ├── utils/                 # 工具函数
 │   ├── get.go            # 查询函数 (GetEvent, GetNote, GetTimeline)
@@ -34,6 +33,10 @@ nosmec/
 │   ├── sync.go           # 同步相关
 │   ├── proxy.go          # 代理相关
 │   └── types.go          # 类型定义
+│
+├── tui/                   # 终端 UI (Bubbles/Tea-based)
+│
+├── logger/                # 结构化日志 (slog)
 │
 ├── docs/                  # 文档
 │   ├── README.md         # 快速开始
@@ -77,10 +80,10 @@ nosmec/
 
 ```go
 type AppContext struct {
-    pool   PoolInterface      // Nostr 连接池
-    store  StoreInterface    // LMDB 本地存储
+    pool   *nostr.Pool       // Nostr 连接池
+    store  StoreInterface    // BoltDB 本地存储
     cfg    Config            // 配置副本
-    config ConfigManager      // Viper 配置管理器
+    viper  *viper.Viper      // Viper 配置管理器
 }
 ```
 
@@ -111,12 +114,12 @@ cmd/* (command)
     ↓
 utils/get.go (GetEvent/GetNote/GetTimeline)
     ↓
-1. 先查 LMDB 本地缓存
+1. 先查 BoltDB 本地缓存
     ↓
 2. 缓存无效则查询网络
 app.Pool().QuerySingle/SubscribeMany()
     ↓
-3. 结果存入 LMDB
+3. 结果存入 BoltDB
 app.Store().SaveEvent()
 ```
 
@@ -166,7 +169,7 @@ Kind 10050 事件格式：
 
 ## 数据库
 
-使用 BoltDB 作为本地存储（2026-05-10 从 LMDB 切换）：
+使用 BoltDB 作为本地存储：
 
 - 路径: `~/.cache/nosmec/nosmec.db`
 - 存储内容: 事件、Relay 信息缓存

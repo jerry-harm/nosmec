@@ -6,7 +6,6 @@
 |-----|------|------|--------|
 | NIP-01 | Basic Protocol | - | ✅ Supported |
 | NIP-02 | Follow List | 3 | ✅ Supported |
-| NIP-04 | Encrypted Direct Messages | 4 | ⚠️ Deprecated |
 | NIP-05 | Identifier Lookup | - | ✅ Supported |
 | NIP-06 | Key Formats | - | ✅ Supported |
 | NIP-10 | Reply Conventions | 1 | ✅ Supported |
@@ -16,6 +15,7 @@
 | NIP-40 | Expiration Timestamp | - | ✅ Supported |
 | NIP-44 | Encrypted Payloads v2 | - | ✅ Supported |
 | NIP-46 | Remote Signing | 24133 | 🔜 Planned |
+| NIP-47 | Nostr Wallet Connect | - | 🔜 Planned |
 | NIP-51 | Lists | 10003, 10004, 10015 | ✅ Supported |
 | NIP-65 | Relay List Metadata | 10002 | ✅ Supported |
 | NIP-72 | Community Boards | 34550, 1111, 4550 | ✅ Supported |
@@ -333,10 +333,11 @@ KindCommunityPost           Kind = 1111
 
 | Priority | File | Current | Recommended |
 |----------|------|---------|-------------|
-| **High** | `utils/dm.go` | Manual GiftWrap/GiftUnwrap | Use `nip17` |
+| **High** | `utils/dm.go` | ✅ Using nip59 GiftWrap | Consider `nip17` for full DM lifecycle |
 | **High** | `utils/relay_list.go` | Manual NIP-65 parsing | Use `nip65.ParseRelayList` |
 | **Medium** | `utils/post.go` | Manual thread tags | Use `nip10` |
 | **Low** | Global | - | Add `nip40` for expiration |
+| **Low** | Global | - | Add `nip57` for zap receipts |
 
 ---
 
