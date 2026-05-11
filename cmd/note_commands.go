@@ -6,6 +6,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
@@ -96,9 +97,22 @@ func registerNoteCommands() {
 		},
 	}
 
+	noteComposeCmd := &cobra.Command{
+		Use:   "compose",
+		Short: "Open compose TUI to write a note",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			app := getApp()
+			if err := compose.RunNoteCompose(app); err != nil {
+				handleError(err)
+			}
+		},
+	}
+
 	noteCmd.AddCommand(noteTimelineCmd)
 	noteCmd.AddCommand(notePostCmd)
 	noteCmd.AddCommand(noteReplyCmd)
+	noteCmd.AddCommand(noteComposeCmd)
 
 	RegisterCommandGroup("Notes", "Note operations", noteCmd)
 }
