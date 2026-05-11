@@ -281,3 +281,36 @@ Implemented NIP-50 search (search command with kinds:/authors:/#t: filters, Blev
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Add unit tests for utils modules
+
+**Date**: 2026-05-11
+**Task**: Add unit tests for utils modules
+**Branch**: `main`
+
+### Summary
+
+Added unit tests for utils modules (search, dm, post) covering NIP-50 filter parsing, DM types and filtering, and post tag construction. Tests use table-driven approach with no network dependencies.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `80c4812` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

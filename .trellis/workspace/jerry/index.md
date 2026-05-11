@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
+- **Total Sessions**: 9
 - **Last Active**: 2026-05-11
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~283 | Active |
+| `journal-1.md` | ~316 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-05-11 | Add unit tests for utils modules | `80c4812` | `main` |
 | 8 | 2026-05-11 | Implement NIP-50 search and DM TUI | `415e892` | `main` |
 | 7 | 2026-05-11 | NIP-65 relay discovery via relay pool | `3157560`, `0b9be9f` | `main` |
 | 6 | 2026-05-11 | Fix GetNote ID parsing and add NIP-19 format output | `e6fe409`, `77a1bcc`, `3bcf4fb` | `main` |
