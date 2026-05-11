@@ -1,0 +1,5 @@
+{"file": "docs/DESIGN_PRINCIPLES.md", "reason": "项目设计原则和编码约定"}
+{"file": "config/context.go", "reason": "AppContext.ListSearchRelays, local relay 管理"}
+{"file": "config/config.go", "reason": "本地 khatru relay 启动逻辑，需要在此基础上添加 Bleve + NIP-50 支持"}
+{"file": "config/types.go", "reason": "SearchRelays 配置字段定义"}
+{".trellis/tasks/05-11-search/research/nip50.md", "reason": "NIP-50 研究结论：SDK Filter.Search 支持、khatru cookbook 实现方案、BoltDB+Bleve 双存储架构"}

@@ -1,0 +1,5 @@
+{"file": "docs/DESIGN_PRINCIPLES.md", "reason": "项目设计原则和编码约定，是文档准确性的基准"}
+{"file": "docs/ARCHITECTURE.md", "reason": "需要修正过时的架构文档（LMDB→BoltDB，ConfigManager→AppContext）"}
+{"file": "docs/CONFIG.md", "reason": "需要修正配置文档中的过时字段和函数路径"}
+{"file": "docs/DEV.md", "reason": "需要更新 Go 版本、DM 功能状态等过时内容"}
+{"file": "docs/NIP.md", "reason": "需要修正 NIP 支持状态和 Migration Priority 表"}

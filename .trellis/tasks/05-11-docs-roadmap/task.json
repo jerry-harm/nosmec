@@ -1,0 +1,29 @@
+{
+  "id": "docs-roadmap",
+  "name": "docs-roadmap",
+  "title": "docs-update-and-roadmap-planning",
+  "description": "",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "jerry",
+  "assignee": "jerry",
+  "createdAt": "2026-05-11",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "05-11-dm-tui",
+    "05-11-search"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

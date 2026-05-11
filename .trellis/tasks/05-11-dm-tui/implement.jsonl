@@ -1,0 +1,4 @@
+{"file": "docs/DESIGN_PRINCIPLES.md", "reason": "项目设计原则和编码约定"}
+{"file": "utils/dm.go", "reason": "现有 DM 实现（SendDM, QueryDMHistory, ListDMConversations）"}
+{"file": "config/context.go", "reason": "AppContext 结构和方法，DM 需要用到 GetMySecretKey, Pool 等"}
+{"file": "tui/timeline/model.go", "reason": "现有 TUI model 实现参考，了解 Tea 程序结构"}
