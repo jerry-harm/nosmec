@@ -9,6 +9,7 @@ import (
 	"github.com/jerry-harm/nosmec/cmd/completion"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
+	"fiatjaf.com/nostr/nip19"
 )
 
 func registerCommunityCommands() {
@@ -61,7 +62,7 @@ func registerCommunityCommands() {
 			if description != "" {
 				fmt.Printf("Description: %s\n", description)
 			}
-			fmt.Printf("Event ID: %s\n", event.ID.Hex())
+			fmt.Printf("Event ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 		},
 	}
 	communityCreateCmd.Flags().String("image", "", "Community image URL")
@@ -84,7 +85,7 @@ func registerCommunityCommands() {
 			}
 
 			fmt.Printf("Posted to community!\n")
-			fmt.Printf("Post ID: %s\n", event.ID.Hex())
+			fmt.Printf("Post ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 		},
 	}
 
@@ -103,7 +104,7 @@ func registerCommunityCommands() {
 			}
 
 			fmt.Printf("Replied!\n")
-			fmt.Printf("Reply ID: %s\n", event.ID.Hex())
+			fmt.Printf("Reply ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 		},
 	}
 
@@ -152,7 +153,7 @@ func registerCommunityCommands() {
 							name = dTag[1]
 						}
 						if name == "" {
-							name = event.ID.Hex()[:16] + "..."
+							name = nip19.EncodeNevent(event.ID, nil, event.PubKey)[:32] + "..."
 						}
 						fmt.Printf("  - %s\n", name)
 					}
@@ -211,8 +212,8 @@ func registerCommunityCommands() {
 				fmt.Printf("Image: %s\n", imageTag[1])
 			}
 			fmt.Printf("ID: %s\n", communityID)
-			fmt.Printf("Author: %s\n", authorPubKey.Hex())
-			fmt.Printf("Event ID: %s\n", event.ID.Hex())
+			fmt.Printf("Author: %s\n", nip19.EncodeNpub(authorPubKey))
+			fmt.Printf("Event ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 			fmt.Printf("Created: %v\n", event.CreatedAt.Time())
 
 			fmt.Printf("\nModerators:\n")
@@ -258,8 +259,8 @@ func registerCommunityCommands() {
 			fmt.Printf("Recent posts in %s:\n", communityAddr)
 			fmt.Println(strings.Repeat("=", 50))
 			for i, event := range events {
-				fmt.Printf("\n[%d] %s\n", i+1, event.ID.Hex()[:16]+"...")
-				fmt.Printf("Author: %s\n", event.PubKey.Hex()[:16]+"...")
+				fmt.Printf("\n[%d] %s\n", i+1, nip19.EncodeNevent(event.ID, nil, event.PubKey)[:32]+"...")
+				fmt.Printf("Author: %s\n", nip19.EncodeNpub(event.PubKey)[:32]+"...")
 				fmt.Printf("Time: %v\n", event.CreatedAt.Time())
 				fmt.Printf("Content: %s\n", event.Content)
 				if i < len(events)-1 {

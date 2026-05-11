@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/window/event"
@@ -506,7 +507,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			kind := detectEventKind(e)
 			pubkeyStr := e.Event.PubKey.Hex()
-			authorName := pubkeyStr[:8] // placeholder
+			npubStr := nip19.EncodeNpub(e.Event.PubKey)
+			authorName := npubStr[:16] // placeholder truncated
 
 			if !seenPubkeys[pubkeyStr] {
 				seenPubkeys[pubkeyStr] = true
@@ -610,7 +612,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			kind := detectEventKind(e)
 			pubkeyStr := e.Event.PubKey.Hex()
-			authorName := pubkeyStr[:8] // placeholder
+			npubStr := nip19.EncodeNpub(e.Event.PubKey)
+			authorName := npubStr[:16] // placeholder truncated
 
 			if !seenPubkeys[pubkeyStr] {
 				seenPubkeys[pubkeyStr] = true
@@ -652,10 +655,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// New event from subscription - prepend to list
 		kind := detectEventKind(msg.event)
 		pubkeyStr := msg.event.Event.PubKey.Hex()
+		npubStr := nip19.EncodeNpub(msg.event.Event.PubKey)
 
 		newItem := item{
 			event:      msg.event,
-			authorName: pubkeyStr[:8], // placeholder
+			authorName: npubStr[:16], // placeholder truncated
 			kind:       kind,
 		}
 
@@ -785,7 +789,7 @@ func detectEventKind(e utils.TimelineEvent) eventKind {
 func formatItemTitle(i item) string {
 	author := i.authorName
 	if author == "" {
-		author = i.event.Event.PubKey.Hex()[:8]
+		author = nip19.EncodeNpub(i.event.Event.PubKey)[:16]
 	}
 
 	prefix := "@" + author

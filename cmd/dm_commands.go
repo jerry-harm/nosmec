@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +35,7 @@ func registerDMCommands() {
 				handleError(newError("failed to send DM", err))
 			}
 
-			fmt.Printf("DM sent to %s\n", recipientPubKey.Hex()[:16]+"...")
+			fmt.Printf("DM sent to %s\n", nip19.EncodeNpub(recipientPubKey)[:32]+"...")
 		},
 	}
 
@@ -106,11 +107,11 @@ func registerDMCommands() {
 			}
 
 			if len(messages) == 0 {
-				fmt.Printf("No DM history with %s.\n", recipientPubKey.Hex()[:16]+"...")
+				fmt.Printf("No DM history with %s.\n", nip19.EncodeNpub(recipientPubKey)[:32]+"...")
 				return
 			}
 
-			recipientName := recipientPubKey.Hex()[:16] + "..."
+			recipientName := nip19.EncodeNpub(recipientPubKey)[:32] + "..."
 			if profileName := utils.GetProfileName(ctx, recipientPubKey, &utils.GetOptions{App: getApp()}); profileName != "" {
 				recipientName = profileName
 			}
@@ -155,7 +156,7 @@ func registerDMCommands() {
 			ch := utils.ListenForDMs(ctx, app, since)
 
 			for rumor := range ch {
-				fmt.Printf("\n[%s] %s\n", rumor.CreatedAt.Time().Format("15:04:05"), rumor.PubKey.Hex()[:16]+"...")
+				fmt.Printf("\n[%s] %s\n", rumor.CreatedAt.Time().Format("15:04:05"), nip19.EncodeNpub(rumor.PubKey)[:32]+"...")
 				fmt.Printf("  %s\n", rumor.Content)
 			}
 		},

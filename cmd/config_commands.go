@@ -82,7 +82,7 @@ func registerConfigCommands() {
 			}
 
 			fmt.Printf("Profile updated!\n")
-			fmt.Printf("Event ID: %s\n", event.ID.Hex())
+			fmt.Printf("Event ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 		},
 	}
 

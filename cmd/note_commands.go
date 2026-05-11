@@ -9,6 +9,7 @@ import (
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
+	"fiatjaf.com/nostr/nip19"
 )
 
 func registerNoteCommands() {
@@ -70,7 +71,7 @@ func registerNoteCommands() {
 			}
 
 			fmt.Printf("Posted successfully!\n")
-			fmt.Printf("Note ID: %s\n", event.ID.Hex())
+			fmt.Printf("Note ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 		},
 	}
 
@@ -91,7 +92,7 @@ func registerNoteCommands() {
 			}
 
 			fmt.Printf("Replied successfully!\n")
-			fmt.Printf("Reply ID: %s\n", event.ID.Hex())
+			fmt.Printf("Reply ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
 		},
 	}
 
@@ -105,7 +106,7 @@ func registerNoteCommands() {
 func printTimeline(events []utils.TimelineEvent) {
 	for i, te := range events {
 		e := te.Event
-		name := e.PubKey.Hex()[:8] + "..."
+		name := nip19.EncodeNpub(e.PubKey)[:16] + "..."
 
 		if profile := utils.GetProfileName(context.Background(), e.PubKey, &utils.GetOptions{App: getApp()}); profile != "" {
 			name = profile

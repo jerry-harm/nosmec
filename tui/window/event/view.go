@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"fiatjaf.com/nostr/nip19"
 )
 
 func (m *EventView) renderHeader() string {
@@ -15,17 +17,17 @@ func (m *EventView) renderHeader() string {
 	timeStr := e.CreatedAt.Time().Format("2006-01-02 15:04")
 	kindStr := fmt.Sprintf("Kind: %d", e.Kind)
 
-	pubkeyStr := e.PubKey.Hex()
+	npub := nip19.EncodeNpub(e.PubKey)
 
 	// Line 1: full pubkey
-	line1 := fmt.Sprintf("PubKey: %s", m.styles.author.Render(pubkeyStr))
+	line1 := fmt.Sprintf("PubKey: %s", m.styles.author.Render(npub))
 
 	// Line 2: @username | time | kind
 	var namePart string
 	if m.authorName != "" {
 		namePart = "@" + m.authorName
 	} else {
-		namePart = "@" + pubkeyStr[:8] + "..."
+		namePart = "@" + npub[:12] + "..."
 	}
 	line2 := fmt.Sprintf("%s | %s | %s",
 		m.styles.author.Render(namePart),
@@ -79,7 +81,8 @@ func (m *EventView) renderContent() string {
 	}
 
 	out += "\n--- Signature ---\n"
-	out += fmt.Sprintf("ID: %s\n", m.styles.tags.Render(e.ID.Hex()))
+	nevent := nip19.EncodeNevent(e.ID, nil, e.PubKey)
+	out += fmt.Sprintf("ID: %s\n", m.styles.tags.Render(nevent))
 	out += fmt.Sprintf("Sig: %x\n", e.Sig)
 
 	return out
@@ -100,19 +103,23 @@ func (m *EventView) renderRawJSON() string {
 	data := struct {
 		ID        string     `json:"id"`
 		PubKey    string     `json:"pubkey"`
+		NPubKey   string     `json:"npub,omitempty"`
 		CreatedAt int64      `json:"created_at"`
 		Kind      int        `json:"kind"`
 		Tags      [][]string `json:"tags"`
 		Content   string     `json:"content"`
 		Signature string     `json:"sig"`
+		NEvent    string     `json:"nevent,omitempty"`
 	}{
 		ID:        m.event.ID.Hex(),
 		PubKey:    m.event.PubKey.Hex(),
+		NPubKey:   nip19.EncodeNpub(m.event.PubKey),
 		CreatedAt: int64(m.event.CreatedAt),
 		Kind:      int(m.event.Kind),
 		Tags:      tagsCopy,
 		Content:   m.event.Content,
 		Signature: fmt.Sprintf("%x", m.event.Sig),
+		NEvent:    nip19.EncodeNevent(m.event.ID, nil, m.event.PubKey),
 	}
 
 	jsonBytes, err := json.MarshalIndent(data, "", "  ")

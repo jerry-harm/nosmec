@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"fiatjaf.com/nostr/nip19"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/window/event"
@@ -18,15 +19,29 @@ func registerEventCommands() {
 		Run: func(cmd *cobra.Command, args []string) {
 			eventID := args[0]
 
-			// Validate event ID length
-			if len(eventID) != 64 {
-				fmt.Printf("Error: event-id must be 64 characters, got %d\n", len(eventID))
+			// Decode nevent/note format if needed
+			actualID := eventID
+			if len(eventID) > 64 {
+				pointer, err := nip19.ToPointer(eventID)
+				if err != nil {
+					fmt.Printf("Error: invalid event ID format: %v\n", err)
+					os.Exit(1)
+				}
+				filter := pointer.AsFilter()
+				if len(filter.IDs) > 0 {
+					actualID = filter.IDs[0].Hex()
+				} else {
+					fmt.Printf("Error: no event ID found in pointer\n")
+					os.Exit(1)
+				}
+			} else if len(eventID) != 64 {
+				fmt.Printf("Error: event-id must be 64 characters or nevent/note format, got %d\n", len(eventID))
 				os.Exit(1)
 			}
 
 			app := getApp()
 
-			if err := RunEventDetail(app, eventID); err != nil {
+			if err := RunEventDetail(app, actualID); err != nil {
 				fmt.Printf("Error running event detail: %v\n", err)
 				os.Exit(1)
 			}
