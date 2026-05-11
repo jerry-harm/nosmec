@@ -7,14 +7,26 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/tui/dm"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
 
 func registerDMCommands() {
 	dmCmd := &cobra.Command{
-		Use:   "dm",
-		Short: "Direct messages",
+		Use:   "dm [npub]",
+		Short: "Direct messages (or open DM TUI with a specific user)",
+		Args:  cobra.MaximumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.Help()
+				return
+			}
+			npubOrHex := args[0]
+			if err := dm.RunDM(getApp(), npubOrHex); err != nil {
+				handleError(newError("failed to open DM TUI", err))
+			}
+		},
 	}
 
 	dmSendCmd := &cobra.Command{
