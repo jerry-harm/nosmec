@@ -171,6 +171,91 @@ results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
 
 ---
 
+## 5.1 NIP-65 Relay Discovery
+
+When fetching data for a user, automatically discover their relay list from NIP-65 (Kind 10002) events.
+
+### Data Flow
+
+```
+GetProfile(pubKey)
+       ↓
+DiscoverUserRelays(pubKey)
+       ↓
+   ├── Check BoltDB "user-relays" bucket
+   ├── Cache miss → Query NIP-65 via known relays
+   │         ↓
+   │    Parse with nip65.ParseRelayList()
+   │         ↓
+   │    Store in BoltDB
+   │         ↓
+   └── Pool().EnsureRelay(userRelays)  // lazy registration
+       ↓
+Build relay list: [local relay] + [user relays] + [known relays]
+       ↓
+Query with Pool().QuerySingle()
+       ↓
+CacheEvent() to local relay
+```
+
+### Storage
+
+**Bucket**: `user-relays`
+**Key**: `pubKey` (hex string)
+**Value**: JSON `UserRelayList`
+
+```go
+type UserRelayList struct {
+    PubKey     string   `json:"pubkey"`
+    ReadRelays []string `json:"read_relays"`
+    WriteRelays []string `json:"write_relays"`
+    UpdatedAt  int64    `json:"updated_at"`
+}
+```
+
+### Key Functions
+
+```go
+// Discover and cache user relays, register in pool
+func (a *AppContext) DiscoverUserRelays(ctx context.Context, pubKey nostr.PubKey) ([]string, error)
+
+// Direct BoltDB lookup, no network
+func GetCachedUserRelays(pubKey string) (*UserRelayList, error)
+
+// Register relays in global pool (lazy connection)
+func (a *AppContext) EnsureRelays(urls []string)
+```
+
+### Design Principles
+
+1. **Local relay always included** - prepended to all relay lists for cache priority
+2. **BoltDB persistence** - discovered relay lists cached locally
+3. **Global pool + lazy connection** - `EnsureRelay()` registers relays without immediate connection
+4. **Union query** - use user's relays + known relays together for reliability
+
+### Example: GetProfile with Discovery
+
+```go
+func GetProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nostr.Event {
+    // Discover user relays (cache-first, network on miss)
+    userRelays, _ := opts.App.DiscoverUserRelays(ctx, pubKey)
+
+    // Build relay list: user's relays + base relays (local + known)
+    relays := append(userRelays, opts.App.AllReadableRelays()...)
+
+    // Query with combined relay list
+    filter := nostr.Filter{
+        Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
+        Authors: []nostr.PubKey{pubKey},
+        Limit:   1,
+    }
+    result := opts.App.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
+    // ...
+}
+```
+
+---
+
 ## 6. Supported NIPs
 
 | NIP | Name | Status |
