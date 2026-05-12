@@ -1,7 +1,6 @@
 package windowmanager
 
 import (
-	"strings"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
@@ -37,8 +36,6 @@ func (wm *WindowManager) SetApp(app *config.AppContext) {
 }
 
 func (wm *WindowManager) ComposeModel() window.Window {
-	wm.mu.Lock()
-	defer wm.mu.Unlock()
 	if wm.composeModel == nil && wm.app != nil {
 		wm.composeModel = compose.NewModel(wm.app)
 	}
@@ -54,12 +51,15 @@ func (wm *WindowManager) PrepareQuote(event *nostr.Event) {
 }
 
 func (wm *WindowManager) OpenCompose() tea.Cmd {
-	wm.mu.Lock()
-	defer wm.mu.Unlock()
 	if wm.composeModel == nil && wm.app != nil {
 		wm.composeModel = compose.NewModel(wm.app)
 	}
-	return wm.openLocked(wm.composeModel)
+	id := wm.composeModel.ID()
+	wm.windows[id] = wm.composeModel
+	wm.removeFromStack(id)
+	wm.stack = append(wm.stack, id)
+	wm.focused = id
+	return wm.composeModel.Init()
 }
 
 func (wm *WindowManager) openLocked(win window.Window) tea.Cmd {
@@ -214,17 +214,17 @@ func (wm *WindowManager) ResizeAll(width, height int) {
 	wm.Resize(width, height)
 }
 
-// View renders all windows in z-order (bottom to top).
+// View renders only the topmost window's full view.
+// The topmost window's tea.View with AltScreen takes over the full screen.
 func (wm *WindowManager) View() string {
 	wm.mu.RLock()
 	defer wm.mu.RUnlock()
 
-	var b strings.Builder
-	for _, id := range wm.stack {
-		win := wm.windows[id]
-		b.WriteString(win.View().Content)
+	if len(wm.stack) == 0 {
+		return ""
 	}
-	return b.String()
+	topID := wm.stack[len(wm.stack)-1]
+	return wm.windows[topID].View().Content
 }
 
 // Get returns a window by ID.

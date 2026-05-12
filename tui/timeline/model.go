@@ -200,6 +200,7 @@ func NewModel(app *config.AppContext, filter string, hashtags []string, limit in
 	m.keys = newListKeyMap()
 	m.delegateKeys = newDelegateKeyMap()
 	m.windowManager = windowmanager.New()
+	m.windowManager.SetApp(app)
 	m.seenEventIDs = make(map[nostr.ID]bool)
 	m.hasMoreOld = true
 	m.isLoadingMore = false

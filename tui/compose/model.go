@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
@@ -133,25 +134,6 @@ func NewModel(app *config.AppContext) *model {
 	return newCompose(app, KindNote, nil, "", "")
 }
 
-func NewReplyCompose(app *config.AppContext, parentEvent *nostr.Event) *model {
-	m := newCompose(app, KindReply, parentEvent, "", "")
-	if parentEvent != nil {
-		m.parentID = parentEvent.ID.Hex()
-		m.tags = append(m.tags, TagValue{Type: "e", Values: []string{parentEvent.ID.Hex()}})
-		m.tags = append(m.tags, TagValue{Type: "p", Values: []string{parentEvent.PubKey.Hex()}})
-	}
-	return m
-}
-
-func NewQuoteCompose(app *config.AppContext, parentEvent *nostr.Event) *model {
-	m := newCompose(app, KindQuote, parentEvent, "", "")
-	if parentEvent != nil {
-		m.quotedID = parentEvent.ID.Hex()
-		m.tags = append(m.tags, TagValue{Type: "q", Values: []string{parentEvent.ID.Hex()}})
-	}
-	return m
-}
-
 func NewCommunityCompose(app *config.AppContext, communityAddr string) *model {
 	return newCompose(app, KindCommunity, nil, communityAddr, "")
 }
@@ -178,6 +160,14 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 
 	m.tagInput = textinput.New()
 	m.tagInput.Placeholder = "e:eventId p:pubkey a:addr t:hashtag r:relay:purpose q:eventId"
+	m.tagInput.SetStyles(textinput.Styles{
+		Focused: textinput.StyleState{
+			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+		},
+		Blurred: textinput.StyleState{
+			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+		},
+	})
 
 	return m
 }
