@@ -415,3 +415,36 @@ Updated proxy docs in README (clarified socks/onion/i2p behavior); committed com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: community timeline TUI
+
+**Date**: 2026-05-12
+**Task**: community timeline TUI
+**Branch**: `main`
+
+### Summary
+
+实现 community timeline TUI：cmd/community_commands.go 纯文本输出改为调用 timeline.RunTimeline TUI；timeline/model.go 添加 communityAddr 字段和 community filter case；timeline/main.go RunTimeline 新增第5参数。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dd621fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
