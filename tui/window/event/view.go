@@ -62,12 +62,6 @@ func (m *EventView) renderContent() string {
 	}
 
 	content := e.Content
-	if m.glamour != nil {
-		rendered, err := m.glamour.Render(content)
-		if err == nil {
-			content = rendered
-		}
-	}
 
 	var out string
 	out += content

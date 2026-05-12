@@ -10,8 +10,6 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	"charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/glamour/styles"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
@@ -20,8 +18,8 @@ import (
 )
 
 const (
-	WindowID      = "event"
-	glamourGutter = 3
+	WindowID   = "event"
+	helpLines  = 3
 )
 
 type CloseMsg struct{}
@@ -39,7 +37,6 @@ type EventView struct {
 	eventID      string
 	app          *config.AppContext
 	viewport     viewport.Model
-	glamour      *glamour.TermRenderer
 	width        int
 	height       int
 	darkBG       bool
@@ -129,7 +126,7 @@ func (m *EventView) initViewport(width, height int) {
 
 	m.viewport = viewport.New()
 	m.viewport.SetWidth(width)
-	m.viewport.SetHeight(height)
+	m.viewport.SetHeight(height - helpLines)
 	m.viewport.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
@@ -321,7 +318,7 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewport.SetWidth(msg.Width)
-		m.viewport.SetHeight(msg.Height)
+		m.viewport.SetHeight(msg.Height - helpLines)
 
 	case tea.BackgroundColorMsg:
 		m.darkBG = msg.IsDark()
@@ -340,14 +337,6 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *EventView) View() tea.View {
-	if m.glamour == nil {
-		renderer, _ := glamour.NewTermRenderer(
-			glamour.WithStyles(styles.DarkStyleConfig),
-			glamour.WithWordWrap(m.viewport.Width()-glamourGutter),
-		)
-		m.glamour = renderer
-	}
-
 	header := m.renderHeader()
 	if m.loading {
 		header = "Loading..."
