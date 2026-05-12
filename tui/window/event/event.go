@@ -14,6 +14,7 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/toolkit"
+	"github.com/jerry-harm/nosmec/tui/windowmanager"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -49,6 +50,8 @@ type EventView struct {
 	fetchedEvent bool
 	help         help.Model
 	keys         eventKeyMap
+
+	windowManager *windowmanager.WindowManager
 }
 
 type eventKeyMap struct {
@@ -73,19 +76,20 @@ func (k eventKeyMap) FullHelp() [][]key.Binding {
 
 var _ help.KeyMap = (*eventKeyMap)(nil)
 
-func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string) *EventView {
+func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string, wm *windowmanager.WindowManager) *EventView {
 	m := &EventView{
-		event:        event,
-		app:          app,
-		width:        width,
-		height:       height,
-		darkBG:       false,
-		tk:           toolkit.New(),
-		authorName:   authorName,
-		fetchedName:  authorName != "",
-		fetchedEvent: true,
-		loading:      false,
-		showRawJSON:  false,
+		event:         event,
+		app:           app,
+		width:         width,
+		height:        height,
+		darkBG:        false,
+		tk:            toolkit.New(),
+		authorName:    authorName,
+		fetchedName:   authorName != "",
+		fetchedEvent:  true,
+		loading:       false,
+		showRawJSON:   false,
+		windowManager: wm,
 	}
 	m.initStyles()
 	m.initViewport(width, height)
@@ -94,18 +98,19 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 	return m
 }
 
-func NewFromID(eventID string, app *config.AppContext, width, height int) *EventView {
+func NewFromID(eventID string, app *config.AppContext, width, height int, wm *windowmanager.WindowManager) *EventView {
 	m := &EventView{
-		eventID:      eventID,
-		app:          app,
-		width:        width,
-		height:       height,
-		darkBG:       false,
-		tk:           toolkit.New(),
-		fetchedName:  false,
-		fetchedEvent: false,
-		loading:      true,
-		showRawJSON:  false,
+		eventID:       eventID,
+		app:           app,
+		width:         width,
+		height:        height,
+		darkBG:        false,
+		tk:            toolkit.New(),
+		fetchedName:   false,
+		fetchedEvent:  false,
+		loading:       true,
+		showRawJSON:   false,
+		windowManager: wm,
 	}
 	m.initStyles()
 	m.initViewport(width, height)
@@ -227,16 +232,22 @@ func (m *EventView) reply() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	logger.Debug("reply not implemented", "eventID", m.event.ID.Hex())
-	return nil
+	if m.windowManager == nil {
+		return nil
+	}
+	m.windowManager.PrepareReply(m.event)
+	return m.windowManager.OpenCompose()
 }
 
 func (m *EventView) quote() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	logger.Debug("quote not implemented", "eventID", m.event.ID.Hex())
-	return nil
+	if m.windowManager == nil {
+		return nil
+	}
+	m.windowManager.PrepareQuote(m.event)
+	return m.windowManager.OpenCompose()
 }
 
 func (m *EventView) delete() tea.Cmd {

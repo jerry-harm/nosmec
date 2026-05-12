@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/tui/window"
 )
 
 const ComposeWindowID = "compose"
@@ -120,7 +121,15 @@ type sendSuccessMsg struct {
 	eventID string
 }
 
+// CloseComposeMsg is sent when the user presses esc or sends successfully
+// to notify the window manager to close the compose window (but preserve state)
+type CloseComposeMsg struct{}
+
 func NewNoteCompose(app *config.AppContext) *model {
+	return newCompose(app, KindNote, nil, "", "")
+}
+
+func NewModel(app *config.AppContext) *model {
 	return newCompose(app, KindNote, nil, "", "")
 }
 
@@ -173,6 +182,39 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 	return m
 }
 
+func (m *model) AddReply(parentEvent *nostr.Event) {
+	m.composeKind = KindReply
+	m.parentEvent = parentEvent
+	m.parentID = parentEvent.ID.Hex()
+	m.tags = append(m.tags,
+		TagValue{Type: "e", Values: []string{parentEvent.ID.Hex()}},
+		TagValue{Type: "p", Values: []string{parentEvent.PubKey.Hex()}},
+	)
+}
+
+func (m *model) AddQuote(parentEvent *nostr.Event) {
+	m.composeKind = KindQuote
+	m.parentEvent = parentEvent
+	m.quotedID = parentEvent.ID.Hex()
+	m.tags = append(m.tags,
+		TagValue{Type: "q", Values: []string{parentEvent.ID.Hex()}},
+	)
+}
+
+// ClearDraft resets all compose state after successful send.
+func (m *model) ClearDraft() {
+	m.contentInput.SetValue("")
+	m.kindInput.SetValue("")
+	m.tags = nil
+	m.parentEvent = nil
+	m.parentID = ""
+	m.quotedID = ""
+	m.communityAddr = ""
+	m.composeKind = KindNote
+	m.errMsg = ""
+	m.success = false
+}
+
 var _ tea.Model = (*model)(nil)
 
 func (m *model) Init() tea.Cmd {
@@ -210,7 +252,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case sendSuccessMsg:
 		m.success = true
 		m.errMsg = ""
-		return m, tea.Quit
+		m.ClearDraft()
+		return m, func() tea.Msg { return CloseComposeMsg{} }
 	}
 
 	switch msg := msg.(type) {
@@ -226,7 +269,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tagInput.SetValue("")
 				return m, nil
 			}
-			return m, tea.Quit
+			// Send close message instead of tea.Quit to preserve draft state
+			return m, func() tea.Msg { return CloseComposeMsg{} }
 		}
 
 		if m.kindInput.Focused() {
@@ -552,5 +596,17 @@ func (m *model) renderHeader() string {
 		return fmt.Sprintf("Community: %s", m.communityAddr)
 	default:
 		return "New Note"
+	}
+}
+
+func PrepareReply(w window.Window, event *nostr.Event) {
+	if wm, ok := w.(*model); ok {
+		wm.AddReply(event)
+	}
+}
+
+func PrepareQuote(w window.Window, event *nostr.Event) {
+	if wm, ok := w.(*model); ok {
+		wm.AddQuote(event)
 	}
 }

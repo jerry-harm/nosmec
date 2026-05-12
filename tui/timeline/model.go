@@ -15,6 +15,7 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/window/event"
 	"github.com/jerry-harm/nosmec/tui/windowmanager"
 	"github.com/jerry-harm/nosmec/utils"
@@ -597,7 +598,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showDetailMsg:
 		logger.Debug("showDetailMsg received")
 		logger.Debug("about to call event.New")
-		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName)
+		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName, m.windowManager)
 		logger.Debug("event.New returned")
 		logger.Debug("EventView created, about to Open")
 		cmd := m.windowManager.Open(ev)
@@ -612,6 +613,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case event.CloseMsg:
 		logger.Debug("received CloseMsg in timeline.Update, closing window")
 		m.windowManager.Close(event.WindowID)
+		return m, nil
+
+	case compose.CloseComposeMsg:
+		logger.Debug("received CloseComposeMsg, closing compose window")
+		m.windowManager.Close(windowmanager.ComposeWindowID)
 		return m, nil
 
 	case event.ProfileLoadedMsg:

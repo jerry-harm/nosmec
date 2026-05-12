@@ -5,15 +5,22 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
+	"fiatjaf.com/nostr"
+	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/window"
 )
 
+const ComposeWindowID = "compose"
+
 type WindowManager struct {
-	mu      sync.RWMutex
-	windows map[string]window.Window
-	stack   []string // ordered by z-order (first = bottom, last = top)
-	focused string
+	mu           sync.RWMutex
+	windows      map[string]window.Window
+	stack        []string // ordered by z-order (first = bottom, last = top)
+	focused      string
+	app          *config.AppContext
+	composeModel window.Window
 }
 
 func New() *WindowManager {
@@ -21,6 +28,47 @@ func New() *WindowManager {
 		windows: make(map[string]window.Window),
 		stack:   make([]string, 0),
 	}
+}
+
+func (wm *WindowManager) SetApp(app *config.AppContext) {
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
+	wm.app = app
+}
+
+func (wm *WindowManager) ComposeModel() window.Window {
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
+	if wm.composeModel == nil && wm.app != nil {
+		wm.composeModel = compose.NewModel(wm.app)
+	}
+	return wm.composeModel
+}
+
+func (wm *WindowManager) PrepareReply(event *nostr.Event) {
+	compose.PrepareReply(wm.ComposeModel(), event)
+}
+
+func (wm *WindowManager) PrepareQuote(event *nostr.Event) {
+	compose.PrepareQuote(wm.ComposeModel(), event)
+}
+
+func (wm *WindowManager) OpenCompose() tea.Cmd {
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
+	if wm.composeModel == nil && wm.app != nil {
+		wm.composeModel = compose.NewModel(wm.app)
+	}
+	return wm.openLocked(wm.composeModel)
+}
+
+func (wm *WindowManager) openLocked(win window.Window) tea.Cmd {
+	id := win.ID()
+	wm.windows[id] = win
+	wm.removeFromStack(id)
+	wm.stack = append(wm.stack, id)
+	wm.focused = id
+	return win.Init()
 }
 
 // Open adds a window to the manager and focuses it. It calls Init() on the window

@@ -52,7 +52,7 @@ func registerEventCommands() {
 }
 
 func RunEventDetail(app *config.AppContext, eventID string) error {
-	m := event.NewFromID(eventID, app, 80, 24)
+	m := event.NewFromID(eventID, app, 80, 24, nil)
 	_, err := tea.NewProgram(m).Run()
 	return err
 }
