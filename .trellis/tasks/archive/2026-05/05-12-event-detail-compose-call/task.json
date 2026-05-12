@@ -1,0 +1,16 @@
+{
+  "id": "event-detail-compose-call",
+  "name": "event-detail-compose-call",
+  "title": "event详情compose调用",
+  "description": "",
+  "status": "completed",
+  "completedAt": "2026-05-12",
+  "commit": "e994319",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

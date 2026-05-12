@@ -30,12 +30,12 @@
 
 ## Acceptance Criteria
 
-* [ ] event detail 按 `r` 能打开 compose 并带入 reply tag（e: + p:）
-* [ ] event detail 按 `q` 能打开 compose 并带入 quote tag（q:）
-* [ ] compose 关闭后草稿（content、tags）保留
-* [ ] 再次按 r/q 能追加 tag 而不覆盖已有草稿
-* [ ] 发送成功后草稿清空
-* [ ] 如果 compose 已打开，r/q 不重复创建实例
+* [x] event detail 按 `r` 能打开 compose 并带入 reply tag（e: + p:）
+* [x] event detail 按 `q` 能打开 compose 并带入 quote tag（q:）
+* [x] compose 关闭后草稿（content、tags）保留
+* [x] 再次按 r/q 能追加 tag 而不覆盖已有草稿
+* [x] 发送成功后草稿清空
+* [x] 如果 compose 已打开，r/q 不重复创建实例
 
 ## Definition of Done
 
