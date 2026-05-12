@@ -5,7 +5,6 @@ import (
 	"os"
 
 	tea "charm.land/bubbletea/v2"
-	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -24,7 +23,7 @@ func RunNoteCompose(app *config.AppContext) error {
 	return err
 }
 
-func RunReplyCompose(app *config.AppContext, parentEvent *nostr.Event) error {
+func RunReplyCompose(app *config.AppContext) error {
 	if len(os.Getenv("DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
@@ -34,12 +33,12 @@ func RunReplyCompose(app *config.AppContext, parentEvent *nostr.Event) error {
 		defer f.Close()
 	}
 
-	m := NewReplyCompose(app, parentEvent)
+	m := NewReplyCompose(app, nil)
 	_, err := tea.NewProgram(m).Run()
 	return err
 }
 
-func RunQuoteCompose(app *config.AppContext, parentEvent *nostr.Event) error {
+func RunQuoteCompose(app *config.AppContext) error {
 	if len(os.Getenv("DEBUG")) > 0 {
 		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
@@ -49,7 +48,7 @@ func RunQuoteCompose(app *config.AppContext, parentEvent *nostr.Event) error {
 		defer f.Close()
 	}
 
-	m := NewQuoteCompose(app, parentEvent)
+	m := NewQuoteCompose(app, nil)
 	_, err := tea.NewProgram(m).Run()
 	return err
 }

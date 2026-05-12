@@ -6,19 +6,16 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
-	"charm.land/bubbles/v2/viewport"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/utils"
 )
 
-const (
-	ComposeWindowID = "compose"
-)
+const ComposeWindowID = "compose"
 
 type ComposeKind int
 
@@ -29,13 +26,17 @@ const (
 	KindCommunity
 )
 
+type TagValue struct {
+	Type   string
+	Values []string
+}
+
 type model struct {
-	styles  styles
-	width   int
-	height  int
-	viewport viewport.Model
-	ta      textarea.Model
-	keys    *keyMap
+	styles styles
+	width  int
+	height int
+	keys   *keyMap
+	help   help.Model
 
 	app           *config.AppContext
 	composeKind   ComposeKind
@@ -43,35 +44,72 @@ type model struct {
 	parentID      string
 	quotedID      string
 	communityAddr string
-	errMsg        string
-	success       bool
+
+	kindInput    textinput.Model
+	contentInput textarea.Model
+	tagInput     textinput.Model
+
+	tags              []TagValue
+	editingTagIndex   int
+
+	errMsg  string
+	success bool
+	sending bool
 }
 
 type keyMap struct {
-	send   key.Binding
-	quit   key.Binding
-	scroll key.Binding
+	send          key.Binding
+	quit          key.Binding
+	nextField     key.Binding
+	prevField     key.Binding
+	addTag        key.Binding
+	removeTag     key.Binding
+	deselectTag   key.Binding
 }
 
 func newKeyMap() *keyMap {
 	return &keyMap{
 		send: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "send"),
+			key.WithKeys("ctrl+enter"),
+			key.WithHelp("ctrl+enter", "send"),
 		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c", "esc"),
-			key.WithHelp("q", "quit"),
+			key.WithHelp("esc", "quit"),
 		),
-		scroll: key.NewBinding(
-			key.WithKeys("pgup", "pgdown"),
-			key.WithHelp("pgup/pgdown", "scroll"),
+		nextField: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "next field"),
+		),
+		prevField: key.NewBinding(
+			key.WithKeys("shift+tab"),
+			key.WithHelp("shift+tab", "prev field"),
+		),
+		addTag: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "add tag"),
+		),
+		removeTag: key.NewBinding(
+			key.WithKeys("backspace", "delete"),
+			key.WithHelp("backspace", "delete tag"),
+		),
+		deselectTag: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "deselect"),
 		),
 	}
 }
 
-type sendMsg struct {
-	content string
+func (k *keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.send, k.quit, k.nextField}
+}
+
+func (k *keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.send, k.quit},
+		{k.nextField, k.prevField},
+		{k.addTag},
+	}
 }
 
 type sendErrorMsg struct {
@@ -83,74 +121,64 @@ type sendSuccessMsg struct {
 }
 
 func NewNoteCompose(app *config.AppContext) *model {
-	return newCompose(app, KindNote, nil)
+	return newCompose(app, KindNote, nil, "", "")
 }
 
 func NewReplyCompose(app *config.AppContext, parentEvent *nostr.Event) *model {
-	m := newCompose(app, KindReply, parentEvent)
-	m.parentID = parentEvent.ID.Hex()
+	m := newCompose(app, KindReply, parentEvent, "", "")
+	if parentEvent != nil {
+		m.parentID = parentEvent.ID.Hex()
+		m.tags = append(m.tags, TagValue{Type: "e", Values: []string{parentEvent.ID.Hex()}})
+		m.tags = append(m.tags, TagValue{Type: "p", Values: []string{parentEvent.PubKey.Hex()}})
+	}
 	return m
 }
 
 func NewQuoteCompose(app *config.AppContext, parentEvent *nostr.Event) *model {
-	m := newCompose(app, KindQuote, parentEvent)
-	m.quotedID = parentEvent.ID.Hex()
+	m := newCompose(app, KindQuote, parentEvent, "", "")
+	if parentEvent != nil {
+		m.quotedID = parentEvent.ID.Hex()
+		m.tags = append(m.tags, TagValue{Type: "q", Values: []string{parentEvent.ID.Hex()}})
+	}
 	return m
 }
 
 func NewCommunityCompose(app *config.AppContext, communityAddr string) *model {
-	m := newCompose(app, KindCommunity, nil)
-	m.communityAddr = communityAddr
-	return m
+	return newCompose(app, KindCommunity, nil, communityAddr, "")
 }
 
-func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Event) *model {
+func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Event, communityAddr, quotedID string) *model {
 	m := &model{
-		app:         app,
-		composeKind: kind,
-		parentEvent: parentEvent,
+		app:           app,
+		composeKind:   kind,
+		parentEvent:   parentEvent,
+		communityAddr: communityAddr,
+		quotedID:      quotedID,
 	}
 	m.styles = newStyles()
 	m.keys = newKeyMap()
-	m.viewport = viewport.New()
-	m.ta = textarea.New()
-	m.ta.Placeholder = "Write your note..."
-	m.ta.Focus()
+	m.help = help.New()
 
-	m.updatePlaceholder()
+	m.kindInput = textinput.New()
+	m.kindInput.Placeholder = "Kind (default: 1)"
+	m.kindInput.Focus()
+
+	m.contentInput = textarea.New()
+	m.contentInput.Placeholder = "Write your note..."
+	m.contentInput.Prompt = "| "
+
+	m.tagInput = textinput.New()
+	m.tagInput.Placeholder = "e:eventId p:pubkey a:addr t:hashtag r:relay:purpose q:eventId"
 
 	return m
 }
 
-func (m *model) updatePlaceholder() {
-	switch m.composeKind {
-	case KindReply:
-		if m.parentEvent != nil {
-			m.ta.Placeholder = fmt.Sprintf("Replying to %s...", nip19.EncodeNpub(m.parentEvent.PubKey)[:16]+"...")
-		}
-	case KindQuote:
-		if m.parentEvent != nil {
-			content := m.parentEvent.Content
-			if len(content) > 30 {
-				content = content[:30] + "..."
-			}
-			m.ta.Placeholder = fmt.Sprintf("Quoting: %s", content)
-		}
-	case KindCommunity:
-		m.ta.Placeholder = fmt.Sprintf("Posting to %s...", m.communityAddr)
-	default:
-		m.ta.Placeholder = "Write your note..."
-	}
-}
+var _ tea.Model = (*model)(nil)
 
 func (m *model) Init() tea.Cmd {
+	m.kindInput.Focus()
 	return tea.Batch(
 		tea.RequestBackgroundColor,
-		func() tea.Msg {
-			m.viewport.SetWidth(80)
-			m.viewport.SetHeight(20)
-			return tea.WindowSizeMsg{Width: 80, Height: 30}
-		},
 	)
 }
 
@@ -169,18 +197,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		headerHeight := 3
-		inputHeight := 6
-		viewportHeight := msg.Height - headerHeight - inputHeight - 2
-		m.viewport = viewport.New()
-		m.viewport.SetWidth(msg.Width - 4)
-		m.viewport.SetHeight(viewportHeight)
-		m.viewport.SetContent(m.renderHeader())
-		m.ta.SetWidth(msg.Width - 4)
+		m.contentInput.SetWidth(msg.Width - 4)
+		m.contentInput.SetHeight(10)
+		m.tagInput.SetWidth(msg.Width - 4)
 		return m, nil
 
 	case sendErrorMsg:
 		m.errMsg = msg.err
+		m.sending = false
 		return m, nil
 
 	case sendSuccessMsg:
@@ -190,35 +214,184 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if m.ta.Focused() {
-			switch {
-			case key.Matches(msg, m.keys.send):
-				content := m.ta.Value()
-				if content = strings.TrimSpace(content); content != "" {
-					cmd := m.sendContent(content)
-					return m, cmd
+	case tea.KeyMsg:
+		if m.sending {
+			return m, nil
+		}
+
+		if key.Matches(msg, m.keys.quit) {
+			if m.editingTagIndex >= 0 {
+				m.saveTagEdit()
+				m.editingTagIndex = -1
+				m.tagInput.SetValue("")
+				return m, nil
+			}
+			return m, tea.Quit
+		}
+
+		if m.kindInput.Focused() {
+			if key.Matches(msg, m.keys.nextField) || key.Matches(msg, m.keys.addTag) {
+				m.kindInput.Blur()
+				m.tagInput.Focus()
+				if len(m.tags) > 0 {
+					m.editingTagIndex = 0
+					m.tagInput.SetValue(m.tagToString(m.tags[0]))
+				} else {
+					m.editingTagIndex = -1
+					m.tagInput.SetValue("")
 				}
-			case key.Matches(msg, m.keys.quit):
-				return m, tea.Quit
+				return m, nil
+			}
+			if key.Matches(msg, m.keys.prevField) {
+				m.kindInput.Blur()
+				m.tagInput.Focus()
+				if len(m.tags) > 0 {
+					m.editingTagIndex = len(m.tags) - 1
+					m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
+				} else {
+					m.editingTagIndex = -1
+					m.tagInput.SetValue("")
+				}
+				return m, nil
 			}
 		}
 
-		switch {
-		case key.Matches(msg, m.keys.scroll):
-			if key.Matches(msg, key.NewBinding(key.WithKeys("pgup"))) {
-				m.viewport.ScrollUp(10)
-			} else {
-				m.viewport.ScrollDown(10)
+		if m.contentInput.Focused() {
+			if msg.String() == "tab" || key.Matches(msg, m.keys.nextField) {
+				m.contentInput.Blur()
+				m.kindInput.Focus()
+				return m, nil
+			}
+			if msg.String() == "shift+tab" || key.Matches(msg, m.keys.prevField) {
+				m.contentInput.Blur()
+				m.tagInput.Focus()
+				if len(m.tags) > 0 {
+					m.editingTagIndex = len(m.tags) - 1
+					m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
+				} else {
+					m.editingTagIndex = -1
+					m.tagInput.SetValue("")
+				}
+				return m, nil
+			}
+			if key.Matches(msg, m.keys.send) {
+				content := m.contentInput.Value()
+				if content = strings.TrimSpace(content); content != "" {
+					m.sending = true
+					return m, m.sendContent(content)
+				}
+			}
+		}
+
+		if m.tagInput.Focused() {
+			tagValue := m.tagInput.Value()
+
+			if key.Matches(msg, m.keys.addTag) {
+				if tagValue != "" {
+					tag := m.parseTagInput(tagValue)
+					if tag.Type != "" {
+						if m.editingTagIndex >= 0 && m.editingTagIndex < len(m.tags) {
+							m.tags[m.editingTagIndex] = tag
+						} else {
+							m.tags = append(m.tags, tag)
+							m.editingTagIndex = len(m.tags) - 1
+						}
+					}
+				}
+				m.tagInput.SetValue("")
+				m.editingTagIndex = -1
+				return m, nil
+			}
+
+			if msg.String() == "backspace" && tagValue == "" && len(m.tags) > 0 {
+				if m.editingTagIndex >= 0 && m.editingTagIndex < len(m.tags) {
+					m.tags = append(m.tags[:m.editingTagIndex], m.tags[m.editingTagIndex+1:]...)
+					if m.editingTagIndex >= len(m.tags) {
+						m.editingTagIndex = len(m.tags) - 1
+					}
+				}
+				if len(m.tags) > 0 {
+					m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
+				} else {
+					m.editingTagIndex = -1
+					m.tagInput.SetValue("")
+				}
+				return m, nil
+			}
+
+			if key.Matches(msg, m.keys.nextField) || msg.String() == "tab" {
+				if m.editingTagIndex < 0 {
+					m.tagInput.Blur()
+					m.contentInput.Focus()
+				} else {
+					m.saveTagEdit()
+					m.editingTagIndex++
+					if m.editingTagIndex >= len(m.tags) {
+						m.editingTagIndex = -1
+						m.tagInput.SetValue("")
+					} else {
+						m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
+					}
+				}
+				return m, nil
+			}
+
+			if key.Matches(msg, m.keys.prevField) || msg.String() == "shift+tab" {
+				if m.editingTagIndex < 0 {
+					if len(m.tags) > 0 {
+						m.editingTagIndex = len(m.tags) - 1
+						m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
+					}
+				} else {
+					m.saveTagEdit()
+					if m.editingTagIndex > 0 {
+						m.editingTagIndex--
+						m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
+					} else {
+						m.editingTagIndex = -1
+						m.tagInput.SetValue("")
+					}
+				}
+				return m, nil
 			}
 		}
 	}
 
-	taModel, cmd := m.ta.Update(msg)
-	m.ta = taModel
-	cmds = append(cmds, cmd)
+	kindModel, kindCmd := m.kindInput.Update(msg)
+	m.kindInput = kindModel
+	cmds = append(cmds, kindCmd)
+
+	contentModel, contentCmd := m.contentInput.Update(msg)
+	m.contentInput = contentModel
+	cmds = append(cmds, contentCmd)
+
+	tagModel, tagCmd := m.tagInput.Update(msg)
+	m.tagInput = tagModel
+	cmds = append(cmds, tagCmd)
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *model) nextField() {
+}
+
+func (m *model) prevField() {
+}
+
+func (m *model) tagToString(tag TagValue) string {
+	return tag.Type + ":" + strings.Join(tag.Values, ":")
+}
+
+func (m *model) saveTagEdit() {
+	if m.editingTagIndex >= 0 && m.editingTagIndex < len(m.tags) {
+		tagValue := m.tagInput.Value()
+		if tagValue != "" {
+			tag := m.parseTagInput(tagValue)
+			if tag.Type != "" {
+				m.tags[m.editingTagIndex] = tag
+			}
+		}
+	}
 }
 
 func (m *model) sendContent(content string) tea.Cmd {
@@ -226,94 +399,147 @@ func (m *model) sendContent(content string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), m.app.QueryTimeout())
 		defer cancel()
 
-		var err error
-		var event *nostr.Event
-
-		switch m.composeKind {
-		case KindNote:
-			event, err = utils.PostNote(ctx, m.app, content)
-		case KindReply:
-			if m.parentID == "" && m.parentEvent != nil {
-				m.parentID = m.parentEvent.ID.Hex()
-			}
-			event, err = utils.ReplyToNote(ctx, m.app, m.parentID, content)
-		case KindQuote:
-			if m.quotedID == "" && m.parentEvent != nil {
-				m.quotedID = m.parentEvent.ID.Hex()
-			}
-			event, err = utils.QuoteNote(ctx, m.app, m.quotedID, content)
-		case KindCommunity:
-			event, err = m.postCommunity(ctx, content)
-		}
-
+		secretKey, err := m.app.GetMySecretKey()
 		if err != nil {
 			return sendErrorMsg{err: err.Error()}
+		}
+
+		var tags nostr.Tags
+		for _, t := range m.tags {
+			tag := nostr.Tag{t.Type}
+			tag = append(tag, t.Values...)
+			tags = append(tags, tag)
+		}
+
+		kind := m.parseKind()
+
+		event := &nostr.Event{
+			Kind:      kind,
+			CreatedAt: nostr.Timestamp(time.Now().Unix()),
+			Tags:      tags,
+			Content:   content,
+			PubKey:    secretKey.Public(),
+		}
+
+		if err := event.Sign(secretKey); err != nil {
+			return sendErrorMsg{err: err.Error()}
+		}
+
+		writableRelays := m.app.AllWritableRelays()
+		if len(writableRelays) > 0 {
+			resultChan := m.app.Pool().PublishMany(ctx, writableRelays, *event)
+			for result := range resultChan {
+				if result.Error != nil {
+					return sendErrorMsg{err: fmt.Errorf("failed to publish to %s: %w", result.RelayURL, result.Error).Error()}
+				}
+			}
 		}
 
 		return sendSuccessMsg{eventID: event.ID.Hex()}
 	}
 }
 
-func (m *model) postCommunity(ctx context.Context, content string) (*nostr.Event, error) {
-	secretKey, err := m.app.GetMySecretKey()
+func (m *model) parseKind() nostr.Kind {
+	kindStr := strings.TrimSpace(m.kindInput.Value())
+	if kindStr == "" {
+		return nostr.KindTextNote
+	}
+	var kind int
+	_, err := fmt.Sscanf(kindStr, "%d", &kind)
 	if err != nil {
-		return nil, err
+		return nostr.KindTextNote
+	}
+	return nostr.Kind(kind)
+}
+
+func (m *model) parseTagInput(input string) TagValue {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return TagValue{}
 	}
 
-	tags := nostr.Tags{
-		{"a", m.communityAddr},
+	parts := strings.Split(input, ":")
+	if len(parts) < 2 {
+		return TagValue{Type: "t", Values: []string{input}}
 	}
 
-	event := &nostr.Event{
-		Kind:      nostr.KindCommunityDefinition,
-		CreatedAt: nostr.Timestamp(time.Now().Unix()),
-		Tags:      tags,
-		Content:   content,
-		PubKey:    secretKey.Public(),
-	}
-
-	if err := event.Sign(secretKey); err != nil {
-		return nil, err
-	}
-
-	writableRelays := m.app.AllWritableRelays()
-	if len(writableRelays) > 0 {
-		resultChan := m.app.Pool().PublishMany(ctx, writableRelays, *event)
-		for result := range resultChan {
-			if result.Error != nil {
-				return nil, fmt.Errorf("failed to publish to %s: %w", result.RelayURL, result.Error)
-			}
+	tagType := strings.ToLower(strings.TrimSpace(parts[0]))
+	values := make([]string, 0, len(parts)-1)
+	for _, v := range parts[1:] {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			values = append(values, v)
 		}
 	}
 
-	return event, nil
+	if len(values) == 0 {
+		return TagValue{Type: "t", Values: []string{input}}
+	}
+
+	switch tagType {
+	case "e", "p", "a", "t", "r", "q", "emoji":
+		return TagValue{Type: tagType, Values: values}
+	default:
+		return TagValue{Type: "t", Values: []string{input}}
+	}
 }
 
 func (m *model) View() tea.View {
+	content := m.renderView()
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
+}
+
+func (m *model) renderView() string {
 	var b strings.Builder
 
 	b.WriteString(m.styles.header.Render(m.renderHeader()))
-	b.WriteString("\n")
+	b.WriteString("\n\n")
 
 	if m.errMsg != "" {
 		b.WriteString(m.styles.errorMsg.Render("Error: " + m.errMsg))
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 	}
 
 	if m.success {
-		b.WriteString(m.styles.header.Render("Posted successfully!"))
-		b.WriteString("\n")
+		b.WriteString(m.styles.successMsg.Render("Posted successfully!"))
+		b.WriteString("\n\n")
 	}
 
-	b.WriteString(m.viewport.View())
+	b.WriteString(m.styles.fieldLabel.Render("Kind: "))
+	b.WriteString(m.kindInput.View())
+	b.WriteString(" (default: 1)\n\n")
+
+	b.WriteString(m.styles.fieldLabel.Render("Tags:"))
 	b.WriteString("\n")
+	for i, tag := range m.tags {
+		if i == m.editingTagIndex && m.tagInput.Focused() {
+			b.WriteString(fmt.Sprintf("  >%s\n", m.tagInput.View()))
+		} else {
+			b.WriteString(fmt.Sprintf("  [%s] %s\n", tag.Type, strings.Join(tag.Values, ", ")))
+		}
+	}
+	if m.tagInput.Focused() {
+		if m.editingTagIndex >= 0 {
+			b.WriteString("  | enter: save | tab: next | del: remove\n")
+		} else {
+			b.WriteString("  " + m.styles.inputArea.Render(m.tagInput.View()))
+			b.WriteString(" | format: e:eventId p:pubkey a:addr t:hashtag r:relay:purpose q:eventId\n")
+		}
+	} else {
+		b.WriteString("  " + m.styles.inputArea.Render(m.tagInput.View()))
+		b.WriteString(" | format: e:eventId p:pubkey a:addr t:hashtag r:relay:purpose q:eventId\n")
+	}
 
-	b.WriteString(m.styles.inputArea.Render(m.ta.View()))
+	b.WriteString(m.styles.fieldLabel.Render("Content:"))
 	b.WriteString("\n")
+	b.WriteString(m.styles.inputArea.Render(m.contentInput.View()))
+	b.WriteString("\n\n")
 
-	b.WriteString(m.styles.help.Render("Enter: send | q/ctrl+c: quit | pgup/pgdown: scroll"))
+	b.WriteString(m.help.View(m.keys))
 
-	return tea.NewView(b.String())
+	return b.String()
 }
 
 func (m *model) renderHeader() string {
@@ -327,8 +553,4 @@ func (m *model) renderHeader() string {
 	default:
 		return "New Note"
 	}
-}
-
-func (m *model) Close() bool {
-	return true
 }
