@@ -99,4 +99,113 @@ All user-facing outputs (CLI, TUI, logs) MUST use NIP-19 bech32 format:
 
 <!-- What reviewers should check -->
 
-(To be filled by the team)
+---
+
+## TUI Development
+
+### BubbleTea tea.Model View() returns tea.View
+
+**Wrong**:
+```go
+func (m *model) View() string {  // BUG: returns string
+    return someString
+}
+```
+
+**Correct**:
+```go
+func (m *model) View() tea.View {
+    v := tea.NewView(someString)
+    v.AltScreen = true  // for full screen
+    return v
+}
+```
+
+**Why**: `tea.Model` interface requires `View() tea.View`, not `string`. The `tea.View` type wraps content with styling options.
+
+---
+
+### TUI Field Navigation Patterns
+
+**Enter key for navigation**:
+- In text inputs (Kind, Tag): Enter moves to next field, does NOT send
+- Only textarea (Content) uses Enter to send
+
+**Tab navigation order** (compose TUI example):
+- Kind → Tag (or first tag if exists) → Content → Kind (loops)
+- When Tag input is empty (`editingTagIndex = -1`), Tab exits to Content
+- When editing a tag, Tab cycles through tags
+
+**ESC convention**:
+- ESC = quit/close for all TUI views
+- In nested edit mode (e.g., editing a tag): first ESC cancels edit, second ESC quits
+
+---
+
+### Tag Input UX Design
+
+**Display format**: `[type] value, value` for normal display
+
+**Edit mode**: When Tabbed to a tag, show `>type:value` with `>` prefix indicating edit mode
+
+**Tag format placeholder**: `e:eventId p:pubkey a:addr t:hashtag r:relay:purpose q:eventId`
+
+**Tag parsing**: `type:value1:value2:...` supports multi-value tags like `r:relay:purpose`
+
+---
+
+### Common TUI Mistakes
+
+#### Mistake: Blur then never refocus
+
+**Symptom**: After pressing Enter in a field, focus is lost completely
+
+**Cause**: Calling `m.input.Blur()` without focusing another element
+
+**Fix**: Always explicitly call `Focus()` on the next element after Blur()
+
+#### Mistake: Tab handler consumed by textarea
+
+**Symptom**: Tab key doesn't switch fields when textarea is focused
+
+**Cause**: Textarea internal handlers may consume Tab before it reaches your key handler
+
+**Fix**: Check for Tab specifically before calling `textarea.Update()`:
+```go
+if msg.String() == "tab" {
+    m.nextField()
+    return m, nil
+}
+// only reach textarea.Update for non-Tab keys
+```
+
+#### Mistake: Viewport fills entire window, pushing help off-screen
+
+**Symptom**: Help bar not visible in TUI window (rendered but cut off)
+
+**Cause**: `viewport.SetHeight(msg.Height)` uses full window height. If `View()` appends `help.View()` after `viewport.View()`, the help renders outside the visible area.
+
+**Fix**: Reserve space for fixed UI elements (help bar) at the bottom:
+```go
+const helpLines = 3  // lines reserved for help bar
+
+func (m *MyView) initViewport(width, height int) {
+    m.viewport.SetWidth(width)
+    m.viewport.SetHeight(height - helpLines)  // leave room for help
+}
+
+func (m *MyView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch msg := msg.(type) {
+    case tea.WindowSizeMsg:
+        m.viewport.SetWidth(msg.Width)
+        m.viewport.SetHeight(msg.Height - helpLines)
+    }
+    // ...
+}
+
+func (m *MyView) View() string {
+    return m.viewport.View() + "\n" + m.help.View(m.keys)
+}
+```
+
+**Prevention**: Always account for fixed UI elements (help bars, status lines) when sizing scrollable content areas.
