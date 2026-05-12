@@ -96,7 +96,10 @@ All config can be overridden with `NOSMEC_` prefix:
 
 ### Proxy Support
 
-Only `socks` and `i2p_socks` proxies are supported (no `onion_socks`).
+`proxy.socks` and `proxy.i2p_socks` are available. Both are SOCKS5 proxies.
+- `socks` handles all traffic if `i2p_socks` is not set; otherwise non-.i2p traffic.
+- `i2p_socks` only routes `.i2p` domains.
+- Onion (.onion) support: put your Tor proxy address in `proxy.socks` (e.g., `127.0.0.1:9050`).
 
 ## Supported NIPs
 
