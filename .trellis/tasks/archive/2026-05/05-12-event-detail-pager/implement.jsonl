@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Go code style and linting rules"}
+{"file": ".trellis/tasks/05-12-event-detail-pager/research/glamour-url-handling.md", "reason": "Research on glamour URL rendering and goldmark linkify bug"}
