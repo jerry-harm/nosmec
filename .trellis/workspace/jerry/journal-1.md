@@ -347,3 +347,37 @@ Added unit tests for utils modules: search (ParseSearchFilter), dm (Conversation
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: clarify proxy README, commit compose-form-ui
+
+**Date**: 2026-05-12
+**Task**: clarify proxy README, commit compose-form-ui
+**Branch**: `main`
+
+### Summary
+
+Updated proxy docs in README (clarified socks/onion/i2p behavior); committed compose TUI form enhancement
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5142c20` | (see git log) |
+| `15f581e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
