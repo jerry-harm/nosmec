@@ -381,3 +381,37 @@ Updated proxy docs in README (clarified socks/onion/i2p behavior); committed com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: event-detail-pager完成，4个任务brainstorm完成
+
+**Date**: 2026-05-12
+**Task**: event-detail-pager完成，4个任务brainstorm完成
+**Branch**: `main`
+
+### Summary
+
+完成event-detail-pager任务：移除glamour改纯文本渲染，修复help高度bug。完成4个TUI任务的brainstorm规划：event-detail-pager(完成)、event-detail-compose-call、community-timeline、unify-tui-ops。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c8bc56c` | (see git log) |
+| `66a9aff` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
+- **Total Sessions**: 12
 - **Last Active**: 2026-05-12
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~383 | Active |
+| `journal-1.md` | ~417 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-05-12 | event-detail-pager完成，4个任务brainstorm完成 | `c8bc56c`, `66a9aff` | `main` |
 | 11 | 2026-05-12 | clarify proxy README, commit compose-form-ui | `5142c20`, `15f581e` | `main` |
 | 10 | 2026-05-11 | Add utils tests (search, dm, post) | `80c4812` | `main` |
 | 9 | 2026-05-11 | Add unit tests for utils modules | `80c4812` | `main` |
