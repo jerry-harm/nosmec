@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
 	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
-	"fiatjaf.com/nostr/nip19"
 )
 
 func registerNoteCommands() {
@@ -41,7 +41,7 @@ func registerNoteCommands() {
 			}
 
 			app := getApp()
-			if err := timeline.RunTimeline(app, filter, hashtags, limit); err != nil {
+			if err := timeline.RunTimeline(app, filter, hashtags, limit, ""); err != nil {
 				handleError(err)
 			}
 		},

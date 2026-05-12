@@ -88,18 +88,19 @@ func newStyles(darkBG bool) styles {
 }
 
 type model struct {
-	styles    styles
-	darkBG    bool
-	width     int
-	height    int
-	list      list.Model
-	keys      *listKeyMap
+	styles       styles
+	darkBG       bool
+	width        int
+	height       int
+	list         list.Model
+	keys         *listKeyMap
 	delegateKeys *delegateKeyMap
 
-	app      *config.AppContext
-	filter   string
-	hashtags []string
-	limit    int
+	app           *config.AppContext
+	filter        string
+	hashtags      []string
+	limit         int
+	communityAddr string
 
 	windowManager *windowmanager.WindowManager
 
@@ -109,22 +110,22 @@ type model struct {
 	seenEventIDs  map[nostr.ID]bool
 
 	// Subscription for real-time updates
-	subCh        chan nostr.RelayEvent
-	subCtx       context.Context
-	subCancel     context.CancelFunc
-	subStarted    bool
-	newestSince   nostr.Timestamp  // Timestamp of newest event for subscription
-	lastRefresh   time.Time       // Last refresh timestamp for rate limiting
+	subCh       chan nostr.RelayEvent
+	subCtx      context.Context
+	subCancel   context.CancelFunc
+	subStarted  bool
+	newestSince nostr.Timestamp // Timestamp of newest event for subscription
+	lastRefresh time.Time       // Last refresh timestamp for rate limiting
 }
 
 type listKeyMap struct {
-	refresh         key.Binding
-	quit            key.Binding
-	toggleSpinner   key.Binding
-	toggleTitleBar  key.Binding
-	toggleStatusBar key.Binding
+	refresh          key.Binding
+	quit             key.Binding
+	toggleSpinner    key.Binding
+	toggleTitleBar   key.Binding
+	toggleStatusBar  key.Binding
 	togglePagination key.Binding
-	toggleHelpMenu  key.Binding
+	toggleHelpMenu   key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
@@ -178,7 +179,7 @@ type loadMoreMsg struct {
 }
 
 type loadMoreErrorMsg struct {
-	err error
+	err   error
 	isNew bool
 }
 
@@ -186,12 +187,13 @@ type newEventMsg struct {
 	event utils.TimelineEvent
 }
 
-func NewModel(app *config.AppContext, filter string, hashtags []string, limit int) *model {
+func NewModel(app *config.AppContext, filter string, hashtags []string, limit int, communityAddr string) *model {
 	m := &model{
-		app:      app,
-		filter:   filter,
-		hashtags: hashtags,
-		limit:    limit,
+		app:           app,
+		filter:        filter,
+		hashtags:      hashtags,
+		limit:         limit,
+		communityAddr: communityAddr,
 	}
 	m.styles = newStyles(false)
 	m.keys = newListKeyMap()
@@ -257,6 +259,12 @@ func (m *model) fetchTimeline() tea.Cmd {
 			ch = utils.GetGlobalTimeline(ctx, m.limit, 0, opts)
 		case "mine":
 			ch = utils.GetMyTimeline(ctx, m.limit, 0, opts)
+		case "community":
+			authorPubKey, communityID, err := utils.ParseCommunityAddr(m.communityAddr)
+			if err != nil {
+				return fetchMsg{events: nil}
+			}
+			ch = utils.GetCommunityPosts(ctx, m.app, authorPubKey, communityID, m.limit)
 		default:
 			ch = utils.GetFollowedTimeline(ctx, m.limit, 0, m.hashtags, opts)
 		}
@@ -327,6 +335,13 @@ func (m *model) fetchMoreOld() tea.Cmd {
 			ch = utils.GetGlobalTimeline(ctx, m.limit, until, opts)
 		case "mine":
 			ch = utils.GetMyTimeline(ctx, m.limit, until, opts)
+		case "community":
+			authorPubKey, communityID, err := utils.ParseCommunityAddr(m.communityAddr)
+			if err != nil {
+				m.isLoadingMore = false
+				return loadMoreErrorMsg{err: err, isNew: false}
+			}
+			ch = utils.GetCommunityPosts(ctx, m.app, authorPubKey, communityID, m.limit)
 		default:
 			ch = utils.GetFollowedTimeline(ctx, m.limit, until, m.hashtags, opts)
 		}
@@ -382,6 +397,18 @@ func (m *model) startSubscription(since nostr.Timestamp) tea.Cmd {
 				Authors: []nostr.PubKey{pubKey},
 				Since:   since,
 				Limit:   100,
+			}
+		case "community":
+			// For community timeline, subscribe to the specific community
+			// m.communityAddr is already in format "34550:pubkey:communityid"
+			kinds := []nostr.Kind{nostr.KindTextNote, nostr.KindComment}
+			filter = nostr.Filter{
+				Kinds: kinds,
+				Since: since,
+				Limit: 100,
+			}
+			if m.communityAddr != "" {
+				filter.Tags = nostr.TagMap{"a": []string{m.communityAddr}}
 			}
 		default:
 			// For followed timeline, we need authors and communities

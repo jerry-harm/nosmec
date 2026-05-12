@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
-	"fiatjaf.com/nostr/nip19"
 )
 
 func registerCommunityCommands() {
@@ -227,45 +227,20 @@ func registerCommunityCommands() {
 
 	communityTimelineCmd := &cobra.Command{
 		Use:               "timeline <community-addr>",
-		Short:             "Show community timeline",
+		Short:             "Show community timeline with TUI",
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.CommunityCompletionFunc,
 		Run: func(cmd *cobra.Command, args []string) {
 			communityAddr := args[0]
-
-			app := getApp()
-			authorPubKey, communityID, err := utils.ParseCommunityAddr(communityAddr)
-			if err != nil {
-				handleError(newError("failed to parse community address", err))
-			}
 
 			limit := 10
 			if l, err := cmd.Flags().GetInt("limit"); err == nil && l > 0 {
 				limit = l
 			}
 
-			ctx := context.Background()
-			ch := utils.GetCommunityPosts(ctx, app, authorPubKey, communityID, limit)
-			var events []nostr.Event
-			for e := range ch {
-				events = append(events, *e)
-			}
-
-			if len(events) == 0 {
-				fmt.Println("No posts found.")
-				return
-			}
-
-			fmt.Printf("Recent posts in %s:\n", communityAddr)
-			fmt.Println(strings.Repeat("=", 50))
-			for i, event := range events {
-				fmt.Printf("\n[%d] %s\n", i+1, nip19.EncodeNevent(event.ID, nil, event.PubKey)[:32]+"...")
-				fmt.Printf("Author: %s\n", nip19.EncodeNpub(event.PubKey)[:32]+"...")
-				fmt.Printf("Time: %v\n", event.CreatedAt.Time())
-				fmt.Printf("Content: %s\n", event.Content)
-				if i < len(events)-1 {
-					fmt.Println(strings.Repeat("-", 30))
-				}
+			app := getApp()
+			if err := timeline.RunTimeline(app, "community", nil, limit, communityAddr); err != nil {
+				handleError(err)
 			}
 		},
 	}
