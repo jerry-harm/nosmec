@@ -448,3 +448,37 @@ Updated proxy docs in README (clarified socks/onion/i2p behavior); committed com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: event-detail-compose-call 完成 + unify-tui-ops 回到 brainstorm
+
+**Date**: 2026-05-12
+**Task**: event-detail-compose-call 完成 + unify-tui-ops 回到 brainstorm
+**Branch**: `main`
+
+### Summary
+
+event-detail-compose-call: 修复 RWMutex deadlock、nil panic、overlay 渲染；完成 reply/quote 通过 windowManager 打开 compose 的功能。用户撤销了最终 commit想把 isRootWindow 判断问题留在 unify-tui-ops brainstorm 里讨论。unify-tui-ops 回到 brainstorm 阶段。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3e04185` | (see git log) |
+| `e994319` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
