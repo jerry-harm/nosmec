@@ -1,0 +1,2 @@
+{"file": "tui/compose/model.go", "reason": "main compose model - send binding, Update logic, renderView, ClearDraft"}
+{"file": "tui/compose/styles.go", "reason": "styles for compose UI - need to understand existing style patterns for adding sending overlay"}

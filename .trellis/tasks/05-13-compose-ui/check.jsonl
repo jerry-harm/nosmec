@@ -1,0 +1,2 @@
+{"file": "tui/compose/model.go", "reason": "verify send flow, overlay state, success auto-close"}
+{"file": "tui/compose/styles.go", "reason": "verify new styles for sending overlay"}

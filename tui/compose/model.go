@@ -56,9 +56,10 @@ type model struct {
 	tags              []TagValue
 	editingTagIndex   int
 
-	errMsg  string
-	success bool
-	sending bool
+	errMsg    string
+	success   bool
+	sending   bool
+	statusMsg string
 }
 
 type keyMap struct {
@@ -244,14 +245,25 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case sendErrorMsg:
 		m.errMsg = msg.err
-		m.sending = false
-		return m, nil
+		m.statusMsg = "Error: " + msg.err
+		return m, tea.Batch(
+			tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+				m.sending = false
+				m.statusMsg = ""
+				return nil
+			}),
+		)
 
 	case sendSuccessMsg:
 		m.success = true
 		m.errMsg = ""
+		m.statusMsg = "Posted successfully!"
 		m.ClearDraft()
-		return m, func() tea.Msg { return bubblon.Close() }
+		return m, tea.Batch(
+			tea.Tick(1500*time.Millisecond, func(t time.Time) tea.Msg {
+				return bubblon.Close()
+			}),
+		)
 	}
 
 	switch msg := msg.(type) {
@@ -529,6 +541,52 @@ func (m *model) parseTagInput(input string) TagValue {
 	}
 }
 
+func (m *model) renderSendingOverlay() string {
+	var msg string
+	if m.statusMsg != "" {
+		msg = m.statusMsg
+	} else {
+		msg = "Sending..."
+	}
+
+	h := m.height
+	if h == 0 {
+		h = 20
+	}
+	w := m.width
+	if w == 0 {
+		w = 60
+	}
+
+	centerV := (h - 3) / 2
+	centerH := (w - len(msg) - 4) / 2
+
+	var b strings.Builder
+	b.WriteString(m.styles.header.Render(m.renderHeader()))
+	b.WriteString("\n")
+
+	for i := 0; i < centerV-2; i++ {
+		b.WriteString("\n")
+	}
+
+	border := "┌" + strings.Repeat("─", w-2) + "┐"
+	b.WriteString(m.styles.sendingOverlay.Render(border) + "\n")
+	space := "│" + strings.Repeat(" ", w-2) + "│"
+	b.WriteString(m.styles.sendingOverlay.Render(space) + "\n")
+
+	contentLine := fmt.Sprintf("│%s%s%s│", strings.Repeat(" ", centerH), msg, strings.Repeat(" ", w-centerH-len(msg)-3))
+	b.WriteString(m.styles.sendingOverlay.Render(contentLine) + "\n")
+
+	b.WriteString(m.styles.sendingOverlay.Render(space) + "\n")
+	b.WriteString(m.styles.sendingOverlay.Render(border) + "\n")
+
+	for i := 0; i < h-centerV-6; i++ {
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
 func (m *model) View() tea.View {
 	content := m.renderView()
 	v := tea.NewView(content)
@@ -537,6 +595,10 @@ func (m *model) View() tea.View {
 }
 
 func (m *model) renderView() string {
+	if m.sending {
+		return m.renderSendingOverlay()
+	}
+
 	var b strings.Builder
 
 	b.WriteString(m.styles.header.Render(m.renderHeader()))

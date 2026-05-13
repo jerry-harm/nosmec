@@ -18,6 +18,7 @@ type styles struct {
 	tagList        lipgloss.Style
 	tagItem        lipgloss.Style
 	tagItemSelected lipgloss.Style
+	sendingOverlay  lipgloss.Style
 }
 
 func newStyles() styles {
@@ -58,5 +59,9 @@ func newStyles() styles {
 			Background(lipgloss.Color("#25A065")).
 			Bold(true).
 			Padding(0, 1),
+		sendingOverlay: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#333333")).
+			Padding(2, 4),
 	}
 }
