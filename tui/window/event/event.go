@@ -9,12 +9,13 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	"charm.land/lipgloss/v2"
+	"github.com/jerry-harm/nosmec/tui/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/toolkit"
-	"github.com/jerry-harm/nosmec/tui/windowmanager"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -51,7 +52,7 @@ type EventView struct {
 	help         help.Model
 	keys         eventKeyMap
 
-	windowManager *windowmanager.WindowManager
+	ctrl *bubblon.Controller
 }
 
 type eventKeyMap struct {
@@ -76,7 +77,7 @@ func (k eventKeyMap) FullHelp() [][]key.Binding {
 
 var _ help.KeyMap = (*eventKeyMap)(nil)
 
-func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string, wm *windowmanager.WindowManager) *EventView {
+func New(event *nostr.Event, app *config.AppContext, width, height int, authorName string, ctrl *bubblon.Controller) *EventView {
 	m := &EventView{
 		event:         event,
 		app:           app,
@@ -89,7 +90,7 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		fetchedEvent:  true,
 		loading:       false,
 		showRawJSON:   false,
-		windowManager: wm,
+		ctrl:          ctrl,
 	}
 	m.initStyles()
 	m.initViewport(width, height)
@@ -98,7 +99,7 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 	return m
 }
 
-func NewFromID(eventID string, app *config.AppContext, width, height int, wm *windowmanager.WindowManager) *EventView {
+func NewFromID(eventID string, app *config.AppContext, width, height int, ctrl *bubblon.Controller) *EventView {
 	m := &EventView{
 		eventID:       eventID,
 		app:           app,
@@ -110,7 +111,7 @@ func NewFromID(eventID string, app *config.AppContext, width, height int, wm *wi
 		fetchedEvent:  false,
 		loading:       true,
 		showRawJSON:   false,
-		windowManager: wm,
+		ctrl:          ctrl,
 	}
 	m.initStyles()
 	m.initViewport(width, height)
@@ -232,22 +233,24 @@ func (m *EventView) reply() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	if m.windowManager == nil {
+	if m.ctrl == nil {
 		return nil
 	}
-	m.windowManager.PrepareReply(m.event)
-	return m.windowManager.OpenCompose()
+	composeModel := compose.NewModel(m.app)
+	composeModel.AddReply(m.event)
+	return bubblon.Open(composeModel)
 }
 
 func (m *EventView) quote() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	if m.windowManager == nil {
+	if m.ctrl == nil {
 		return nil
 	}
-	m.windowManager.PrepareQuote(m.event)
-	return m.windowManager.OpenCompose()
+	composeModel := compose.NewModel(m.app)
+	composeModel.AddQuote(m.event)
+	return bubblon.Open(composeModel)
 }
 
 func (m *EventView) delete() tea.Cmd {

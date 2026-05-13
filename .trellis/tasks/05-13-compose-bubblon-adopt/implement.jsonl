@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Code quality bar: lint, vet, test conventions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns for the TUI layer"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Package structure and layer conventions"}
+{"file": ".trellis/tasks/05-13-compose-bubblon-adopt/prd.md", "reason": "Task requirements and implementation plan"}

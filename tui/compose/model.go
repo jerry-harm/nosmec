@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
+	"github.com/jerry-harm/nosmec/tui/bubblon"
 	"charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
@@ -243,7 +244,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.success = true
 		m.errMsg = ""
 		m.ClearDraft()
-		return m, func() tea.Msg { return CloseComposeMsg{} }
+		return m, func() tea.Msg { return bubblon.Close() }
 	}
 
 	switch msg := msg.(type) {
@@ -259,8 +260,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tagInput.SetValue("")
 				return m, nil
 			}
-			// Send close message instead of tea.Quit to preserve draft state
-			return m, func() tea.Msg { return CloseComposeMsg{} }
+			// Send bubblon close instead of tea.Quit to preserve draft state
+			return m, func() tea.Msg { return bubblon.Close() }
 		}
 
 		if m.kindInput.Focused() {

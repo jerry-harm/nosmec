@@ -209,3 +209,71 @@ func (m *MyView) View() string {
 ```
 
 **Prevention**: Always account for fixed UI elements (help bars, status lines) when sizing scrollable content areas.
+
+---
+
+### Window Management with bubblon
+
+**Architecture**: Use `github.com/donderom/bubblon` (or local equivalent `tui/bubblon/controller.go`) for model-stack window management in TUI apps.
+
+**Key concepts**:
+- `bubblon.Controller` is a `tea.Model` that holds a `[]tea.Model` stack
+- Only the top model receives `Update`/`View` calls
+- Commands: `Open(model)`, `Close()`, `Replace(model)`, `Fail(err)`
+- When a model calls `Close()`, parent receives `Closed{}` message
+
+**Two approaches**:
+
+| Approach | Description | Use Case |
+|----------|-------------|----------|
+| **Controller-as-root** | `tea.NewProgram(bubblon.New(rootModel))` — bubblon IS the program root | Full-screen overlay windows |
+| **Controller-as-field** | `timeline.model` holds `bubblon.Controller ctrl` as field; `Update()` delegates `ctrl.Update(msg)` | When timeline must remain accessible alongside overlay windows |
+
+**Current project uses Controller-as-field**:
+```go
+// timeline/model.go
+type model struct {
+    ctrl    bubblon.Controller  // holds the stack
+    // ... other fields
+}
+
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch msg := msg.(type) {
+    case tea.KeyPressMsg:
+        // handle timeline keys
+    default:
+        // delegate to bubblon for window stack
+        _, cmd := m.ctrl.Update(msg)
+        return m, cmd
+    }
+}
+
+func (m *model) View() string {
+    if len(m.ctrl.Models()) > 0 {
+        // render top of bubblon stack (overlay window)
+        return m.ctrl.View().String()
+    }
+    // render timeline list
+    return m.list.View()
+}
+```
+
+**Opening a window** (from timeline or child model):
+```go
+return m, bubblon.Open(eventViewModel)
+// or from EventView:
+return ev, ctrl.Update(bubblon.Open(composeModel))
+```
+
+**Closing a window** (from compose or child):
+```go
+return m, bubblon.Close()
+// bubblon sends Closed{} to parent when stack drains
+```
+
+**Why this replaces WindowManager**:
+- `wm.stack` → `ctrl.Models()`
+- `wm.Open(win)` → `bubblon.Open(win)`
+- `wm.Close(id)` → `bubblon.Close()`
+- `wm.WindowCount() > 0` → `len(ctrl.Models()) > 0`
+- No more manual `Update` delegation for window messages

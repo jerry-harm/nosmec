@@ -11,13 +11,12 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/jerry-harm/nosmec/tui/bubblon"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/window/event"
-	"github.com/jerry-harm/nosmec/tui/windowmanager"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -103,7 +102,7 @@ type model struct {
 	limit         int
 	communityAddr string
 
-	windowManager *windowmanager.WindowManager
+	ctrl bubblon.Controller
 
 	// Infinite scroll state
 	isLoadingMore bool
@@ -199,8 +198,6 @@ func NewModel(app *config.AppContext, filter string, hashtags []string, limit in
 	m.styles = newStyles(false)
 	m.keys = newListKeyMap()
 	m.delegateKeys = newDelegateKeyMap()
-	m.windowManager = windowmanager.New()
-	m.windowManager.SetApp(app)
 	m.seenEventIDs = make(map[nostr.ID]bool)
 	m.hasMoreOld = true
 	m.isLoadingMore = false
@@ -503,8 +500,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.updateListProperties()
-		// Forward resize to WindowManager
-		m.windowManager.ResizeAll(msg.Width, msg.Height)
 		return m, nil
 
 	case fetchMsg:
@@ -599,31 +594,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showDetailMsg:
 		logger.Debug("showDetailMsg received")
 		logger.Debug("about to call event.New")
-		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName, m.windowManager)
+		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName, &m.ctrl)
 		logger.Debug("event.New returned")
 		logger.Debug("EventView created, about to Open")
-		cmd := m.windowManager.Open(ev)
+		_, cmd := m.ctrl.Update(bubblon.Open(ev))
 		logger.Debug("EventView opened, returning")
 		return m, cmd
 
 	case closeDetailMsg:
-		logger.Debug("received closeDetailMsg, closing window")
-		m.windowManager.Close(event.WindowID)
-		return m, nil
-
-	case event.CloseMsg:
-		logger.Debug("received CloseMsg in timeline.Update, closing window")
-		m.windowManager.Close(event.WindowID)
-		return m, nil
-
-	case compose.CloseComposeMsg:
-		logger.Debug("received CloseComposeMsg, closing compose window")
-		m.windowManager.Close(windowmanager.ComposeWindowID)
 		return m, nil
 
 	case event.ProfileLoadedMsg:
-		// Forward profile name result to EventView
-		_, cmd := m.windowManager.UpdateFocused(msg)
+		// Forward profile name result to the event view via controller
+		_, cmd := m.ctrl.Update(msg)
 		return m, cmd
 
 	case loadMoreMsg:
@@ -715,19 +698,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// If we have open windows, route messages to the focused window
-	if m.windowManager.WindowCount() > 0 {
-		switch msg.(type) {
-		case tea.KeyPressMsg:
-			_, cmd := m.windowManager.UpdateFocused(msg)
-			return m, cmd
-		case event.CloseMsg:
-			logger.Debug("CloseMsg received in timeline, closing event window")
-			m.windowManager.Close(event.WindowID)
-			return m, nil
-		}
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if m.list.FilterState() == list.Filtering {
@@ -788,9 +758,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() tea.View {
-	// If we have open windows, render them via WindowManager
-	if m.windowManager.WindowCount() > 0 {
-		v := tea.NewView(m.windowManager.View())
+	// If we have open windows via bubblon, render the top view
+	if m.ctrl.Models() > 0 {
+		v := m.ctrl.View()
 		v.AltScreen = true
 		return v
 	}
