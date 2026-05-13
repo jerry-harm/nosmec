@@ -644,3 +644,36 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: 修复 compose ctrl+enter 发送问题
+
+**Date**: 2026-05-13
+**Task**: 修复 compose ctrl+enter 发送问题
+**Branch**: `main`
+
+### Summary
+
+修复 compose 页面 ctrl+enter 无法发送的问题。根因是 key.Matches() 在 v2 中对 ctrl+enter 匹配失败，改用 msg.String() == "ctrl+enter" 直接字符串匹配解决。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aae13cf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
