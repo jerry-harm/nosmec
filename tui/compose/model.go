@@ -47,6 +47,7 @@ type model struct {
 	parentID      string
 	quotedID      string
 	communityAddr string
+	isStandalone  bool
 
 	kindInput    textinput.Model
 	contentInput textarea.Model
@@ -129,6 +130,12 @@ type CloseComposeMsg struct{}
 
 func NewNoteCompose(app *config.AppContext) *model {
 	return newCompose(app, KindNote, nil, "", "")
+}
+
+// SetStandalone marks this compose as running in standalone mode (not under wm).
+// In standalone mode, esc sends tea.Quit instead of bubblon.Close().
+func (m *model) SetStandalone() {
+	m.isStandalone = true
 }
 
 func NewModel(app *config.AppContext) *model {
@@ -248,7 +255,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.sending {
 			return m, nil
 		}
@@ -259,6 +266,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editingTagIndex = -1
 				m.tagInput.SetValue("")
 				return m, nil
+			}
+			if m.isStandalone {
+				return m, tea.Quit
 			}
 			// Send bubblon close instead of tea.Quit to preserve draft state
 			return m, func() tea.Msg { return bubblon.Close() }

@@ -19,6 +19,7 @@ func RunNoteCompose(app *config.AppContext) error {
 	}
 
 	m := NewNoteCompose(app)
+	m.SetStandalone()
 	_, err := tea.NewProgram(m).Run()
 	return err
 }
