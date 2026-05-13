@@ -743,3 +743,38 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: 实现 compose 发送遮罩反馈
+
+**Date**: 2026-05-13
+**Task**: 实现 compose 发送遮罩反馈
+**Branch**: `main`
+
+### Summary
+
+实现 compose 发送状态反馈：按 ctrl+p 后在 header 下显示 Sending...，发送成功显示 Posted successfully! 后 tea.Quit 退出，发送失败显示错误 3 秒后消失。最终简化为只显示状态文字，不显示输入框。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4d86621` | (see git log) |
+| `39674f4` | (see git log) |
+| `0539fe5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
