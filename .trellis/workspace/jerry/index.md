@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
+- **Total Sessions**: 18
 - **Last Active**: 2026-05-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~579 | Active |
+| `journal-1.md` | ~613 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-05-13 | 修复 compose ctrl+enter 和 standalone esc 退出问题 | `8817aa9`, `9c317e2` | `main` |
 | 17 | 2026-05-13 | 统一 TUI 显示命令代码，使用 bubblon 实现 | `33247e5` | `main` |
 | 16 | 2026-05-13 | bubblon迁移 — 窗口切换修复未完成 | - | `main` |
 | 15 | 2026-05-12 | unify-tui-ops brainstorm 完成，结论：当前架构够用 | - | `main` |

@@ -577,3 +577,37 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: 修复 compose ctrl+enter 和 standalone esc 退出问题
+
+**Date**: 2026-05-13
+**Task**: 修复 compose ctrl+enter 和 standalone esc 退出问题
+**Branch**: `main`
+
+### Summary
+
+修复 compose 页面两个按键问题：1) 将 tea.KeyMsg 改为 tea.KeyPressMsg 修复 ctrl+enter 无法触发 send；2) 添加 isStandalone 模式检测使 standalone compose 可通过 esc 退出。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8817aa9` | (see git log) |
+| `9c317e2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
