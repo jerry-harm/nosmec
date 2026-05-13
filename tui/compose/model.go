@@ -319,7 +319,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			if key.Matches(msg, m.keys.send) {
+			if msg.String() == "ctrl+enter" {
 				content := m.contentInput.Value()
 				if content = strings.TrimSpace(content); content != "" {
 					m.sending = true
