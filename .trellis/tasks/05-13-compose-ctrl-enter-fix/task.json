@@ -1,9 +1,9 @@
 {
-  "id": "compose-bubblon-adopt",
-  "name": "compose-bubblon-adopt",
-  "title": "用 Bubblon 替换当前窗口管理",
+  "id": "compose-ctrl-enter-fix",
+  "name": "compose-ctrl-enter-fix",
+  "title": "compose-ctrl-enter-fix",
   "description": "",
-  "status": "in_progress",
+  "status": "planning",
   "dev_type": null,
   "scope": null,
   "package": null,
