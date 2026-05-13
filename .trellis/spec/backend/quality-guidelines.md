@@ -277,3 +277,84 @@ return m, bubblon.Close()
 - `wm.Close(id)` → `bubblon.Close()`
 - `wm.WindowCount() > 0` → `len(ctrl.Models()) > 0`
 - No more manual `Update` delegation for window messages
+
+---
+
+### BubbleTea v2 Key Event Handling
+
+**Required**: Use `tea.KeyPressMsg` instead of `tea.KeyMsg` in BubbleTea v2.
+
+**Wrong**:
+```go
+case tea.KeyMsg:
+    if key.Matches(msg, m.keys.send) {
+        // ctrl+enter handling
+    }
+```
+
+**Correct**:
+```go
+case tea.KeyPressMsg:
+    if key.Matches(msg, m.keys.send) {
+        // ctrl+enter handling
+    }
+```
+
+**Why**: `tea.KeyMsg` does not fire key press events in BubbleTea v2. Key events arrive as `tea.KeyPressMsg`. Using `tea.KeyMsg` silently breaks all key handling in TUI components.
+
+---
+
+### Standalone vs Embedded TUI Modes
+
+TUI components can run in two modes:
+
+| Mode | How started | ESC behavior |
+|------|-------------|--------------|
+| **Embedded (wm mode)** | Opened via `bubblon.Open()` from timeline | Returns `bubblon.Close()` → parent receives `Closed{}` |
+| **Standalone** | Direct `RunNoteCompose()` / `RunEventView()` | Must return `tea.Quit` to exit |
+
+**Standalone detection pattern**:
+```go
+type model struct {
+    isStandalone bool
+    // ...
+}
+
+func (m *model) SetStandalone() {
+    m.isStandalone = true
+}
+
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch msg := msg.(type) {
+    case tea.KeyPressMsg:
+        if key.Matches(msg, m.keys.quit) {
+            if m.isStandalone {
+                return m, tea.Quit  // exit immediately
+            }
+            return m, bubblon.Close()  // close window, return to parent
+        }
+    }
+    // ...
+}
+```
+
+**Why it matters**: Without this check, standalone TUIs cannot exit via ESC because `CloseComposeMsg` or similar close messages have no handler in standalone mode.
+
+---
+
+### TUI State Synchronization
+
+When TUI closes and returns to parent, parent must sync its state:
+
+```go
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch msg := msg.(type) {
+    case bubblon.Closed:
+        // Parent regains control - refresh data to reflect changes
+        return m, m.fetchEvents()
+    }
+    // ...
+}
+```
+
+**Why**: The parent's view may have stale data after a child window (compose, event detail) made changes. Always refresh in `Closed` handler.
