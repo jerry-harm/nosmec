@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
+- **Total Sessions**: 21
 - **Last Active**: 2026-05-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~679 | Active |
+| `journal-1.md` | ~712 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-05-13 | 修复 compose 发送和超时问题 | `eb58f93` | `main` |
 | 20 | 2026-05-13 | 修复 compose ctrl+enter 发送问题 | `aae13cf` | `main` |
 | 19 | 2026-05-13 | 让所有 TUI 窗口全屏显示 | `9916d32` | `main` |
 | 18 | 2026-05-13 | 修复 compose ctrl+enter 和 standalone esc 退出问题 | `8817aa9`, `9c317e2` | `main` |

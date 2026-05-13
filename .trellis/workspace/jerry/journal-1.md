@@ -677,3 +677,36 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: 修复 compose 发送和超时问题
+
+**Date**: 2026-05-13
+**Task**: 修复 compose 发送和超时问题
+**Branch**: `main`
+
+### Summary
+
+将 compose 发送快捷键从 ctrl+enter 改为 ctrl+p（解决 v2 key matching 问题），增加发送超时到 15 秒。流程已通。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eb58f93` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
