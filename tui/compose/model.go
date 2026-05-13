@@ -74,8 +74,8 @@ type keyMap struct {
 func newKeyMap() *keyMap {
 	return &keyMap{
 		send: key.NewBinding(
-			key.WithKeys("ctrl+enter"),
-			key.WithHelp("ctrl+enter", "send"),
+			key.WithKeys("ctrl+p"),
+			key.WithHelp("ctrl+p", "send"),
 		),
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c", "esc"),
@@ -319,7 +319,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			if msg.String() == "ctrl+enter" {
+			if msg.String() == "ctrl+p" {
 				content := m.contentInput.Value()
 				if content = strings.TrimSpace(content); content != "" {
 					m.sending = true
@@ -441,7 +441,7 @@ func (m *model) saveTagEdit() {
 
 func (m *model) sendContent(content string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), m.app.QueryTimeout())
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		secretKey, err := m.app.GetMySecretKey()
