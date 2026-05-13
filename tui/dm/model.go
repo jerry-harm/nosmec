@@ -391,7 +391,9 @@ func (m *model) View() tea.View {
 
 	b.WriteString(m.styles.help.Render("Enter: send | q/ctrl+c: quit | pgup/pgdown: scroll"))
 
-	return tea.NewView(b.String())
+	v := tea.NewView(b.String())
+	v.AltScreen = true
+	return v
 }
 
 func (m *model) renderMessages() string {

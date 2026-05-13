@@ -363,7 +363,9 @@ func (m *EventView) View() tea.View {
 	fullContent := header + "\n\n" + content
 	m.viewport.SetContent(fullContent)
 
-	return tea.NewView(m.viewport.View() + "\n" + m.help.View(m.keys))
+	v := tea.NewView(m.viewport.View() + "\n" + m.help.View(m.keys))
+	v.AltScreen = true
+	return v
 }
 
 func (m *EventView) Close() bool {
