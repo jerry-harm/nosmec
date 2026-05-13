@@ -258,12 +258,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.success = true
 		m.errMsg = ""
 		m.statusMsg = "Posted successfully!"
+		m.sending = false
 		m.ClearDraft()
-		return m, tea.Batch(
-			tea.Tick(1500*time.Millisecond, func(t time.Time) tea.Msg {
-				return bubblon.Close()
-			}),
-		)
+		return m, tea.Quit
 	}
 
 	switch msg := msg.(type) {
@@ -549,40 +546,27 @@ func (m *model) renderSendingOverlay() string {
 		msg = "Sending..."
 	}
 
-	h := m.height
-	if h == 0 {
-		h = 20
-	}
-	w := m.width
-	if w == 0 {
-		w = 60
-	}
-
-	centerV := (h - 3) / 2
-	centerH := (w - len(msg) - 4) / 2
-
 	var b strings.Builder
 	b.WriteString(m.styles.header.Render(m.renderHeader()))
-	b.WriteString("\n")
+	b.WriteString(" ")
+	b.WriteString(m.styles.statusText.Render(msg))
+	b.WriteString("\n\n")
 
-	for i := 0; i < centerV-2; i++ {
-		b.WriteString("\n")
-	}
+	b.WriteString(m.styles.fieldLabel.Render("Kind: "))
+	b.WriteString(m.kindInput.View())
+	b.WriteString(" (default: 1)\n\n")
 
-	border := "┌" + strings.Repeat("─", w-2) + "┐"
-	b.WriteString(m.styles.sendingOverlay.Render(border) + "\n")
-	space := "│" + strings.Repeat(" ", w-2) + "│"
-	b.WriteString(m.styles.sendingOverlay.Render(space) + "\n")
+	b.WriteString(m.styles.fieldLabel.Render("Tags:"))
+	b.WriteString(" ")
+	b.WriteString(m.styles.inputArea.Render(m.tagInput.View()))
+	b.WriteString("\n\n")
 
-	contentLine := fmt.Sprintf("│%s%s%s│", strings.Repeat(" ", centerH), msg, strings.Repeat(" ", w-centerH-len(msg)-3))
-	b.WriteString(m.styles.sendingOverlay.Render(contentLine) + "\n")
+	b.WriteString(m.styles.fieldLabel.Render("Content:"))
+	b.WriteString(" ")
+	b.WriteString(m.styles.inputArea.Render(m.contentInput.View()))
+	b.WriteString("\n\n")
 
-	b.WriteString(m.styles.sendingOverlay.Render(space) + "\n")
-	b.WriteString(m.styles.sendingOverlay.Render(border) + "\n")
-
-	for i := 0; i < h-centerV-6; i++ {
-		b.WriteString("\n")
-	}
+	b.WriteString(m.help.View(m.keys))
 
 	return b.String()
 }
