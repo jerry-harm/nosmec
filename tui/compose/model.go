@@ -548,25 +548,9 @@ func (m *model) renderSendingOverlay() string {
 
 	var b strings.Builder
 	b.WriteString(m.styles.header.Render(m.renderHeader()))
-	b.WriteString(" ")
+	b.WriteString("\n\n")
 	b.WriteString(m.styles.statusText.Render(msg))
 	b.WriteString("\n\n")
-
-	b.WriteString(m.styles.fieldLabel.Render("Kind: "))
-	b.WriteString(m.kindInput.View())
-	b.WriteString(" (default: 1)\n\n")
-
-	b.WriteString(m.styles.fieldLabel.Render("Tags:"))
-	b.WriteString(" ")
-	b.WriteString(m.styles.inputArea.Render(m.tagInput.View()))
-	b.WriteString("\n\n")
-
-	b.WriteString(m.styles.fieldLabel.Render("Content:"))
-	b.WriteString(" ")
-	b.WriteString(m.styles.inputArea.Render(m.contentInput.View()))
-	b.WriteString("\n\n")
-
-	b.WriteString(m.help.View(m.keys))
 
 	return b.String()
 }
