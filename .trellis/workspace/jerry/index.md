@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
+- **Total Sessions**: 17
 - **Last Active**: 2026-05-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~546 | Active |
+| `journal-1.md` | ~579 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-05-13 | 统一 TUI 显示命令代码，使用 bubblon 实现 | `33247e5` | `main` |
 | 16 | 2026-05-13 | bubblon迁移 — 窗口切换修复未完成 | - | `main` |
 | 15 | 2026-05-12 | unify-tui-ops brainstorm 完成，结论：当前架构够用 | - | `main` |
 | 14 | 2026-05-12 | event-detail-compose-call 完成 + unify-tui-ops 回到 brainstorm | `3e04185`, `e994319` | `main` |

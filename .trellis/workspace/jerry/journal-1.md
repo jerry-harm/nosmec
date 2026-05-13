@@ -544,3 +544,36 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: 统一 TUI 显示命令代码，使用 bubblon 实现
+
+**Date**: 2026-05-13
+**Task**: 统一 TUI 显示命令代码，使用 bubblon 实现
+**Branch**: `main`
+
+### Summary
+
+将 event 命令从直接 tea.NewProgram 改为 bubblon.Controller 包装，与 timeline/compose 保持一致。删除 orphaned tui/cmd/cmd.go。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `33247e5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
