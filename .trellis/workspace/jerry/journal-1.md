@@ -611,3 +611,36 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: 让所有 TUI 窗口全屏显示
+
+**Date**: 2026-05-13
+**Task**: 让所有 TUI 窗口全屏显示
+**Branch**: `main`
+
+### Summary
+
+为 event 和 dm 两个窗口的 View() 添加 AltScreen=true，使所有 TUI 窗口（timeline/compose/event/dm）都使用全屏模式显示。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9916d32` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
