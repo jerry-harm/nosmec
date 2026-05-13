@@ -307,7 +307,10 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case CloseMsg:
-		logger.Debug("CloseMsg received, quitting")
+		logger.Debug("CloseMsg received")
+		if m.ctrl != nil {
+			return m, func() tea.Msg { return bubblon.Close() }
+		}
 		return m, tea.Quit
 
 	case EventLoadedMsg:

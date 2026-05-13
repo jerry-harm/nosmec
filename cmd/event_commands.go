@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/tui/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/window/event"
@@ -53,6 +54,10 @@ func registerEventCommands() {
 
 func RunEventDetail(app *config.AppContext, eventID string) error {
 	m := event.NewFromID(eventID, app, 80, 24, nil)
-	_, err := tea.NewProgram(m).Run()
+	ctrl, err := bubblon.New(m)
+	if err != nil {
+		return fmt.Errorf("failed to create bubblon controller: %w", err)
+	}
+	_, err = tea.NewProgram(ctrl).Run()
 	return err
 }

@@ -597,9 +597,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName, &m.ctrl)
 		logger.Debug("event.New returned")
 		logger.Debug("EventView created, about to Open")
-		_, cmd := m.ctrl.Update(bubblon.Open(ev))
 		logger.Debug("EventView opened, returning")
-		return m, cmd
+		return m, bubblon.Open(ev)
 
 	case closeDetailMsg:
 		return m, nil
