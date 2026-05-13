@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Go quality standards: lint, type-check, test conventions — all bubblon-related code must pass these"}
+{"file": ".trellis/tasks/05-13-bubblon/research/bubblon-implementation.md", "reason": "Context for understanding bubblon Open/Close flow during check review"}
