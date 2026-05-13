@@ -513,3 +513,34 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: bubblon迁移 — 窗口切换修复未完成
+
+**Date**: 2026-05-13
+**Task**: bubblon迁移 — 窗口切换修复未完成
+**Branch**: `main`
+
+### Summary
+
+尝试修复bubblon窗口切换: 1) 将ctrl字段改为指针类型并在main.go初始化; 2) 修复View()中m.ctrl.Models()>1条件防止递归; 3) 将Enter处理从delegate移到timeline.Update直接处理; 4) 修复compose/model.go中tea.KeyPressMsg类型转换; 5) event.go中esc返回bubblon.Close()。最终仍无法通过Enter进入event detail，用户决定放弃本次修复，丢弃所有更改。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
