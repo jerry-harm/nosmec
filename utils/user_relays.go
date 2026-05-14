@@ -75,7 +75,7 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 	app.TrackRelays(reachableRead)
 	app.TrackRelays(reachableWrite)
 
-	return readRelays, nil
+	return reachableRead, nil
 }
 
 func DiscoverUserRelaysWithFallback(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error) {
