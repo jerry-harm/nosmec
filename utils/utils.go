@@ -6,7 +6,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 func ParsePubKey(s string) (nostr.PubKey, error) {
@@ -22,22 +21,26 @@ func ParsePubKey(s string) (nostr.PubKey, error) {
 	}
 
 	if len(s) == 66 && (s[:2] == "02" || s[:2] == "03") {
-		compressedBytes, err := hex.DecodeString(s)
+		xHex := s[2:]
+		xBytes, err := hex.DecodeString(xHex)
 		if err != nil {
 			return nostr.PubKey{}, fmt.Errorf("invalid compressed pubkey hex: %w", err)
 		}
-		pk, err := btcec.ParsePubKey(compressedBytes)
-		if err != nil {
-			return nostr.PubKey{}, fmt.Errorf("invalid compressed pubkey: %w", err)
+		if len(xBytes) != 32 {
+			return nostr.PubKey{}, fmt.Errorf("invalid x coordinate length: %d", len(xBytes))
 		}
-		var nostrPK nostr.PubKey
-		copy(nostrPK[:], pk.X().Bytes())
-		return nostrPK, nil
+		var pk nostr.PubKey
+		copy(pk[:], xBytes)
+		return pk, nil
 	}
 
 	if len(s) == 64 {
+		xBytes, err := hex.DecodeString(s)
+		if err != nil {
+			return nostr.PubKey{}, fmt.Errorf("invalid hex: %w", err)
+		}
 		var pk nostr.PubKey
-		copy(pk[:], s)
+		copy(pk[:], xBytes)
 		return pk, nil
 	}
 
