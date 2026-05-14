@@ -3,7 +3,7 @@
   "name": "relay-cache-only",
   "title": "relay策略重构：本地relay只作缓存不发布",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

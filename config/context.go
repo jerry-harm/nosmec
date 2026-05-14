@@ -85,11 +85,7 @@ func (a *AppContext) ReadableRelays() []string {
 }
 
 func (a *AppContext) AllWritableRelays() []string {
-	relays := a.WritableRelays()
-	if localURL := a.localRelayURL(); localURL != "" {
-		relays = append([]string{localURL}, relays...)
-	}
-	return relays
+	return a.WritableRelays()
 }
 
 func (a *AppContext) AllReadableRelays() []string {

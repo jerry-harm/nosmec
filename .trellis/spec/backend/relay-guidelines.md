@@ -69,6 +69,29 @@ if len(relays) == 0 {
 
 ---
 
+## Local Relay Role
+
+| Direction | Local Relay Included? | Rationale |
+|-----------|---------------------|-----------|
+| Read path | ✅ Yes (prepended first) | Local relay is cache — serves hits without network round-trip |
+| Write path | ❌ No | Local relay is backup/cache only — never the primary write target |
+
+```go
+func (a *AppContext) AllReadableRelays() []string {
+    relays := a.ReadableRelays()
+    if localURL := a.localRelayURL(); localURL != "" {
+        relays = append([]string{localURL}, relays...)
+    }
+    return relays
+}
+
+func (a *AppContext) AllWritableRelays() []string {
+    return a.WritableRelays()  // local relay EXCLUDED
+}
+```
+
+---
+
 ## Convention: Auto-publish on Config Mutation
 
 **When relay configuration is mutated via CLI, always publish the updated relay list.**
