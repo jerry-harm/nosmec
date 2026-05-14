@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/05-14-relay-discovery-fix/research/relay-discovery-analysis.md", "reason": "Research on current relay discovery implementation and gaps"}
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Relay design spec including ExtractRelayHints and DiscoverAndVerifyRelays"}
