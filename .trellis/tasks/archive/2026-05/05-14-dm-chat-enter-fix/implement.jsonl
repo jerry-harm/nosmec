@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/05-14-dm-chat-enter-fix/research/dm-chat-enter-key.md", "reason": "Research on DM chat UI structure, textarea vs textinput, Enter key handling"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Go error handling conventions for any error changes"}
