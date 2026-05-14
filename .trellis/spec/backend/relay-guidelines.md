@@ -45,6 +45,30 @@ Published via `utils.PublishRelayList(ctx, app)` (same function handles both).
 
 ---
 
+## Relay Selection Strategy
+
+When a `GetOptions` has no explicit relay list, functions must follow this fallback order:
+
+```go
+relays := opts.Relays
+if len(relays) == 0 {
+    relays = opts.App.AllReadableRelays()   // local + configured relays
+}
+if len(relays) == 0 {
+    relays = opts.App.Config().KnownRelays  // discovered fallback
+}
+```
+
+**Why**: `AllReadableRelays()` includes the local relay (cache) first, which provides resilience when configured relays fail. `KnownRelays` is a last-resort pool of relays discovered from NIP-65.
+
+**Functions following this pattern**: `GetEvent`, `GetEventAsync`, `GetProfile`, `GetMyTimeline`, `GetGlobalTimeline`, `GetFollowedTimeline`
+
+**Functions with special handling**:
+- `GetNote`/`GetNoteAsync`: Cannot discover author relays without fetching event first — the event contains the author pubkey
+- `GetProfile`: Calls `DiscoverUserRelays` first to find author's NIP-65 relays, then prepends them to the relay list
+
+---
+
 ## Convention: Auto-publish on Config Mutation
 
 **When relay configuration is mutated via CLI, always publish the updated relay list.**

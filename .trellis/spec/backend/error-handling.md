@@ -46,6 +46,34 @@ Questions to answer:
 
 ## Common Mistakes
 
-<!-- Error handling mistakes your team has made -->
+### Ignoring error return values from Close()
+
+**Wrong**:
+```go
+if a.store != nil {
+    if closer, ok := a.store.(interface{ Close() }); ok {
+        closer.Close()  // error ignored!
+    }
+}
+```
+
+**Correct**:
+```go
+var errs []error
+if a.store != nil {
+    if closer, ok := a.store.(interface{ Close() error }); ok {
+        if err := closer.Close(); err != nil {
+            errs = append(errs, err)
+        }
+    }
+}
+// ... accumulate more errors ...
+if len(errs) > 0 {
+    return errors.Join(errs...)
+}
+return nil
+```
+
+**Why**: `Close()` errors indicate failure to flush/sync data. Ignoring them risks data loss.
 
 (To be filled by the team)
