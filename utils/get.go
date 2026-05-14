@@ -233,6 +233,53 @@ func GetNoteAsync(ctx context.Context, noteID string, opts *GetOptions) *nostr.E
 	return GetEventAsync(ctx, filter, opts)
 }
 
+func GetParentEvent(ctx context.Context, event *nostr.Event, opts *GetOptions) *nostr.Event {
+	if event == nil || opts == nil || opts.App == nil {
+		return nil
+	}
+
+	replyTag := event.Tags.FindWithValue("e", "reply")
+	if len(replyTag) < 2 {
+		return nil
+	}
+
+	parentID := replyTag[1]
+	id, err := nostr.IDFromHex(parentID)
+	if err != nil {
+		return nil
+	}
+
+	filter := nostr.Filter{
+		IDs:   []nostr.ID{id},
+		Limit: 1,
+	}
+
+	var relays []string
+	if len(replyTag) >= 3 && replyTag[2] != "" {
+		relays = []string{replyTag[2]}
+	}
+
+	if len(relays) == 0 {
+		relays = opts.App.AllReadableRelays()
+	}
+
+	if len(relays) == 0 {
+		return nil
+	}
+
+	ctxQuery, cancelQuery := context.WithTimeout(ctx, opts.App.QueryTimeout())
+	defer cancelQuery()
+
+	result := opts.App.Pool().QuerySingle(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+	if result == nil {
+		return nil
+	}
+
+	parent := result.Event
+	CacheEvent(&parent, opts.App)
+	return &parent
+}
+
 func GetProfileNameAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) string {
 	if opts == nil || opts.App == nil {
 		return ""
