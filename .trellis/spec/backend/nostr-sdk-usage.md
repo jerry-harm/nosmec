@@ -5,15 +5,19 @@
 ```go
 // PubKey - 32字节
 pk := nostr.GetPublicKey(sk)                        // 从 SecKey 派生
-pk := nostr.MustPubKeyFromHex("hex...")              // hex 解析 (panic)
+pk := nostr.MustPubKeyFromHex("hex...")            // hex 解析 (panic)
 pk := nostr.PubKeyFromHex("hex...")                 // hex 解析 (返回 error)
+pk := nostr.PubKeyFromHexCheap("hex...")           // 快速解析，不验证有效性
 
 // SecretKey - 32字节
-sk := nostr.Generate()                               // 生成新密钥
+sk := nostr.Generate()                             // 生成新密钥
 sk := nostr.MustSecretKeyFromHex("hex...")         // hex 解析 (panic)
-sk := nostr.SecretKeyFromHex("hex...")              // hex 解析 (返回 error)
+sk := nostr.SecretKeyFromHex("hex...")             // hex 解析 (返回 error)
 
-// 已有 IsValid32ByteHex / HexEncodeToString / HexDecodeString
+// 已有工具
+nostr.IsValid32ByteHex(hex string) bool
+nostr.HexEncodeToString(src []byte) string
+nostr.HexDecodeString(s string) ([]byte, error)
 ```
 
 ## NIP-19 编码解码
@@ -25,72 +29,184 @@ prefix, value, err := nip19.Decode("npub1...")
 // value:  nostr.PubKey / nostr.SecretKey / nostr.EventID / nostr.ProfilePointer / ...
 
 // 编码
-nip19.EncodeNpub(pk)                                // → "npub1..."
-nip19.EncodeNsec(sk)                                // → "nsec1..."
+nip19.EncodeNpub(pk)                               // → "npub1..."
+nip19.EncodeNsec(sk)                               // → "nsec1..."
 nip19.EncodeNevent(id, relays, author)               // → "nevent1..."
 nip19.EncodeNaddr(pk, kind, identifier, relays)     // → "naddr1..."
+nip19.EncodeNprofile(pk, relays)                    // → "nprofile1..."
+nip19.EncodePointer(ptr)                          // → 通用指针编码
 
-// 解析指针 (npub/naddr/nevent 统一)
-ptr, err := nip19.ToPointer("npub1...")             // → nostr.Pointer
+// 解析指针 (npub/naddr/nevent/nprofile 统一)
+ptr, err := nip19.ToPointer("npub1...")            // → nostr.Pointer
 // Pointer 是接口，可为 PubKey / EventID / ProfilePointer / EntityPointer
 ```
 
-## Pointer 接口
+## Pointer 接口体系
 
 ```go
+// Pointer 接口 - 统一抽象
 type Pointer interface {
-    GetPointer() // 返回具体类型
+    GetPointer()
 }
-// 已有函数从 tag 解析:
+
+// 三种具体 Pointer
+type ProfilePointer struct {
+    PublicKey PubKey
+    Relays    []string
+}
+type EventPointer struct {
+    ID     ID
+    Relays []string
+    Author PubKey
+    Kind   Kind
+}
+type EntityPointer struct {
+    PublicKey  PubKey
+    Kind       Kind
+    Identifier string
+    Relays     []string
+}
+
+// 从 Tag 解析
 ProfilePointerFromTag(tag Tag) (ProfilePointer, error)
 EventPointerFromTag(tag Tag) (EventPointer, error)
 EntityPointerFromTag(refTag Tag) (EntityPointer, error)
+
+// Pointer → Filter 转换
+pp.AsFilter()  // → Filter{Authors: []PubKey{pp.PublicKey}, ...}
+
+// Pointer → Tag 转换
+pp.AsTag()    // → Tag{"p", pk.Hex(), relays...}
+pp.AsTagReference() // → "nostr:..." URI
 ```
 
 ## Event 结构
 
 ```go
 type Event struct {
-    ID        [32]byte
-    PubKey   [32]byte
+    ID        ID
+    PubKey    PubKey
     CreatedAt Timestamp
-    Kind     Kind
-    Tags     TagMap  // tag[0] 是 name，如 "p", "e", "relay"
-    Content  string
-    Signature string
+    Kind      Kind
+    Tags      Tags       // 不是 TagMap！
+    Content   string
+    Sig       [64]byte
 }
-// Kind 常量: KindSetMetadata = 0, KindDMRelayList = 2263 等
+
+// 重要方法
+evt.CheckID()     // 验证 ID 正确性
+evt.VerifySignature() bool
+evt.Sign(secretKey [32]byte) error
+evt.Serialize() []byte
+
+// Kind 常量
+KindSetMetadata      Kind = 0
+KindTextNote         Kind = 1
+KindDMRelayList      Kind = 2263
+KindRelayListMetadata Kind = 10002
+// 10000+: replaceable events
+// 30000+: parameterized replaceable events
 ```
 
-## 已有验证/工具函数
+## Tags 结构 (注意不是 TagMap)
 
 ```go
-nostr.IsValid32ByteHex(hex string) bool
-nostr.HexEncodeToString(src []byte) string
-nostr.HexDecodeString(s string) ([]byte, error)
-nostr.IsValidRelayURL(u string) bool
-nostr.NormalizeURL(u string) (string, error)
-nostr.ContainsPubKey(haystack []PubKey, needle PubKey) bool
-nostr.ContainsID(haystack []ID, needle ID) bool
+type Tags []Tag       // Tag 是 []string
+
+// 查找方法
+tags.Find("p")                    // → Tag (第一个匹配的)
+tags.FindWithValue("p", value)    // → Tag (带特定值的)
+tags.FindLast("e")                // → Tag (最后一个匹配的)
+tags.FindAll("e")                // → iter.Seq[Tag] (所有匹配的)
+tags.Has("p")                     // → bool
+tags.ContainsAny("e", values)     // → bool
+
+// 获取值
+tags.GetD()                      // → string (d tag 的值)
+
+// Tag 是 []string，tag[0] 是 name，tag[1:] 是 values
+// 例如: Tag{"p", "hexpubkey", "relay.url", "petname"}
 ```
 
-## Pool / Relay
+## TagMap 结构
+
+```go
+type TagMap map[string][]string
+
+// 直接用 key 获取值（Content JSON 解析时用）
+tags.GetFirst("p")               // → string
+tags.Get("p")                    // → []string
+tags.Has("e")                    // → bool
+```
+
+## Filter 结构
+
+```go
+type Filter struct {
+    IDs     []ID
+    Kinds   []Kind
+    Authors []PubKey
+    Tags    TagMap     // 注意是 TagMap，不是 Tags！
+    Since   Timestamp
+    Until   Timestamp
+    Limit   int
+    Search  string
+    LimitZero bool    // json:"-" 当 "limit":0 时设置
+}
+
+// 重要方法
+filter.Matches(event Event) bool
+filter.MatchesIgnoringTimestampConstraints(event Event) bool
+filter.GetTheoreticalLimit() int
+```
+
+## Pool 查询
 
 ```go
 pool := nostr.NewPool(opts)
-relay := nostr.RelayConnect(ctx, url, opts)
+
+// 单事件查询 (用于 replaceable events)
 result := pool.QuerySingle(ctx, relays, filter, opts)
+// 返回 *RelayEvent，ID 为零值表示未找到
+
+// 多事件查询
+events := pool.FetchMany(ctx, relays, filter, opts)  // chan RelayEvent
+events, closed := pool.FetchManyNotifyClosed(...)    // + chan RelayClosed
+
+// 订阅
+events := pool.SubscribeMany(ctx, relays, filter, opts)  // chan RelayEvent
+events, closed := pool.SubscribeManyNotifyClosed(...)
+events, eose := pool.SubscribeManyNotifyEOSE(...)       // + EOSE 通知
+
+// 带批量
+events := pool.BatchedSubscribeMany(ctx, dfs, opts)  // 多个 Filter
 ```
 
-## Tag 解析
+## Subscription 结构
 
 ```go
-// 从 TagMap 获取
-tags.GetFirst("p")                                  // → string
-tags.Get("p")                                       // → []string
-tags.Has("e")                                       // → bool
+type Subscription struct {
+    Relay  *Relay
+    Filter Filter
+    Events chan Event           // 收到的事件
+    EndOfStoredEvents chan struct{}  // EOSE 到达时关闭
+    ClosedReason chan string   // CLOSED 消息
+    Context context.Context     // subscription 结束时 Done()
+}
 
-// Tag[0] 是 name, Tag[1:] 是 values
+// 方法
+sub.Unsub()              // 取消订阅
+sub.GetID() string       // 获取订阅 ID
+```
+
+## RelayEvent 结构
+
+```go
+type RelayEvent struct {
+    Relay  *Relay
+    Event Event
+    GotEarlier bool  // 是否早于当前订阅收到
+}
 ```
 
 ## 重要提醒
@@ -98,5 +214,7 @@ tags.Has("e")                                       // → bool
 **不要自行实现 hex→PubKey 解析**。用 `nostr.PubKeyFromHex` / `nostr.MustPubKeyFromHex`。
 
 **nip19.Decode 是通用解码器**，能自动识别 npub/nsec/note/naddr/nevent/nprofile 等，返回 (prefix, value, err)。不需要先判断 prefix 再手动解析。值类型是 `any`，需要类型断言。
+
+**Tags vs TagMap**：Event.Tags 是 `Tags`（`[]Tag`），Filter.Tags 是 `TagMap`（`map[string][]string`）。这是历史设计差异，查找时用 `Tags.FindWithValue`，过滤时用 `Filter`。
 
 **Pointer 接口**已经统一了各种 NIP-19 指针类型的解析和存储。
