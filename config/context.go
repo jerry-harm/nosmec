@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -414,9 +415,13 @@ func (a *AppContext) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	var errs []error
+
 	if a.store != nil {
-		if closer, ok := a.store.(interface{ Close() }); ok {
-			closer.Close()
+		if closer, ok := a.store.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
@@ -439,8 +444,13 @@ func (a *AppContext) Close() error {
 		}
 		a.cfg.KnownRelays = merged
 		a.viper.Set("known_relays", merged)
-		a.viper.WriteConfig()
+		if err := a.viper.WriteConfig(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
 	return nil
 }

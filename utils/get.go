@@ -313,10 +313,10 @@ func GetGlobalTimeline(ctx context.Context, limit int, until nostr.Timestamp, op
 
 	relays := opts.Relays
 	if len(relays) == 0 {
-		relays = opts.App.Config().KnownRelays
+		relays = opts.App.AllReadableRelays()
 	}
 	if len(relays) == 0 {
-		relays = opts.App.AllReadableRelays()
+		relays = opts.App.Config().KnownRelays
 	}
 
 	filter := nostr.Filter{
@@ -356,10 +356,10 @@ func GetFollowedTimeline(ctx context.Context, limit int, until nostr.Timestamp, 
 
 	relays := opts.Relays
 	if len(relays) == 0 {
-		relays = opts.App.Config().KnownRelays
+		relays = opts.App.AllReadableRelays()
 	}
 	if len(relays) == 0 {
-		relays = opts.App.AllReadableRelays()
+		relays = opts.App.Config().KnownRelays
 	}
 
 	var authors []nostr.PubKey

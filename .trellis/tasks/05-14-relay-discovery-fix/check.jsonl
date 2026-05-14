@@ -1,1 +1,5 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": "config/context.go:413-443", "reason": "Close() should capture and return store.Close() error instead of ignoring it"}
+{"file": "utils/get.go:172-183", "reason": "GetNote should call DiscoverUserRelays for the note author before fetching"}
+{"file": "utils/community.go:251-267", "reason": "GetPost should discover parent post author's relays before fetching"}
+{"file": "utils/get.go:357-363", "reason": "GetFollowedTimeline relay fallback order should match GetProfile/GetNote: AllReadableRelays first, then KnownRelays"}
+{"file": "config/context.go:405-411", "reason": "TrackRelays defer unlock present but Close ignores store.Close error return value"}

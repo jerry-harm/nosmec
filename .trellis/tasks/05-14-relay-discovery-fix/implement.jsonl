@@ -1,1 +1,5 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": "config/context.go:405-411", "reason": "TrackRelays has defer but context.go:413-443 Close() ignores store.Close() error return"}
+{"file": "utils/get.go:172-183", "reason": "GetNote doesn't discover author relays; should use DiscoverUserRelays like GetProfile does"}
+{"file": "utils/community.go:251-267", "reason": "GetPost uses generic GetEvent without author relay discovery; parent post fetch should discover author relays first"}
+{"file": "utils/get.go:357-363", "reason": "GetFollowedTimeline falls back to KnownRelays then AllReadableRelays - inconsistent with other funcs using AllReadableRelays first"}
+{"file": "utils/user_relays.go:13-53", "reason": "DiscoverUserRelays implementation looks correct - should be called from more places"}
