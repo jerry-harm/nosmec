@@ -778,3 +778,36 @@ unify-tui-ops brainstorm：研究 neonmodem 的 wm 实现后确认 nosmec 现有
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: Fix compose tag deletion panic + correct delete behavior
+
+**Date**: 2026-05-14
+**Task**: Fix compose tag deletion panic + correct delete behavior
+**Branch**: `main`
+
+### Summary
+
+Fixed tui/compose/model.go:360 array index out of bounds panic when deleting tags in compose. Bug: accessing m.tags[m.editingTagIndex] when editingTagIndex=-1. Fix: added check for editingTagIndex<0 to delete last tag instead. Committed as 6ed6266.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6ed6266` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 23
-- **Last Active**: 2026-05-13
+- **Total Sessions**: 24
+- **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~780 | Active |
+| `journal-1.md` | ~813 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 24 | 2026-05-14 | Fix compose tag deletion panic + correct delete behavior | `6ed6266` | `main` |
 | 23 | 2026-05-13 | 实现 compose 发送遮罩反馈 | `4d86621`, `39674f4`, `0539fe5` | `main` |
 | 22 | 2026-05-13 | 实现 compose 发送遮罩反馈 | `0539fe5` | `main` |
 | 21 | 2026-05-13 | 修复 compose 发送和超时问题 | `eb58f93` | `main` |
