@@ -209,6 +209,100 @@ type RelayEvent struct {
 }
 ```
 
+## nostr/sdk 包 (高级封装)
+
+```go
+// System - 全局核心对象，管理缓存、relay、dataloader
+sys := sdk.NewSystem()
+sys.Close()
+
+// Profile 获取
+pm := sys.FetchProfileMetadata(ctx, pubkey)           // 获取单用户 metadata
+profiles := sys.SearchUsers(ctx, query)                // 搜索用户
+pm := sys.FetchProfileFromInput(ctx, "npub1...")      // 从 npub/nip05 输入获取 profile
+pm.Nprofile(ctx, sys, 3)                              // 生成 nprofile URI
+pm.Npub() string                                       // npub 字符串
+pm.NpubShort() string                                  // 缩短 npub
+pm.NIP05Valid(ctx) bool                                // 验证 NIP-05
+
+// Event 获取
+evt, relays, err := sys.FetchSpecificEvent(ctx, pointer, params)
+evt, relays, err := sys.FetchSpecificEventFromInput(ctx, input, params)
+
+// 输入转换
+pp := sdk.InputToProfile(ctx, "npub1...")            // npub / nip05 → ProfilePointer
+ep := sdk.InputToEventPointer("nevent1...")           // nevent / note → EventPointer
+pm, _ := sys.FetchProfileFromInput(ctx, "npub1...")  // 直接获取 profile metadata
+
+// Feed / Stream
+events, err := sys.FetchFeedPage(ctx, pubkeys, kinds, ...)
+events, err := sys.StreamLiveFeed(ctx, pubkeys, kinds, ...)
+
+// Relay List
+relays := sys.FetchRelayList(ctx, pubkey)              // GenericList[string, Relay]
+relays := sys.FetchInboxRelays(ctx, pubkey, n)
+relays := sys.FetchOutboxRelays(ctx, pubkey, n)
+relays := sys.FetchWriteRelays(ctx, pubkey)
+
+// Follow / Mute List
+follows := sys.FetchFollowList(ctx, pubkey)             // GenericList[nostr.PubKey, ProfileRef]
+mutes := sys.FetchMuteList(ctx, pubkey)
+
+// Event hints tracking
+sys.TrackEventHints(ie nostr.RelayEvent)
+sys.TrackEventHintsAndRelays(ie nostr.RelayEvent)
+
+// ProfileMetadata - kind 0 event 解析结果
+type ProfileMetadata struct {
+    PubKey     nostr.PubKey   // 来源 PubKey
+    Event     *nostr.Event    // 原始 event
+    Name      string
+    DisplayName string
+    About     string
+    Website   string
+    Picture   string
+    Banner    string
+    NIP05     string
+    LUD16     string
+}
+pm, _ := sdk.ParseMetadata(event)                       // 从 kind 0 event 解析
+
+// ProfileRef - 联系人引用
+type ProfileRef struct {
+    Pubkey  nostr.PubKey
+    Relay   string
+    Petname string
+}
+
+// EventRef - 事件引用
+type EventRef struct{ nostr.Pointer }
+
+// Relay
+type Relay struct {
+    URL    string
+    Inbox  bool
+    Outbox bool
+}
+
+// RelayStream - 轮询 relay URL
+rs := sdk.NewRelayStream(urls...)
+url := rs.Next()                                       // 轮询获取下一个 URL
+```
+
+## nostr/keyer 包 (签名)
+
+```go
+// PlainKeySigner - 直接用私钥签名
+kr := keyer.NewPlainKeySigner(secretKey)
+
+// ReadOnlyUser / ReadOnlySigner - 只读用户
+ru := keyer.NewReadOnlyUser(pk)
+rs := keyer.NewReadOnlySigner(pk)
+
+// BunkerSigner - NIP-46 bunker
+// EncryptedKeySigner - 加密密钥签名
+```
+
 ## 重要提醒
 
 **不要自行实现 hex→PubKey 解析**。用 `nostr.PubKeyFromHex` / `nostr.MustPubKeyFromHex`。
@@ -218,3 +312,5 @@ type RelayEvent struct {
 **Tags vs TagMap**：Event.Tags 是 `Tags`（`[]Tag`），Filter.Tags 是 `TagMap`（`map[string][]string`）。这是历史设计差异，查找时用 `Tags.FindWithValue`，过滤时用 `Filter`。
 
 **Pointer 接口**已经统一了各种 NIP-19 指针类型的解析和存储。
+
+**优先使用 sdk.System**：如果需要 profile/feed/relay list 等功能，先看 System 是否有现成方法。
