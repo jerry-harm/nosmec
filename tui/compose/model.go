@@ -363,8 +363,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.editingTagIndex >= len(m.tags) {
 						m.editingTagIndex = len(m.tags) - 1
 					}
+				} else if m.editingTagIndex < 0 {
+					m.tags = m.tags[:len(m.tags)-1]
 				}
-				if len(m.tags) > 0 {
+				if len(m.tags) > 0 && m.editingTagIndex >= 0 && m.editingTagIndex < len(m.tags) {
 					m.tagInput.SetValue(m.tagToString(m.tags[m.editingTagIndex]))
 				} else {
 					m.editingTagIndex = -1
