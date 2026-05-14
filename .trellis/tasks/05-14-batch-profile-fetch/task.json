@@ -1,7 +1,7 @@
 {
-  "id": "dm-profile-fetch-fix",
-  "name": "dm-profile-fetch-fix",
-  "title": "Fix DM recipient profile name not fetching",
+  "id": "batch-profile-fetch",
+  "name": "batch-profile-fetch",
+  "title": "Batch profile fetch: replace GetProfile/GetProfileName with list-based APIs",
   "description": "",
   "status": "planning",
   "dev_type": null,
