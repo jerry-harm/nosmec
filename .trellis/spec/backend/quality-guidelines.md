@@ -32,12 +32,16 @@ Questions to answer:
 
 **Before implementing ANY nostr protocol behavior, you MUST fetch and read the relevant NIP specification.**
 
-Protocol URLs:
-- Main NIP index: https://github.com/nostr-protocol/nips/raw/refs/heads/master/README.md
-- NIP-01: https://github.com/nostr-protocol/nips/raw/refs/heads/master/01.md
-- NIP-65: https://github.com/nostr-protocol/nips/raw/refs/heads/master/65.md
-- NIP-50: https://github.com/nostr-protocol/nips/raw/refs/heads/master/50.md
-- (add others as needed)
+Protocol URL pattern: `https://github.com/nostr-protocol/nips/raw/refs/heads/master/{nip}.md`
+
+| NIP | URL |
+|-----|-----|
+| NIP-01 | https://github.com/nostr-protocol/nips/raw/refs/heads/master/01.md |
+| NIP-50 | https://github.com/nostr-protocol/nips/raw/refs/heads/master/50.md |
+| NIP-65 | https://github.com/nostr-protocol/nips/raw/refs/heads/master/65.md |
+| NIP-17 | https://github.com/nostr-protocol/nips/raw/refs/heads/master/17.md |
+
+Main NIP index: https://github.com/nostr-protocol/nips/raw/refs/heads/master/README.md
 
 **Why**: "Common sense" assumptions about protocol behavior are frequently wrong. The NIP specs are short, authoritative, and definitive.
 
