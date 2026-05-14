@@ -6,6 +6,7 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip65"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/logger"
 )
 
 // DiscoverUserRelays queries both local relay (cache) and remote relays
@@ -50,6 +51,18 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 	app.TrackRelays(writeRelays)
 
 	return readRelays, nil
+}
+
+func DiscoverUserRelaysWithFallback(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error) {
+	relays, err := DiscoverUserRelays(ctx, app, pubKey)
+	if err != nil {
+		logger.Debug("DiscoverUserRelays failed, trying KnownRelays fallback", "error", err.Error(), "pubkey", pubKey.Hex())
+		relays, err = nil, nil
+	}
+	if len(relays) == 0 {
+		relays = app.Config().KnownRelays
+	}
+	return relays, err
 }
 
 // EnsureRelays adds relay URLs to the global pool (lazy connection).

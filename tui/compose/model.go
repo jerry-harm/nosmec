@@ -3,6 +3,7 @@ package compose
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -65,6 +66,7 @@ type model struct {
 type keyMap struct {
 	send          key.Binding
 	quit          key.Binding
+	kill          key.Binding
 	nextField     key.Binding
 	prevField     key.Binding
 	addTag        key.Binding
@@ -79,8 +81,12 @@ func newKeyMap() *keyMap {
 			key.WithHelp("ctrl+p", "send"),
 		),
 		quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c", "esc"),
+			key.WithKeys("esc"),
 			key.WithHelp("esc", "quit"),
+		),
+		kill: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "kill"),
 		),
 		nextField: key.NewBinding(
 			key.WithKeys("tab"),
@@ -267,6 +273,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if m.sending {
 			return m, nil
+		}
+
+		if key.Matches(msg, m.keys.kill) {
+			os.Exit(0)
 		}
 
 		if key.Matches(msg, m.keys.quit) {

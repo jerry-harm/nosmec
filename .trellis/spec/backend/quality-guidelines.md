@@ -140,6 +140,37 @@ func (m *model) View() tea.View {
 - ESC = quit/close for all TUI views
 - In nested edit mode (e.g., editing a tag): first ESC cancels edit, second ESC quits
 
+**Quit key bindings**:
+All TUI screens MUST support these keys:
+- `esc` → quit/close (graceful)
+- `ctrl+c` → immediate program exit via `os.Exit(0)` (not graceful)
+- Exception: Event view uses `esc` for quit; `q` is used for "quote" action
+
+**Kill handler pattern (ctrl+c)**:
+```go
+case tea.KeyPressMsg:
+    if key.Matches(msg, m.keys.kill) {
+        os.Exit(0)  // immediate kill, no cleanup
+    }
+```
+
+**Quit handler pattern (ESC)**:
+```go
+case key.Matches(msg, m.keys.quit):
+    if m.subCancel != nil {
+        m.subCancel()  // cleanup subscriptions before quit
+    }
+    if m.isStandalone {
+        return m, tea.Quit  // standalone mode: exit program
+    }
+    return m, bubblon.Close()  // embedded mode: close window, notify parent
+```
+
+**Help text for quit**:
+- Standard quit: `key.WithHelp("esc", "quit")`
+- Kill: `key.WithHelp("ctrl+c", "kill")`
+- Event view: `key.WithHelp("esc", "close")`
+
 ---
 
 ### Tag Input UX Design

@@ -163,11 +163,63 @@ if len(relays) == 0 {
 
 **Why**: `AllReadableRelays()` includes the local relay (cache) first, which provides resilience when configured relays fail. `KnownRelays` is a last-resort pool of relays discovered from NIP-65.
 
-**Functions following this pattern**: `GetEvent`, `GetEventAsync`, `GetProfile`, `GetMyTimeline`, `GetGlobalTimeline`, `GetFollowedTimeline`
+**Functions following this pattern**: `GetEvent`, `GetEventAsync`, `GetMyTimeline`, `GetGlobalTimeline`, `GetFollowedTimeline`
 
 **Functions with special handling**:
 - `GetNote`/`GetNoteAsync`: Cannot discover author relays without fetching event first — the event contains the author pubkey
-- `GetProfile`: Calls `DiscoverUserRelays` first to find author's NIP-65 relays, then prepends them to the relay list
+- `GetProfile`: See below
+
+---
+
+## Profile Fetch Strategy (Parallel Discovery)
+
+**Goal**: Reduce profile fetch latency by querying all relays in parallel and discovering user's NIP-65 relay list concurrently.
+
+**Current (slow) pattern**:
+```
+GetProfile
+  └─ DiscoverUserRelays (sync, queries all relays)
+       └─ FetchManyReplaceable(kind 10002) → blocks until ALL relays respond
+  └─ GetEvent(kind 0, combined relays) (sync, queries all relays again)
+       └─ FetchManyReplaceable(kind 0) → blocks until ALL relays respond
+```
+
+**New (fast) pattern**:
+```
+GetProfile
+  ├─ Query ALL relays in parallel for kind 0 (profile metadata)
+  │    └─ Returns as soon as ANY relay responds
+  │
+  └─ Goroutine: DiscoverUserRelays (async, parallel)
+       └─ Fetches kind 10002, updates KnownRelays for future use
+       └─ Results cached/discovered for next time
+```
+
+**Implementation**:
+1. `GetProfile` queries all `AllReadableRelays()` + `KnownRelays` in parallel for kind 0
+2. Returns immediately when first relay responds (profile metadata is replaceable)
+3. Simultaneously launches `DiscoverUserRelays` as async goroutine to update KnownRelays
+4. User's NIP-65 relay list is NOT used for the current profile fetch — only for future event fetches
+
+**Why this works**: Profile metadata (kind 0) is a replaceable event — all relays hold the same latest version. Querying all relays in parallel and taking the first response is both faster AND correct.
+
+---
+
+## Event Fetch After Profile (Targeted Query)
+
+**When fetching a user's events (timeline, etc.)**: use their NIP-65 relay list for targeted querying.
+
+```
+GetUserTimeline(pubKey)
+  │
+  ├─ DiscoverUserRelays (sync) → get user's read relays from NIP-65
+  │    └─ If nil/empty: fallback to AllReadableRelays()
+  │
+  └─ GetEvents(filter, userRelays) → query ONLY user's relays
+       └─ If not found: fallback to AllReadableRelays()
+```
+
+**Why separate from profile fetch**: Profile fetches are frequent (every name display), while timeline fetches are less frequent and benefit from targeted relay list to reduce network traffic.
 
 ---
 

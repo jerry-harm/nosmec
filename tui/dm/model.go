@@ -3,11 +3,12 @@ package dm
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
@@ -34,12 +35,13 @@ type model struct {
 	width   int
 	height  int
 	viewport viewport.Model
-	ta      textarea.Model
+	ta      textinput.Model
 	keys    *keyMap
 
 	app             *config.AppContext
 	recipientPubKey  nostr.PubKey
 	recipientNpub    string
+	recipientName    string
 	messages         []message
 	errMsg           string
 
@@ -50,6 +52,7 @@ type model struct {
 type keyMap struct {
 	send  key.Binding
 	quit  key.Binding
+	kill  key.Binding
 	scroll key.Binding
 }
 
@@ -60,8 +63,12 @@ func newKeyMap() *keyMap {
 			key.WithHelp("enter", "send"),
 		),
 		quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c", "esc"),
-			key.WithHelp("q", "quit"),
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "quit"),
+		),
+		kill: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "kill"),
 		),
 		scroll: key.NewBinding(
 			key.WithKeys("pgup", "pgdown"),
@@ -85,6 +92,10 @@ type sendErrorMsg struct {
 	err string
 }
 
+type profileNameMsg struct {
+	name string
+}
+
 func NewModel(app *config.AppContext, recipientPubKey nostr.PubKey) *model {
 	m := &model{
 		app:            app,
@@ -95,7 +106,7 @@ func NewModel(app *config.AppContext, recipientPubKey nostr.PubKey) *model {
 	m.keys = newKeyMap()
 	m.viewport = viewport.New()
 	m.viewport.SetYOffset(0)
-	m.ta = textarea.New()
+	m.ta = textinput.New()
 	m.ta.Placeholder = "Type a message..."
 	m.ta.Focus()
 
@@ -110,7 +121,15 @@ func (m *model) Init() tea.Cmd {
 		tea.RequestBackgroundColor,
 		m.fetchHistory(),
 		m.startSubscription(),
+		m.fetchRecipientProfileNameAsync(),
 	)
+}
+
+func (m *model) fetchRecipientProfileNameAsync() tea.Cmd {
+	return func() tea.Msg {
+		name := utils.GetProfileNameAsync(context.Background(), m.recipientPubKey, &utils.GetOptions{App: m.app})
+		return profileNameMsg{name: name}
+	}
 }
 
 func (m *model) fetchHistory() tea.Cmd {
@@ -300,6 +319,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.errMsg = msg.err
 		return m, nil
 
+	case profileNameMsg:
+		m.recipientName = msg.name
+		return m, nil
+
 	case sendMsg:
 		content := strings.TrimSpace(msg.content)
 		if content == "" {
@@ -317,6 +340,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if key.Matches(msg, m.keys.kill) {
+			os.Exit(0)
+		}
+
 		if m.ta.Focused() {
 			switch {
 			case key.Matches(msg, m.keys.send):
@@ -360,22 +387,18 @@ func (m *model) sendDM(content string) tea.Cmd {
 			return sendErrorMsg{err: err.Error()}
 		}
 
-		ourPubKey, _ := m.app.GetMyPubKey()
-		npubStr := nip19.EncodeNpub(ourPubKey)[:16] + "..."
-
-		return newMessageMsg{
-			content:   content,
-			fromMe:    true,
-			timestamp: time.Now(),
-			npub:      npubStr,
-		}
+		return nil
 	}
 }
 
 func (m *model) View() tea.View {
 	var b strings.Builder
 
-	b.WriteString(m.styles.header.Render("DM: "+m.recipientNpub[:32]+"..."))
+	headerTitle := "DM: " + m.recipientNpub[:32] + "..."
+	if m.recipientName != "" {
+		headerTitle = "DM: " + m.recipientName
+	}
+	b.WriteString(m.styles.header.Render(headerTitle))
 	b.WriteString("\n")
 
 	if m.errMsg != "" {

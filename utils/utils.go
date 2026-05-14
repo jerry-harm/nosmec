@@ -1,30 +1,45 @@
 package utils
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 func ParsePubKey(s string) (nostr.PubKey, error) {
 	prefix, decoded, err := nip19.Decode(s)
-	if err != nil {
-		return nostr.PubKey{}, fmt.Errorf("invalid pubkey: %w", err)
+	if err == nil {
+		switch prefix {
+		case "npub":
+			if pk, ok := decoded.(nostr.PubKey); ok {
+				return pk, nil
+			}
+			return nostr.PubKey{}, fmt.Errorf("invalid npub format")
+		}
 	}
 
-	switch prefix {
-	case "npub":
-		if pk, ok := decoded.(nostr.PubKey); ok {
-			return pk, nil
+	if len(s) == 66 && (s[:2] == "02" || s[:2] == "03") {
+		compressedBytes, err := hex.DecodeString(s)
+		if err != nil {
+			return nostr.PubKey{}, fmt.Errorf("invalid compressed pubkey hex: %w", err)
 		}
-		return nostr.PubKey{}, fmt.Errorf("invalid npub format")
-	default:
-		if len(s) == 64 {
-			var pk nostr.PubKey
-			copy(pk[:], s)
-			return pk, nil
+		pk, err := btcec.ParsePubKey(compressedBytes)
+		if err != nil {
+			return nostr.PubKey{}, fmt.Errorf("invalid compressed pubkey: %w", err)
 		}
-		return nostr.PubKey{}, fmt.Errorf("unknown prefix: %s", prefix)
+		var nostrPK nostr.PubKey
+		copy(nostrPK[:], pk.X().Bytes())
+		return nostrPK, nil
 	}
+
+	if len(s) == 64 {
+		var pk nostr.PubKey
+		copy(pk[:], s)
+		return pk, nil
+	}
+
+	return nostr.PubKey{}, fmt.Errorf("unknown pubkey format")
 }

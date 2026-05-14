@@ -10,6 +10,7 @@ import (
 	"fiatjaf.com/nostr/nip17"
 	"fiatjaf.com/nostr/nip59"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/logger"
 )
 
 func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.PubKey, content string) error {
@@ -24,20 +25,23 @@ func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.P
 	if len(ourRelays) == 0 {
 		ourRelays = app.ReadableRelays()
 	}
-	theirRelays, err := FetchRecipientDMRelays(ctx, app, recipientPubKey)
+
+	var theirRelays []string
+	theirRelays, err = FetchRecipientDMRelays(ctx, app, recipientPubKey)
 	if err != nil {
-		return fmt.Errorf("failed to fetch recipient DM relays: %w", err)
+		logger.Debug("failed to fetch recipient DM relays", "error", err.Error())
 	}
 
 	if len(theirRelays) == 0 {
 		theirRelays, err = FetchRecipientReadRelays(ctx, app, recipientPubKey)
 		if err != nil {
-			return fmt.Errorf("failed to fetch recipient read relays: %w", err)
+			logger.Debug("failed to fetch recipient read relays", "error", err.Error())
 		}
 	}
 
 	if len(theirRelays) == 0 {
-		return fmt.Errorf("recipient has no public relay list (neither DM relays nor read relays found)")
+		logger.Debug("recipient has no published relay list, sending to our relays only")
+		theirRelays = nil
 	}
 
 	return nip17.PublishMessage(

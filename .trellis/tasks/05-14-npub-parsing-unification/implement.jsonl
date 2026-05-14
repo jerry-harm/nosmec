@@ -1,0 +1,10 @@
+[
+  {
+    "id": "implement-npub-parsing",
+    "name": "Implement ParsePubKey for compressed pubkey",
+    "research": "utils/utils.go:ParsePubKey - current implementation only handles npub bech32 and 64-char hex. Compressed pubkey (66 chars, starts with 02 or 03) comes from NIP-19 encodePack output.",
+    "file": "utils/utils.go",
+    "lines": "10-29",
+    "change": "Add case for 66-char hex string starting with 02 or 03. Extract x coordinate from compressed format and verify it's on secp256k1 curve."
+  }
+]

@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
@@ -11,6 +12,29 @@ import (
 type GetOptions struct {
 	App    *config.AppContext
 	Relays []string
+}
+
+// ExtractRelayHints extracts relay URLs from e/p/a/q tags in an event.
+// The relay field (tag[2]) is used when present. Results are deduplicated.
+func ExtractRelayHints(event *nostr.Event) []string {
+	if event == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var relays []string
+	for _, tag := range event.Tags {
+		if len(tag) < 3 {
+			continue
+		}
+		switch tag[0] {
+		case "e", "p", "a", "q":
+			if relay := tag[2]; relay != "" && !seen[relay] {
+				relays = append(relays, relay)
+				seen[relay] = true
+			}
+		}
+	}
+	return relays
 }
 
 func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr.Event {
@@ -23,27 +47,53 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 		relays = opts.App.AllReadableRelays()
 	}
 
+	localURL := config.GetLocalRelayURL()
+	hasLocal := localURL != ""
+
 	var event *nostr.Event
 
 	if isReplaceableKind(filter.Kinds) {
-		results := opts.App.Pool().FetchManyReplaceable(ctx, relays, filter, nostr.SubscriptionOptions{})
-		results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
-			event = &ev
-			CacheEvent(&ev, opts.App)
-			return false
-		})
-	} else {
-		timeout := opts.App.QueryTimeout()
-		ctxQuery, cancelQuery := context.WithTimeout(ctx, timeout)
-		defer cancelQuery()
-		result := opts.App.Pool().QuerySingle(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
-		if result != nil {
-			event = &result.Event
+		if hasLocal {
+			ctxLocal, cancelLocal := context.WithTimeout(ctx, 2*time.Second)
+			defer cancelLocal()
+			result := opts.App.Pool().QuerySingle(ctxLocal, []string{localURL}, filter, nostr.SubscriptionOptions{})
+			if result != nil && result.Event.ID != [32]byte{} {
+				event = &result.Event
+				CacheEvent(event, opts.App)
+			}
 		}
-	}
 
-	if event != nil && shouldCache(event, opts.App) {
-		CacheEvent(event, opts.App)
+		if event == nil {
+			timeout := opts.App.QueryTimeout()
+			ctxQuery, cancelQuery := context.WithTimeout(ctx, timeout)
+			defer cancelQuery()
+			results := opts.App.Pool().FetchManyReplaceable(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+			results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
+				event = &ev
+				CacheEvent(&ev, opts.App)
+				return false
+			})
+		}
+	} else {
+		if hasLocal {
+			ctxLocal, cancelLocal := context.WithTimeout(ctx, 2*time.Second)
+			defer cancelLocal()
+			result := opts.App.Pool().QuerySingle(ctxLocal, []string{localURL}, filter, nostr.SubscriptionOptions{})
+			if result != nil && result.Event.ID != [32]byte{} {
+				event = &result.Event
+			}
+		}
+
+		if event == nil {
+			timeout := opts.App.QueryTimeout()
+			ctxQuery, cancelQuery := context.WithTimeout(ctx, timeout)
+			defer cancelQuery()
+			result := opts.App.Pool().QuerySingle(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+			if result != nil {
+				event = &result.Event
+				CacheEvent(&result.Event, opts.App)
+			}
+		}
 	}
 
 	return event
@@ -98,13 +148,8 @@ func CacheEvent(event *nostr.Event, app *config.AppContext) {
 }
 
 func GetProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nostr.Event {
-	// Discover user relays first
-	var userRelays []string
-	if opts != nil && opts.App != nil {
-		discovered, err := DiscoverUserRelays(ctx, opts.App, pubKey)
-		if err == nil {
-			userRelays = discovered
-		}
+	if opts == nil || opts.App == nil {
+		return nil
 	}
 
 	filter := nostr.Filter{
@@ -113,34 +158,44 @@ func GetProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nos
 		Limit:   1,
 	}
 
-	// Build relay list: local + user + known
-	relayOpts := opts
-	if relayOpts != nil && len(userRelays) > 0 {
-		// Prepend user relays to the app's readable relays
-		baseRelays := opts.App.AllReadableRelays()
-		combined := make([]string, 0, len(userRelays)+len(baseRelays))
-		seen := make(map[string]bool)
-		// Add user relays first (they are most specific)
-		for _, r := range userRelays {
-			if !seen[r] {
-				combined = append(combined, r)
-				seen[r] = true
-			}
+	// Build combined relay list: AllReadableRelays + KnownRelays
+	allRelays := opts.App.AllReadableRelays()
+	knownRelays := opts.App.Config().KnownRelays
+	seen := make(map[string]bool)
+	combined := make([]string, 0, len(allRelays)+len(knownRelays))
+	for _, r := range allRelays {
+		if !seen[r] {
+			combined = append(combined, r)
+			seen[r] = true
 		}
-		// Add base relays (local + known)
-		for _, r := range baseRelays {
-			if !seen[r] {
-				combined = append(combined, r)
-				seen[r] = true
-			}
-		}
-		relayOpts = &GetOptions{
-			App:    opts.App,
-			Relays: combined,
+	}
+	for _, r := range knownRelays {
+		if !seen[r] {
+			combined = append(combined, r)
+			seen[r] = true
 		}
 	}
 
-	return GetEvent(ctx, filter, relayOpts)
+	if len(combined) == 0 {
+		return nil
+	}
+
+	// Launch DiscoverUserRelays async to update KnownRelays for future use
+	go func() {
+		DiscoverUserRelays(context.Background(), opts.App, pubKey)
+	}()
+
+	// Query all relays in parallel, return first result
+	ctxQuery, cancelQuery := context.WithTimeout(ctx, opts.App.QueryTimeout())
+	defer cancelQuery()
+
+	result := opts.App.Pool().QuerySingle(ctxQuery, combined, filter, nostr.SubscriptionOptions{})
+	if result == nil || result.Event.ID == [32]byte{} {
+		return nil
+	}
+
+	CacheEvent(&result.Event, opts.App)
+	return &result.Event
 }
 
 func GetProfileName(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) string {
@@ -222,12 +277,50 @@ func GetProfileNameAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOpti
 }
 
 func GetProfileAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nostr.Event {
+	if opts == nil || opts.App == nil {
+		return nil
+	}
+
 	filter := nostr.Filter{
 		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   1,
 	}
-	return GetEventAsync(ctx, filter, opts)
+
+	allRelays := opts.App.AllReadableRelays()
+	knownRelays := opts.App.Config().KnownRelays
+	seen := make(map[string]bool)
+	combined := make([]string, 0, len(allRelays)+len(knownRelays))
+	for _, r := range allRelays {
+		if !seen[r] {
+			combined = append(combined, r)
+			seen[r] = true
+		}
+	}
+	for _, r := range knownRelays {
+		if !seen[r] {
+			combined = append(combined, r)
+			seen[r] = true
+		}
+	}
+
+	if len(combined) == 0 {
+		return nil
+	}
+
+	go func() {
+		DiscoverUserRelays(context.Background(), opts.App, pubKey)
+	}()
+
+	ctxQuery, cancelQuery := context.WithTimeout(ctx, opts.App.QueryTimeout())
+	defer cancelQuery()
+
+	result := opts.App.Pool().QuerySingle(ctxQuery, combined, filter, nostr.SubscriptionOptions{})
+	if result == nil || result.Event.ID == [32]byte{} {
+		return nil
+	}
+
+	return &result.Event
 }
 
 func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr.Event {

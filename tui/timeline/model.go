@@ -3,6 +3,7 @@ package timeline
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -119,6 +120,7 @@ type model struct {
 }
 
 type listKeyMap struct {
+	kill             key.Binding
 	refresh          key.Binding
 	quit             key.Binding
 	toggleSpinner    key.Binding
@@ -135,8 +137,12 @@ func newListKeyMap() *listKeyMap {
 			key.WithHelp("r", "refresh"),
 		),
 		quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q", "quit"),
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "quit"),
+		),
+		kill: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "kill"),
 		),
 		toggleSpinner: key.NewBinding(
 			key.WithKeys("s"),
@@ -701,6 +707,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if m.list.FilterState() == list.Filtering {
 			break
+		}
+
+		if key.Matches(msg, m.keys.kill) {
+			os.Exit(0)
 		}
 
 		switch {
