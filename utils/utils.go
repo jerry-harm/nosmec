@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"fiatjaf.com/nostr"
@@ -21,27 +20,11 @@ func ParsePubKey(s string) (nostr.PubKey, error) {
 	}
 
 	if len(s) == 66 && (s[:2] == "02" || s[:2] == "03") {
-		xHex := s[2:]
-		xBytes, err := hex.DecodeString(xHex)
-		if err != nil {
-			return nostr.PubKey{}, fmt.Errorf("invalid compressed pubkey hex: %w", err)
-		}
-		if len(xBytes) != 32 {
-			return nostr.PubKey{}, fmt.Errorf("invalid x coordinate length: %d", len(xBytes))
-		}
-		var pk nostr.PubKey
-		copy(pk[:], xBytes)
-		return pk, nil
+		return nostr.PubKeyFromHex(s[2:])
 	}
 
 	if len(s) == 64 {
-		xBytes, err := hex.DecodeString(s)
-		if err != nil {
-			return nostr.PubKey{}, fmt.Errorf("invalid hex: %w", err)
-		}
-		var pk nostr.PubKey
-		copy(pk[:], xBytes)
-		return pk, nil
+		return nostr.PubKeyFromHex(s)
 	}
 
 	return nostr.PubKey{}, fmt.Errorf("unknown pubkey format")
