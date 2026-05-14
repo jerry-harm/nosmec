@@ -811,3 +811,37 @@ Fixed tui/compose/model.go:360 array index out of bounds panic when deleting tag
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: Relay discovery fixes: error handling + relay selection consistency
+
+**Date**: 2026-05-14
+**Task**: Relay discovery fixes: error handling + relay selection consistency
+**Branch**: `main`
+
+### Summary
+
+Fixed Close() to capture and return store.Close() and WriteConfig() errors via errors.Join. Fixed GetGlobalTimeline/GetFollowedTimeline relay fallback order to use AllReadableRelays() then KnownRelays (consistent with GetProfile). Updated relay-guidelines.md and error-handling.md with new patterns.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4b2a7be` | (see git log) |
+| `a311f41` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

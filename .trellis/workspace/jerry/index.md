@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 24
+- **Total Sessions**: 25
 - **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~813 | Active |
+| `journal-1.md` | ~847 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 25 | 2026-05-14 | Relay discovery fixes: error handling + relay selection consistency | `4b2a7be`, `a311f41` | `main` |
 | 24 | 2026-05-14 | Fix compose tag deletion panic + correct delete behavior | `6ed6266` | `main` |
 | 23 | 2026-05-13 | 实现 compose 发送遮罩反馈 | `4d86621`, `39674f4`, `0539fe5` | `main` |
 | 22 | 2026-05-13 | 实现 compose 发送遮罩反馈 | `0539fe5` | `main` |
