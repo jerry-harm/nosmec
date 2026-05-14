@@ -4,6 +4,108 @@
 
 ---
 
+## Event-Provided Relay Hints (NIP-01, NIP-10)
+
+Events can embed recommended relay URLs in their tags. These hints should be used for targeted querying.
+
+### Tag Format
+
+| Tag | Format | Description |
+|-----|--------|-------------|
+| `e` | `["e", <id>, <relay>, <marker>, <pubkey>]` | Reference to another event (NIP-10). `<marker>` is `"reply"` or `"root"` |
+| `p` | `["p", <pubkey>, <relay>]` | Reference to another user |
+| `a` | `["a", "<kind>:<pubkey>:<d>", <relay>]` | Reference to an addressable event |
+| `q` | `["q", <event-id>, <relay>, <pubkey>]` | Quote/reference to an event (NIP-10) |
+
+`<relay>` is the **recommended relay URL** for querying the referenced event/user. It is optional but should be used when present.
+
+### Relay Hint Extraction
+
+```go
+func ExtractRelayHints(event *nostr.Event) (relays []string) {
+    for _, tag := range event.Tags {
+        if len(tag) < 2 {
+            continue
+        }
+        switch tag[0] {
+        case "e", "p", "a", "q":
+            if len(tag) >= 3 && tag[2] != "" {
+                relays = append(relays, tag[2])
+            }
+        }
+    }
+    return relays
+}
+```
+
+### Query Strategy with Relay Hints
+
+When fetching an event that was referenced by another event:
+
+1. Extract relay hints from the referencing event's tags
+2. Query those relays first
+3. If not found, fallback to `AllReadableRelays()`
+
+```go
+func GetEventWithHint(ctx context.Context, eventID string, hintRelay string, opts *GetOptions) *nostr.Event {
+    relays := []string{}
+    if hintRelay != "" {
+        relays = append(relays, hintRelay)
+    }
+    if len(relays) == 0 {
+        relays = opts.App.AllReadableRelays()
+    }
+    return GetEvent(ctx, nostr.Filter{IDs: []nostr.ID{eventID}}, &GetOptions{
+        App:    opts.App,
+        Relays: relays,
+    })
+}
+```
+
+---
+
+## Relay Discovery from NIP-65 (kind:10002)
+
+When querying a user's profile or other data, discover their NIP-65 relay list first.
+
+### DiscoverUserRelays
+
+```go
+func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error)
+```
+
+- Queries `AllReadableRelays()` for Kind 10002 from the user
+- Parses read/write relay list from event tags
+- Calls `EnsureRelays` to register discovered relays in the pool
+- Calls `TrackRelays` to add to `knownRelays` (persisted on `Close()`)
+- Returns the user's read relays
+
+### Relay List Discovery with Verification
+
+For fetching other's relay lists (not the user's own):
+
+```go
+func DiscoverAndVerifyRelays(ctx context.Context, app *config.AppContext, filter nostr.Filter) ([]string, error)
+```
+
+- Queries relays for events matching the filter (e.g., Kind 10002 from any user)
+- Parses `["r", <url>]` or `["r", <url>, "read"|"write"]` tags
+- Verifies each relay connectivity via `RelayConnect` + `IsConnected`
+- Returns only reachable relays (read + write combined, not distinguished)
+- Returns empty list if all relays unreachable
+
+### When KnownRelays Are Updated
+
+| Trigger | Method | Timing |
+|---------|--------|--------|
+| NIP-65 discovery (per-user) | `DiscoverUserRelays` | On-demand during profile queries |
+| Config persistence | `TrackRelays` → `Close()` | Only on app shutdown |
+| Network sync (self only) | `SyncRelaysFromNetwork` | Manual `config sync` command |
+
+**Note**: Relay connectivity is verified only at config persistence time. During runtime, Pool uses lazy connection — unreachable relays are ignored by the pool.
+
+---
+
 ## NIP Relay List Events
 
 ### NIP-65 — Relay List Metadata (kind:10002)
@@ -124,6 +226,8 @@ nosmec config dm-relay sync         # then PublishRelayList
 
 ## Files
 
-- `utils/relay_list.go` — `PublishRelayList` implementation
+- `utils/relay_list.go` — `PublishRelayList`, `SyncRelaysFromNetwork`
+- `utils/user_relays.go` — `DiscoverUserRelays`, `EnsureRelays`
 - `config/types.go` — relay config structs
-- `config/context.go` — relay helper methods
+- `config/context.go` — relay helper methods, `TrackRelays`, `Close`
+- `utils/get.go` — `GetEvent`, `GetProfile`, relay selection strategy

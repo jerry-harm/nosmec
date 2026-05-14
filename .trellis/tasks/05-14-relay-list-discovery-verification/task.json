@@ -1,9 +1,9 @@
 {
-  "id": "local-relay-design-doc",
-  "name": "local-relay-design-doc",
-  "title": "补充设计文档：本地Relay架构角色说明",
+  "id": "relay-list-discovery-verification",
+  "name": "relay-list-discovery-verification",
+  "title": "Relay list discovery with connectivity verification",
   "description": "",
-  "status": "in_progress",
+  "status": "planning",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -18,9 +18,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "05-14-event-get-parent-from-reply-tag"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",

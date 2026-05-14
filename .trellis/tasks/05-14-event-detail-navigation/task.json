@@ -1,9 +1,9 @@
 {
-  "id": "local-relay-design-doc",
-  "name": "local-relay-design-doc",
-  "title": "补充设计文档：本地Relay架构角色说明",
+  "id": "event-detail-navigation",
+  "name": "event-detail-navigation",
+  "title": "Event detail navigation to user timeline and thread view",
   "description": "",
-  "status": "in_progress",
+  "status": "planning",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -18,9 +18,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "05-14-event-get-parent-from-reply-tag"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",
