@@ -191,7 +191,27 @@ func GetCommunity(ctx context.Context, app *config.AppContext, communityAuthor n
 	if event == nil {
 		return nil, fmt.Errorf("community not found: %s by %s", communityID, communityAuthor.Hex())
 	}
+
+	relayHints := ExtractRelayHints(event)
+	if len(relayHints) > 0 {
+		EnsureRelays(app, relayHints)
+	}
+
 	return event, nil
+}
+
+func GetCommunityRelays(event *nostr.Event) []string {
+	if event == nil {
+		return nil
+	}
+
+	var relays []string
+	for _, tag := range event.Tags {
+		if len(tag) >= 2 && tag[0] == "relay" {
+			relays = append(relays, tag[1])
+		}
+	}
+	return relays
 }
 
 func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAuthor nostr.PubKey, communityID string, limit int) chan *nostr.Event {
@@ -200,6 +220,12 @@ func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAut
 	relays := app.Config().KnownRelays
 	if len(relays) == 0 {
 		relays = app.AllReadableRelays()
+	}
+
+	if communityDef, err := GetCommunity(ctx, app, communityAuthor, communityID); err == nil {
+		if hints := GetCommunityRelays(communityDef); len(hints) > 0 {
+			relays = hints
+		}
 	}
 
 	filter := nostr.Filter{
