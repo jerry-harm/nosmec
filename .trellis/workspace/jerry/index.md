@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 26
+- **Total Sessions**: 27
 - **Last Active**: 2026-05-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~880 | Active |
+| `journal-1.md` | ~913 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 27 | 2026-05-14 | Relay design doc: event hints, discovery patterns, local relay role | `5208a36` | `main` |
 | 26 | 2026-05-14 | Local relay cache-only: exclude from writable relay list | `92a582e` | `main` |
 | 25 | 2026-05-14 | Relay discovery fixes: error handling + relay selection consistency | `4b2a7be`, `a311f41` | `main` |
 | 24 | 2026-05-14 | Fix compose tag deletion panic + correct delete behavior | `6ed6266` | `main` |

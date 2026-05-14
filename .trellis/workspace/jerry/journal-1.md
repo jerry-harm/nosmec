@@ -878,3 +878,36 @@ Changed AllWritableRelays() to return WritableRelays() without prepending local 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: Relay design doc: event hints, discovery patterns, local relay role
+
+**Date**: 2026-05-14
+**Task**: Relay design doc: event hints, discovery patterns, local relay role
+**Branch**: `main`
+
+### Summary
+
+Updated relay-guidelines.md with: 1) Event-provided relay hints from e/p/a/q tags (NIP-01, NIP-10), 2) Relay hint extraction pattern and query strategy, 3) DiscoverUserRelays and new DiscoverAndVerifyRelays function spec, 4) Local relay role (read included, write excluded), 5) Files reference updated. Created 4 new tasks for implementation work.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5208a36` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
