@@ -845,3 +845,36 @@ Fixed Close() to capture and return store.Close() and WriteConfig() errors via e
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: Local relay cache-only: exclude from writable relay list
+
+**Date**: 2026-05-14
+**Task**: Local relay cache-only: exclude from writable relay list
+**Branch**: `main`
+
+### Summary
+
+Changed AllWritableRelays() to return WritableRelays() without prepending local relay. Local relay is now excluded from the write path while still being prepended to the read path. Updated relay-guidelines.md to document the local relay role.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `92a582e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
