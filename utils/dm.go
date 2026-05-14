@@ -23,17 +23,17 @@ func SendDM(ctx context.Context, app *config.AppContext, recipientPubKey nostr.P
 
 	ourRelays := app.ListDMRelays()
 	if len(ourRelays) == 0 {
-		ourRelays = app.ReadableRelays()
+		ourRelays = app.AllReadableRelays()
 	}
 
 	var theirRelays []string
-	theirRelays, err = FetchRecipientDMRelays(ctx, app, recipientPubKey)
+	theirRelays, err = FetchRecipientDMRelays(ctx, app, recipientPubKey, ourRelays)
 	if err != nil {
 		logger.Debug("failed to fetch recipient DM relays", "error", err.Error())
 	}
 
 	if len(theirRelays) == 0 {
-		theirRelays, err = FetchRecipientReadRelays(ctx, app, recipientPubKey)
+		theirRelays, err = FetchRecipientReadRelays(ctx, app, recipientPubKey, ourRelays)
 		if err != nil {
 			logger.Debug("failed to fetch recipient read relays", "error", err.Error())
 		}

@@ -28,6 +28,32 @@ Questions to answer:
 
 ---
 
+## NIP Protocol Implementation Rule (Critical)
+
+**Before implementing ANY nostr protocol behavior, you MUST fetch and read the relevant NIP specification.**
+
+Protocol URLs:
+- Main NIP index: https://github.com/nostr-protocol/nips/raw/refs/heads/master/README.md
+- NIP-01: https://github.com/nostr-protocol/nips/raw/refs/heads/master/01.md
+- NIP-65: https://github.com/nostr-protocol/nips/raw/refs/heads/master/65.md
+- NIP-50: https://github.com/nostr-protocol/nips/raw/refs/heads/master/50.md
+- (add others as needed)
+
+**Why**: "Common sense" assumptions about protocol behavior are frequently wrong. The NIP specs are short, authoritative, and definitive.
+
+**Examples of violations**:
+- Implementing read/write relay tags as separate tags for the same URL (NIP-65: one tag, optional "read"/"write" marker, no marker = both)
+- Assuming JSON tag order or structure without checking the spec
+- Guessing NIP number meanings instead of reading the spec
+
+**Process**:
+1. Identify which NIP governs the feature
+2. Fetch the spec (WebFetch or Task subagent)
+3. Read the spec before writing any code
+4. Reference spec in PRD/commits
+
+---
+
 ## Common Mistakes
 
 ### ID/PK Parsing with `copy()` instead of `IDFromHex`/`PubKeyFromHex`

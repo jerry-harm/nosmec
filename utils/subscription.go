@@ -175,8 +175,10 @@ func syncUsersFromNetwork(ctx context.Context, app *config.AppContext, pubKey no
 			}
 
 			pubKeyHex := tag[1]
-			var pk nostr.PubKey
-			copy(pk[:], []byte(pubKeyHex))
+			pk, err := nostr.PubKeyFromHex(pubKeyHex)
+			if err != nil {
+				continue
+			}
 			npub := nip19.EncodeNpub(pk)
 			subscriptions = append(subscriptions, config.Subscription{
 				Type:    "user",

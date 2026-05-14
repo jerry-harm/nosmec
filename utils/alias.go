@@ -26,17 +26,6 @@ func ResolveAliasToPubKey(app *config.AppContext, identifier string) (nostr.PubK
 		return nostr.PubKey{}, err
 	}
 
-	var pubKey nostr.PubKey
-	if len(resolved) == 64 {
-		for _, c := range resolved {
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
-				return nostr.PubKey{}, fmt.Errorf("invalid hex pubkey: contains non-hex characters")
-			}
-		}
-		copy(pubKey[:], resolved)
-		return pubKey, nil
-	}
-
 	prefix, decoded, err := nip19.Decode(resolved)
 	if err == nil {
 		if prefix == "npub" {
@@ -46,7 +35,19 @@ func ResolveAliasToPubKey(app *config.AppContext, identifier string) (nostr.PubK
 		}
 	}
 
+	if len(resolved) == 66 && (resolved[:2] == "02" || resolved[:2] == "03") {
+		return nostr.PubKeyFromHex(resolved[2:])
+	}
+
+	if len(resolved) == 64 {
+		return nostr.PubKeyFromHex(resolved)
+	}
+
 	return nostr.PubKey{}, fmt.Errorf("invalid user identifier, expected alias, npub or 64-character hex pubkey")
+}
+
+func PubKeyToNpub(pk nostr.PubKey) string {
+	return nip19.EncodeNpub(pk)
 }
 
 func ListAliases(app *config.AppContext) map[string]string {

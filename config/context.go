@@ -414,11 +414,7 @@ func (a *AppContext) Close() error {
 	var errs []error
 
 	if a.store != nil {
-		if closer, ok := a.store.(interface{ Close() error }); ok {
-			if err := closer.Close(); err != nil {
-				errs = append(errs, err)
-			}
-		}
+		a.store.Close()
 	}
 
 	relays := make([]string, 0, len(a.knownRelays))

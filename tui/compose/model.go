@@ -508,7 +508,19 @@ func (m *model) sendContent(content string) tea.Cmd {
 func (m *model) parseKind() nostr.Kind {
 	kindStr := strings.TrimSpace(m.kindInput.Value())
 	if kindStr == "" {
-		return nostr.KindTextNote
+		switch m.composeKind {
+		case KindReply:
+			if m.parentEvent != nil {
+				return m.parentEvent.Kind
+			}
+			return nostr.KindComment
+		case KindQuote:
+			return nostr.KindTextNote
+		case KindCommunity:
+			return nostr.KindComment
+		default:
+			return nostr.KindTextNote
+		}
 	}
 	var kind int
 	_, err := fmt.Sscanf(kindStr, "%d", &kind)

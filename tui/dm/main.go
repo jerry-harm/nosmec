@@ -5,14 +5,19 @@ import (
 	"os"
 
 	tea "charm.land/bubbletea/v2"
+	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/utils"
 )
 
 func RunDM(app *config.AppContext, npubOrHex string) error {
-	recipientPubKey, err := utils.ParsePubKey(npubOrHex)
+	_, decoded, err := nip19.Decode(npubOrHex)
 	if err != nil {
 		return fmt.Errorf("invalid npub: %w", err)
+	}
+	recipientPubKey, ok := decoded.(nostr.PubKey)
+	if !ok {
+		return fmt.Errorf("invalid npub format")
 	}
 
 	if len(os.Getenv("DEBUG")) > 0 {

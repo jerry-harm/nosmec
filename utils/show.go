@@ -8,6 +8,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/fatih/color"
 )
 
@@ -28,13 +29,11 @@ func PrintEvent(ev *nostr.Event, j bool) {
 	ctx := context.Background()
 	profile := GetProfile(ctx, ev.PubKey, nil)
 	if profile != nil {
-		var profileData map[string]interface{}
-		if err := json.Unmarshal([]byte(profile.Content), &profileData); err == nil {
-			if name, ok := profileData["name"].(string); ok && name != "" {
-				color.Set(color.FgHiRed)
-				fmt.Print(name + " ")
-				color.Set(color.Reset)
-			}
+		pm, err := sdk.ParseMetadata(*profile)
+		if err == nil && pm.Name != "" {
+			color.Set(color.FgHiRed)
+			fmt.Print(pm.Name + " ")
+			color.Set(color.Reset)
 		}
 	}
 

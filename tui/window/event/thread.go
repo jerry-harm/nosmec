@@ -104,7 +104,7 @@ func (m *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		kmsg := msg.(tea.KeyPressMsg)
 		if key.Matches(kmsg.Key(), m.keys.quit) {
-			return m, tea.Quit
+			return m, func() tea.Msg { return bubblon.Close() }
 		}
 	}
 

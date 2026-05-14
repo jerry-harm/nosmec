@@ -37,9 +37,13 @@ func registerDMCommands() {
 			recipientStr := args[0]
 			content := args[1]
 
-			recipientPubKey, err := utils.ParsePubKey(recipientStr)
+			_, decoded, err := nip19.Decode(recipientStr)
 			if err != nil {
 				handleError(newError("invalid recipient pubkey", err))
+			}
+			recipientPubKey, ok := decoded.(nostr.PubKey)
+			if !ok {
+				handleError(newError("invalid recipient pubkey format", nil))
 			}
 
 			ctx := context.Background()
@@ -82,7 +86,7 @@ func registerDMCommands() {
 					prefix = "→"
 				}
 				name := conv.PubKey[:16] + "..."
-				if otherPK, err := utils.ParsePubKey(conv.PubKey); err == nil {
+				if otherPK, err := nostr.PubKeyFromHex(conv.PubKey); err == nil {
 					if profileName := utils.GetProfileName(ctx, otherPK, &utils.GetOptions{App: getApp()}); profileName != "" {
 						name = profileName
 					}
@@ -100,9 +104,13 @@ func registerDMCommands() {
 		Short: "View DM history with a user",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			recipientPubKey, err := utils.ParsePubKey(args[0])
+			_, decoded, err := nip19.Decode(args[0])
 			if err != nil {
 				handleError(newError("invalid recipient pubkey", err))
+			}
+			recipientPubKey, ok := decoded.(nostr.PubKey)
+			if !ok {
+				handleError(newError("invalid recipient pubkey format", nil))
 			}
 
 			limit := 50

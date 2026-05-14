@@ -1,0 +1,14 @@
+[
+  {
+    "name": "inspect-nip19-usage",
+    "research": ".trellis/tasks/05-14-unify-nip19-decode-usage-remove-parsepubkey-wrapper/research/nip19-usage.md",
+    "spec": ".trellis/spec/backend/nostr-sdk-usage.md",
+    "notes": "Lists all ParsePubKey call sites and existing nip19.Decode usage"
+  },
+  {
+    "name": "replace-parsepubkey-calls",
+    "research": ".trellis/tasks/05-14-unify-nip19-decode-usage-remove-parsepubkey-wrapper/research/nip19-usage.md",
+    "spec": ".trellis/spec/backend/nostr-sdk-usage.md",
+    "notes": "3 call sites: search.go, dm_commands.go, tui/dm/main.go"
+  }
+]

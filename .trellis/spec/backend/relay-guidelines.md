@@ -112,12 +112,18 @@ func DiscoverAndVerifyRelays(ctx context.Context, app *config.AppContext, filter
 
 Published to advertise user's preferred read/write relays.
 
+**Tag Rules** (from [NIP-65](https://github.com/nostr-protocol/nips/raw/refs/heads/master/65.md)):
+- `["r", <url>]` — relay is **both read AND write** (no marker = both)
+- `["r", <url>, "read"]` — relay is **read only**
+- `["r", <url>, "write"]` — relay is **write only**
+- **Never** create separate tags for the same relay with read AND write markers
+
 ```go
 // kind:10002 structure
 {
   "kind": 10002,
   "tags": [
-    ["r", "wss://relay1.com"],              // both read+write
+    ["r", "wss://relay1.com"],              // both read+write (no marker)
     ["r", "wss://relay2.com", "write"],    // write only
     ["r", "wss://relay3.com", "read"]      // read only
   ],
@@ -126,6 +132,8 @@ Published to advertise user's preferred read/write relays.
 ```
 
 Published via `utils.PublishRelayList(ctx, app)`.
+
+**Parsing**: When reading NIP-65 tags, if len(tag)==2 the relay is both read+write. Otherwise check for "read"/"write" markers.
 
 ### NIP-17 — DM Relay List (kind:10050)
 

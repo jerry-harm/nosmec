@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/nip65"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -50,36 +49,34 @@ func syncRelayListFromNetwork(ctx context.Context, app *config.AppContext, pubKe
 		return nil
 	}
 
-	readRelays, writeRelays := nip65.ParseRelayList(result.Event)
-
-	relayList := make([]config.Relay, 0, len(readRelays)+len(writeRelays))
-	seen := make(map[string]bool)
-
-	for _, url := range readRelays {
-		relayList = append(relayList, config.Relay{
-			URL:   url,
-			Read:  config.BoolPtr(true),
-			Write: config.BoolPtr(false),
-		})
-		seen[url] = true
-	}
-
-	for _, url := range writeRelays {
-		if seen[url] {
-			for i := range relayList {
-				if relayList[i].URL == url {
-					relayList[i].Write = config.BoolPtr(true)
-					break
+	relayMap := make(map[string]struct{ read, write bool })
+	for _, tag := range result.Event.Tags {
+		if len(tag) >= 2 && tag[0] == "r" {
+			url := tag[1]
+			r := relayMap[url]
+			if len(tag) == 2 {
+				r.read = true
+				r.write = true
+			} else {
+				for _, p := range tag[2:] {
+					if p == "read" {
+						r.read = true
+					} else if p == "write" {
+						r.write = true
+					}
 				}
 			}
-		} else {
-			relayList = append(relayList, config.Relay{
-				URL:   url,
-				Read:  config.BoolPtr(false),
-				Write: config.BoolPtr(true),
-			})
-			seen[url] = true
+			relayMap[url] = r
 		}
+	}
+
+	relayList := make([]config.Relay, 0, len(relayMap))
+	for url, r := range relayMap {
+		relayList = append(relayList, config.Relay{
+			URL:   url,
+			Read:  config.BoolPtr(r.read),
+			Write: config.BoolPtr(r.write),
+		})
 	}
 
 	app.SyncRelayList(relayList)
@@ -152,14 +149,16 @@ func publishRelayListMetadata(ctx context.Context, app *config.AppContext, secre
 
 	tags := nostr.Tags{}
 	for _, relay := range relayList {
-		tag := nostr.Tag{"r", relay.URL}
-		if relay.Read != nil && *relay.Read {
-			tag = append(tag, "read")
+		read := relay.Read != nil && *relay.Read
+		write := relay.Write != nil && *relay.Write
+		if read && write {
+			continue
 		}
-		if relay.Write != nil && *relay.Write {
-			tag = append(tag, "write")
+		if read {
+			tags = append(tags, nostr.Tag{"r", relay.URL, "read"})
+		} else if write {
+			tags = append(tags, nostr.Tag{"r", relay.URL, "write"})
 		}
-		tags = append(tags, tag)
 	}
 
 	event := &nostr.Event{

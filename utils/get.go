@@ -2,10 +2,10 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -389,17 +389,9 @@ func extractProfileName(profile *nostr.Event) string {
 		return ""
 	}
 
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(profile.Content), &data); err == nil {
-		if name, ok := data["name"].(string); ok && name != "" {
-			return name
-		}
-	}
-
-	for _, tag := range profile.Tags {
-		if len(tag) >= 2 && tag[0] == "name" {
-			return tag[1]
-		}
+	pm, err := sdk.ParseMetadata(*profile)
+	if err == nil && pm.Name != "" {
+		return pm.Name
 	}
 
 	return ""

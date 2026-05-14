@@ -89,7 +89,10 @@ func ParseCommunityAddr(addr string) (nostr.PubKey, string, error) {
 	}
 
 	var pubKey nostr.PubKey
-	copy(pubKey[:], []byte(parts[1]))
+	_, err := nostr.PubKeyFromHex(parts[1])
+	if err != nil {
+		return nostr.PubKey{}, "", fmt.Errorf("invalid community pubkey: %w", err)
+	}
 	return pubKey, parts[2], nil
 }
 

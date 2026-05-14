@@ -42,17 +42,9 @@ func ParseSearchFilter(input string) (nostr.Filter, string) {
 	authorsRegex := regexp.MustCompile(`(?i)\bauthors:([^\s#]+)\b`)
 	if match := authorsRegex.FindStringSubmatch(input); len(match) > 1 {
 		authorStr := match[1]
-		// Try to decode as npub first
-		if _, v, err := nip19.Decode(authorStr); err == nil {
-			switch val := v.(type) {
-			case nostr.PubKey:
-				filter.Authors = append(filter.Authors, val)
-			case interface{ PublicKey() nostr.PubKey }:
-				filter.Authors = append(filter.Authors, val.PublicKey())
-			}
-		} else {
-			// Try as plain hex pubkey
-			if pk, err := nostr.PubKeyFromHex(authorStr); err == nil {
+		_, decoded, err := nip19.Decode(authorStr)
+		if err == nil {
+			if pk, ok := decoded.(nostr.PubKey); ok {
 				filter.Authors = append(filter.Authors, pk)
 			}
 		}

@@ -8,6 +8,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 )
 
@@ -48,14 +49,14 @@ type HashtagInfo struct {
 }
 
 type FullProfile struct {
-	NPub       string           `json:"npub"`
-	PubKey     string           `json:"pubkey"`
-	Metadata   *ProfileMetadata `json:"metadata,omitempty"`
-	Relays     []RelayInfo      `json:"relays,omitempty"`
-	DMRelays   []string         `json:"dm_relays,omitempty"`
-	Follows    []FollowInfo     `json:"follows,omitempty"`
-	Communities []CommunityInfo `json:"communities,omitempty"`
-	Hashtags   []HashtagInfo    `json:"hashtags,omitempty"`
+	NPub       string            `json:"npub"`
+	PubKey     string            `json:"pubkey"`
+	Metadata   *sdk.ProfileMetadata `json:"metadata,omitempty"`
+	Relays     []RelayInfo       `json:"relays,omitempty"`
+	DMRelays   []string          `json:"dm_relays,omitempty"`
+	Follows    []FollowInfo      `json:"follows,omitempty"`
+	Communities []CommunityInfo  `json:"communities,omitempty"`
+	Hashtags   []HashtagInfo     `json:"hashtags,omitempty"`
 }
 
 func profileConfigToMetadata(pc config.ProfileConfig) ProfileMetadata {
@@ -87,6 +88,19 @@ func metadataToProfileConfig(pm ProfileMetadata) config.ProfileConfig {
 		NIP05:       pm.NIP05,
 		Lud06:       pm.Lud06,
 		Lud16:       pm.Lud16,
+	}
+}
+
+func ProfileMetadataFromSDK(pm sdk.ProfileMetadata) ProfileMetadata {
+	return ProfileMetadata{
+		Name:        pm.Name,
+		DisplayName: pm.DisplayName,
+		About:       pm.About,
+		Website:     pm.Website,
+		Picture:     pm.Picture,
+		Banner:      pm.Banner,
+		NIP05:       pm.NIP05,
+		Lud16:       pm.LUD16,
 	}
 }
 
@@ -207,12 +221,12 @@ func SyncProfile(ctx context.Context, app *config.AppContext) error {
 		return nil
 	}
 
-	var metadata ProfileMetadata
-	if err := json.Unmarshal([]byte(event.Content), &metadata); err != nil {
+	metadata, err := sdk.ParseMetadata(*event)
+	if err != nil {
 		return fmt.Errorf("failed to parse profile: %w", err)
 	}
 
-	newCfg := metadataToProfileConfig(metadata)
+	newCfg := metadataToProfileConfig(ProfileMetadataFromSDK(metadata))
 
 	if err := app.SetProfile(newCfg); err != nil {
 		return fmt.Errorf("failed to save profile config: %w", err)
@@ -225,9 +239,8 @@ func isSet(s string) bool {
 	return s != "" && s != "<nil>"
 }
 
-func FetchRecipientDMRelays(ctx context.Context, app *config.AppContext, recipientPubKey nostr.PubKey) ([]string, error) {
-	knownRelays := app.Config().KnownRelays
-	if len(knownRelays) == 0 {
+func FetchRecipientDMRelays(ctx context.Context, app *config.AppContext, recipientPubKey nostr.PubKey, relays []string) ([]string, error) {
+	if len(relays) == 0 {
 		return nil, fmt.Errorf("no known relays to query")
 	}
 
@@ -240,7 +253,7 @@ func FetchRecipientDMRelays(ctx context.Context, app *config.AppContext, recipie
 	ctx, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 	defer cancel()
 
-	result := app.Pool().QuerySingle(ctx, knownRelays, filter, nostr.SubscriptionOptions{})
+	result := app.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
 	if result == nil || result.Event.ID == [32]byte{} {
 		return nil, nil
 	}
@@ -255,9 +268,8 @@ func FetchRecipientDMRelays(ctx context.Context, app *config.AppContext, recipie
 	return dmRelays, nil
 }
 
-func FetchRecipientReadRelays(ctx context.Context, app *config.AppContext, recipientPubKey nostr.PubKey) ([]string, error) {
-	knownRelays := app.Config().KnownRelays
-	if len(knownRelays) == 0 {
+func FetchRecipientReadRelays(ctx context.Context, app *config.AppContext, recipientPubKey nostr.PubKey, relays []string) ([]string, error) {
+	if len(relays) == 0 {
 		return nil, fmt.Errorf("no known relays to query")
 	}
 
@@ -270,18 +282,23 @@ func FetchRecipientReadRelays(ctx context.Context, app *config.AppContext, recip
 	ctx, cancel := context.WithTimeout(ctx, app.QueryTimeout())
 	defer cancel()
 
-	result := app.Pool().QuerySingle(ctx, knownRelays, filter, nostr.SubscriptionOptions{})
+	result := app.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
 	if result == nil || result.Event.ID == [32]byte{} {
 		return nil, nil
 	}
 
 	var readRelays []string
+	seen := make(map[string]bool)
 	for _, tag := range result.Event.Tags {
 		if len(tag) >= 2 && tag[0] == "r" {
 			url := tag[1]
+			if seen[url] {
+				continue
+			}
 			for _, p := range tag[2:] {
 				if p == "read" {
 					readRelays = append(readRelays, url)
+					seen[url] = true
 					break
 				}
 			}
@@ -296,8 +313,23 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 		return nil, fmt.Errorf("nil options")
 	}
 
+	allRelays := opts.App.AllReadableRelays()
 	knownRelays := opts.App.Config().KnownRelays
-	if len(knownRelays) == 0 {
+	seen := make(map[string]bool)
+	relays := make([]string, 0, len(allRelays)+len(knownRelays))
+	for _, r := range allRelays {
+		if !seen[r] {
+			relays = append(relays, r)
+			seen[r] = true
+		}
+	}
+	for _, r := range knownRelays {
+		if !seen[r] {
+			relays = append(relays, r)
+			seen[r] = true
+		}
+	}
+	if len(relays) == 0 {
 		return nil, fmt.Errorf("no known relays")
 	}
 
@@ -308,8 +340,8 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 
 	metadataEvent := GetProfile(ctx, pubKey, opts)
 	if metadataEvent != nil {
-		var m ProfileMetadata
-		if err := json.Unmarshal([]byte(metadataEvent.Content), &m); err == nil {
+		m, err := sdk.ParseMetadata(*metadataEvent)
+		if err == nil {
 			fp.Metadata = &m
 		}
 	}
@@ -319,24 +351,34 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   1,
 	}
-	result := opts.App.Pool().QuerySingle(ctx, knownRelays, filter, nostr.SubscriptionOptions{})
+	result := opts.App.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
 	if result != nil && result.Event.ID != [32]byte{} {
+		relayMap := make(map[string]struct{ read, write bool })
 		for _, tag := range result.Event.Tags {
 			if len(tag) >= 2 && tag[0] == "r" {
-				r := RelayInfo{URL: tag[1]}
-				for _, p := range tag[2:] {
-					if p == "read" {
-						r.Read = true
-					} else if p == "write" {
-						r.Write = true
+				url := tag[1]
+				r := relayMap[url]
+				if len(tag) == 2 {
+					r.read = true
+					r.write = true
+				} else {
+					for _, p := range tag[2:] {
+						if p == "read" {
+							r.read = true
+						} else if p == "write" {
+							r.write = true
+						}
 					}
 				}
-				fp.Relays = append(fp.Relays, r)
+				relayMap[url] = r
 			}
+		}
+		for url, r := range relayMap {
+			fp.Relays = append(fp.Relays, RelayInfo{URL: url, Read: r.read, Write: r.write})
 		}
 	}
 
-	dmRelays, _ := FetchRecipientDMRelays(ctx, opts.App, pubKey)
+	dmRelays, _ := FetchRecipientDMRelays(ctx, opts.App, pubKey, relays)
 	if dmRelays != nil {
 		fp.DMRelays = dmRelays
 	}
@@ -346,13 +388,15 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   1,
 	}
-	followResult := opts.App.Pool().QuerySingle(ctx, knownRelays, followFilter, nostr.SubscriptionOptions{})
+	followResult := opts.App.Pool().QuerySingle(ctx, relays, followFilter, nostr.SubscriptionOptions{})
 	if followResult != nil && followResult.Event.ID != [32]byte{} {
 		for _, tag := range followResult.Event.Tags {
 			if len(tag) >= 2 && tag[0] == "p" {
 				pkHex := tag[1]
-				var pk nostr.PubKey
-				copy(pk[:], []byte(pkHex))
+				pk, err := nostr.PubKeyFromHex(pkHex)
+				if err != nil {
+					continue
+				}
 				fi := FollowInfo{
 					PubKey: pkHex,
 					NPub:   nip19.EncodeNpub(pk),
@@ -373,7 +417,7 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   1,
 	}
-	communityResult := opts.App.Pool().QuerySingle(ctx, knownRelays, communityFilter, nostr.SubscriptionOptions{})
+	communityResult := opts.App.Pool().QuerySingle(ctx, relays, communityFilter, nostr.SubscriptionOptions{})
 	if communityResult != nil && communityResult.Event.ID != [32]byte{} {
 		for _, tag := range communityResult.Event.Tags {
 			if len(tag) >= 2 && tag[0] == "a" && len(tag[1]) > 0 {
@@ -391,7 +435,7 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 		Authors: []nostr.PubKey{pubKey},
 		Limit:   1,
 	}
-	hashtagResult := opts.App.Pool().QuerySingle(ctx, knownRelays, hashtagFilter, nostr.SubscriptionOptions{})
+	hashtagResult := opts.App.Pool().QuerySingle(ctx, relays, hashtagFilter, nostr.SubscriptionOptions{})
 	if hashtagResult != nil && hashtagResult.Event.ID != [32]byte{} {
 		for _, tag := range hashtagResult.Event.Tags {
 			if len(tag) >= 2 && tag[0] == "t" {
