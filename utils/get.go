@@ -204,24 +204,7 @@ func GetProfileName(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 	}
 
 	profile := GetProfile(ctx, pubKey, opts)
-	if profile == nil {
-		return ""
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(profile.Content), &data); err == nil {
-		if name, ok := data["name"].(string); ok && name != "" {
-			return name
-		}
-	}
-
-	for _, tag := range profile.Tags {
-		if len(tag) >= 2 && tag[0] == "name" {
-			return tag[1]
-		}
-	}
-
-	return ""
+	return extractProfileName(profile)
 }
 
 func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
@@ -256,24 +239,7 @@ func GetProfileNameAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOpti
 	}
 
 	profile := GetProfileAsync(ctx, pubKey, opts)
-	if profile == nil {
-		return ""
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(profile.Content), &data); err == nil {
-		if name, ok := data["name"].(string); ok && name != "" {
-			return name
-		}
-	}
-
-	for _, tag := range profile.Tags {
-		if len(tag) >= 2 && tag[0] == "name" {
-			return tag[1]
-		}
-	}
-
-	return ""
+	return extractProfileName(profile)
 }
 
 func GetProfileAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nostr.Event {
@@ -321,6 +287,75 @@ func GetProfileAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions)
 	}
 
 	return &result.Event
+}
+
+func GetProfiles(ctx context.Context, pubKeys []nostr.PubKey, opts *GetOptions) map[nostr.PubKey]*nostr.Event {
+	if opts == nil || opts.App == nil || len(pubKeys) == 0 {
+		return nil
+	}
+
+	filter := nostr.Filter{
+		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
+		Authors: pubKeys,
+		Limit:   1,
+	}
+
+	relays := opts.Relays
+	if len(relays) == 0 {
+		relays = opts.App.AllReadableRelays()
+	}
+	if len(relays) == 0 {
+		return nil
+	}
+
+	ctxQuery, cancelQuery := context.WithTimeout(ctx, opts.App.QueryTimeout())
+	defer cancelQuery()
+
+	results := opts.App.Pool().FetchManyReplaceable(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+
+	profiles := make(map[nostr.PubKey]*nostr.Event)
+	results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
+		profiles[ev.PubKey] = &ev
+		CacheEvent(&ev, opts.App)
+		return true
+	})
+
+	return profiles
+}
+
+func GetProfileNames(ctx context.Context, pubKeys []nostr.PubKey, opts *GetOptions) map[nostr.PubKey]string {
+	profiles := GetProfiles(ctx, pubKeys, opts)
+	if len(profiles) == 0 {
+		return nil
+	}
+
+	names := make(map[nostr.PubKey]string)
+	for pk, profile := range profiles {
+		names[pk] = extractProfileName(profile)
+	}
+
+	return names
+}
+
+func extractProfileName(profile *nostr.Event) string {
+	if profile == nil {
+		return ""
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(profile.Content), &data); err == nil {
+		if name, ok := data["name"].(string); ok && name != "" {
+			return name
+		}
+	}
+
+	for _, tag := range profile.Tags {
+		if len(tag) >= 2 && tag[0] == "name" {
+			return tag[1]
+		}
+	}
+
+	return ""
 }
 
 func GetEventAsync(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr.Event {
