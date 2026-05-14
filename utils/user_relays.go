@@ -9,6 +9,33 @@ import (
 	"github.com/jerry-harm/nosmec/logger"
 )
 
+// VerifyRelayConnectivity checks if a relay can be connected to.
+func VerifyRelayConnectivity(ctx context.Context, url string) (bool, error) {
+	relay := nostr.NewRelay(ctx, url, nostr.RelayOptions{})
+	if err := relay.Connect(ctx); err != nil {
+		return false, nil
+	}
+	return relay.IsConnected(), nil
+}
+
+// VerifyRelaysConnectivity filters out unreachable relays from a list.
+func VerifyRelaysConnectivity(ctx context.Context, app *config.AppContext, urls []string) ([]string, error) {
+	if len(urls) == 0 {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, app.QueryTimeout())
+	defer cancel()
+
+	var reachable []string
+	for _, url := range urls {
+		if ok, _ := VerifyRelayConnectivity(ctx, url); ok {
+			reachable = append(reachable, url)
+		}
+	}
+	return reachable, nil
+}
+
 // DiscoverUserRelays queries both local relay (cache) and remote relays
 // for a user's NIP-65 relay list. Kind 10002 is a replaceable event.
 func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error) {
@@ -18,13 +45,11 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 		Limit:   1,
 	}
 
-	// Query local relay + known relays in one call
 	relays := app.AllReadableRelays()
 	if len(relays) == 0 {
 		return nil, nil
 	}
 
-	// Kind 10002 is replaceable - use FetchManyReplaceable
 	results := app.Pool().FetchManyReplaceable(ctx, relays, filter, nostr.SubscriptionOptions{})
 
 	var event *nostr.Event
@@ -39,16 +64,16 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 
 	readRelays, writeRelays := nip65.ParseRelayList(*event)
 
-	// Backup to local relay
+	reachableRead, _ := VerifyRelaysConnectivity(ctx, app, readRelays)
+	reachableWrite, _ := VerifyRelaysConnectivity(ctx, app, writeRelays)
+
 	CacheEvent(event, app)
 
-	// Register discovered relays in pool
-	EnsureRelays(app, readRelays)
-	EnsureRelays(app, writeRelays)
+	EnsureRelays(app, reachableRead)
+	EnsureRelays(app, reachableWrite)
 
-	// Track in known relays for future connections
-	app.TrackRelays(readRelays)
-	app.TrackRelays(writeRelays)
+	app.TrackRelays(reachableRead)
+	app.TrackRelays(reachableWrite)
 
 	return readRelays, nil
 }
