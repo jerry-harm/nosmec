@@ -33,7 +33,6 @@ type RelayInfo struct {
 }
 
 type FollowInfo struct {
-	PubKey  string `json:"pubkey"`
 	NPub    string `json:"npub"`
 	Relay   string `json:"relay,omitempty"`
 	Petname string `json:"petname,omitempty"`
@@ -398,8 +397,7 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 					continue
 				}
 				fi := FollowInfo{
-					PubKey: pkHex,
-					NPub:   nip19.EncodeNpub(pk),
+					NPub: nip19.EncodeNpub(pk),
 				}
 				if len(tag) >= 3 {
 					fi.Relay = tag[2]
