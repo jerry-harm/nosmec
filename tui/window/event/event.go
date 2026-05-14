@@ -62,16 +62,17 @@ type eventKeyMap struct {
 	follow  key.Binding
 	open    key.Binding
 	rawjson key.Binding
+	thread  key.Binding
 	quit    key.Binding
 }
 
 func (k eventKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.reply, k.quote, k.delete, k.follow, k.open, k.rawjson, k.quit}
+	return []key.Binding{k.reply, k.quote, k.delete, k.follow, k.open, k.rawjson, k.thread, k.quit}
 }
 
 func (k eventKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.reply, k.quote, k.delete, k.follow, k.open, k.rawjson, k.quit},
+		{k.reply, k.quote, k.delete, k.follow, k.open, k.rawjson, k.thread, k.quit},
 	}
 }
 
@@ -147,6 +148,7 @@ func (m *EventView) initKeyBindings() {
 		follow:  key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
 		open:    key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open")),
 		rawjson: key.NewBinding(key.WithKeys("j"), key.WithHelp("j", "json")),
+		thread:  key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "thread")),
 		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 	}
 	m.help = help.New()
@@ -160,6 +162,7 @@ func (m *EventView) initToolkit() {
 	m.tk.KeymapAdd("follow", "follow", "f")
 	m.tk.KeymapAdd("open", "open in browser", "o")
 	m.tk.KeymapAdd("rawjson", "raw json", "j")
+	m.tk.KeymapAdd("thread", "thread view", "t")
 	m.tk.KeymapAdd("quit", "close", "esc")
 
 	m.tk.SetMsgHandling(WindowID, m.handleMsg)
@@ -221,6 +224,8 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 			m.showRawJSON = !m.showRawJSON
 			logger.Debug("toggled showRawJSON", "showRawJSON", m.showRawJSON)
 			return nil
+		case "t":
+			return m.thread()
 		case "esc":
 			logger.Debug("ESC pressed, sending CloseMsg")
 			return func() tea.Msg { return CloseMsg{} }
@@ -251,6 +256,17 @@ func (m *EventView) quote() tea.Cmd {
 	composeModel := compose.NewModel(m.app)
 	composeModel.AddQuote(m.event)
 	return bubblon.Open(composeModel)
+}
+
+func (m *EventView) thread() tea.Cmd {
+	if m.event == nil {
+		return nil
+	}
+	if m.ctrl == nil {
+		return nil
+	}
+	threadView := NewThreadView(m.event, m.app, m.width, m.height, m.ctrl)
+	return bubblon.Open(threadView)
 }
 
 func (m *EventView) delete() tea.Cmd {
