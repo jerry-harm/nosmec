@@ -635,13 +635,15 @@ func (m *model) renderView() string {
 	if m.tagInput.Focused() && m.editingTagIndex < 0 {
 		b.WriteString("  > ")
 		b.WriteString(m.tagInput.View())
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 		b.WriteString(m.styles.help.Render("  enter: add tag | tab: next field | backspace: delete\n"))
 	} else if m.tagInput.Focused() {
+		b.WriteString("\n")
 		b.WriteString(m.styles.help.Render("  enter: add tag | tab: next field | backspace: delete\n"))
 	} else if !m.tagInput.Focused() {
 		b.WriteString("  >\n")
 	}
+	b.WriteString("\n")
 	b.WriteString(m.styles.inputArea.Render(m.contentInput.View()))
 
 	b.WriteString(m.help.View(m.keys))
