@@ -184,7 +184,7 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 		},
 	})
 
-	m.spinner = spinner.New()
+	m.spinner = spinner.New(spinner.WithSpinner(spinner.Dot))
 	m.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 
 	return m
