@@ -9,6 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"github.com/jerry-harm/nosmec/tui/bubblon"
@@ -50,6 +51,7 @@ type model struct {
 	kindInput    textinput.Model
 	contentInput textarea.Model
 	tagInput     textinput.Model
+	spinner      spinner.Model
 
 	tags              []Tag
 	editingTagIndex   int
@@ -182,6 +184,9 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 		},
 	})
 
+	m.spinner = spinner.New()
+	m.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+
 	return m
 }
 
@@ -218,8 +223,6 @@ func (m *model) ClearDraft() {
 	m.success = false
 }
 
-var _ tea.Model = (*model)(nil)
-
 func (m *model) Init() tea.Cmd {
 	m.kindInput.Focus()
 	return tea.Batch(
@@ -246,16 +249,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tagInput.SetWidth(msg.Width - 4)
 		return m, nil
 
+	case spinner.TickMsg:
+		newSpinner, cmd := m.spinner.Update(msg)
+		m.spinner = newSpinner
+		cmds = append(cmds, cmd)
+
 	case sendErrorMsg:
 		m.errMsg = msg.err
-		m.statusMsg = "Error: " + msg.err
-		return m, tea.Batch(
-			tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
-				m.sending = false
-				m.statusMsg = ""
-				return nil
-			}),
-		)
+		m.statusMsg = "Failed: " + msg.err
+		m.sending = false
+		return m, tea.Quit
 
 	case sendSuccessMsg:
 		m.success = true
@@ -266,12 +269,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	if m.sending {
+		return m, tea.Batch(cmds...)
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if m.sending {
-			return m, nil
-		}
-
 		if key.Matches(msg, m.keys.kill) {
 			os.Exit(0)
 		}
@@ -345,7 +348,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				content := m.contentInput.Value()
 				if content = strings.TrimSpace(content); content != "" {
 					m.sending = true
-					return m, m.sendContent(content)
+					spinnerTick := func() tea.Msg { return m.spinner.Tick() }
+					return m, tea.Batch(
+						spinnerTick,
+						m.sendContent(content),
+					)
 				}
 			}
 		}
@@ -512,17 +519,28 @@ func (m *model) sendContent(content string) tea.Cmd {
 			return sendErrorMsg{err: err.Error()}
 		}
 
+		var failedRelays []string
+		var hasSuccess bool
+
 		writableRelays := m.app.AllWritableRelays()
 		if len(writableRelays) > 0 {
 			resultChan := m.app.Pool().PublishMany(ctx, writableRelays, *event)
 			for result := range resultChan {
 				if result.Error != nil {
-					return sendErrorMsg{err: fmt.Errorf("failed to publish to %s: %w", result.RelayURL, result.Error).Error()}
+					failedRelays = append(failedRelays, result.RelayURL)
+				} else {
+					hasSuccess = true
 				}
 			}
+		} else {
+			hasSuccess = true
 		}
 
-		return sendSuccessMsg{eventID: event.ID.Hex()}
+		if hasSuccess {
+			return sendSuccessMsg{eventID: event.ID.Hex()}
+		}
+
+		return sendErrorMsg{err: strings.Join(failedRelays, ", ")}
 	}
 }
 
@@ -554,17 +572,12 @@ func (m *model) parseKind() nostr.Kind {
 
 
 func (m *model) renderSendingOverlay() string {
-	var msg string
-	if m.statusMsg != "" {
-		msg = m.statusMsg
-	} else {
-		msg = "Sending..."
-	}
-
 	var b strings.Builder
 	b.WriteString(m.styles.header.Render(m.renderHeader()))
 	b.WriteString("\n\n")
-	b.WriteString(m.styles.statusText.Render(msg))
+	b.WriteString(m.styles.statusText.Render("Sending..."))
+	b.WriteString(" ")
+	b.WriteString(m.spinner.View())
 	b.WriteString("\n\n")
 
 	return b.String()
