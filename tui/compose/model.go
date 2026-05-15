@@ -358,16 +358,20 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if tagValue != "" {
 					if m.editingTagIndex < 0 {
 						m.tags = append(m.tags, Tag{tagValue})
+						m.editingTagIndex = len(m.tags) - 1
+						m.editingItemIndex = 1
 					} else {
 						tag := m.tags[m.editingTagIndex]
 						if m.editingItemIndex >= len(tag) {
 							m.tags[m.editingTagIndex] = append(tag, tagValue)
+							m.editingItemIndex = len(m.tags[m.editingTagIndex])
 						} else {
 							newTag := make([]string, len(tag)+1)
 							copy(newTag, tag[:m.editingItemIndex])
 							newTag[m.editingItemIndex] = tagValue
 							copy(newTag[m.editingItemIndex+1:], tag[m.editingItemIndex:])
 							m.tags[m.editingTagIndex] = newTag
+							m.editingItemIndex++
 						}
 					}
 				}
@@ -390,7 +394,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.editingItemIndex = len(m.tags[m.editingTagIndex])
 				} else if m.editingItemIndex > 0 {
-					newTag := append(tag[:m.editingItemIndex-1], tag[m.editingItemIndex:]...)
+					newTag := append(tag[:m.editingItemIndex], tag[m.editingItemIndex+1:]...)
 					m.tags[m.editingTagIndex] = newTag
 					m.editingItemIndex--
 				} else {

@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/05-15-compose-tag-input-refactor/prd.md", "note": "verify all acceptance criteria, especially SplitN fix and prompt-as-label UX"}
+{"file": "tui/compose/model.go", "note": "check parseTagInput line 539 uses SplitN, tagInput prompt set correctly, view renders hint line"}
+{"file": "tui/compose/model_test.go", "note": "23 existing pure function tests still pass, no new test needed for parseTagInput SplitN since existing test covers it"}

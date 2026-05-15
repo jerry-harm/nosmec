@@ -3,142 +3,191 @@ package compose
 import (
 	"testing"
 
+	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
-	"fiatjaf.com/nostr"
+	"charm.land/bubbletea/v2"
 )
 
-func TestParseKind_Default(t *testing.T) {
-	m := &model{composeKind: KindNote}
-	got := m.parseKind()
-	if got != 1 {
-		t.Errorf("KindNote default = %d, want 1", got)
-	}
-}
-
-func TestParseKind_Reply(t *testing.T) {
-	m := &model{composeKind: KindReply}
-	got := m.parseKind()
-	if got != 1111 {
-		t.Errorf("KindReply with nil parent = %d, want 1111 (nostr.KindComment)", got)
-	}
-}
-
-func TestParseKind_ReplyWithParent(t *testing.T) {
-	parentEvent := &nostr.Event{Kind: 1}
-	m := &model{composeKind: KindReply, parentEvent: parentEvent}
-	got := m.parseKind()
-	if got != 1 {
-		t.Errorf("KindReply with parent Kind=1 = %d, want 1", got)
-	}
-}
-
-func TestParseKind_Community(t *testing.T) {
-	m := &model{composeKind: KindCommunity}
-	got := m.parseKind()
-	if got != 1111 {
-		t.Errorf("KindCommunity = %d, want 1111 (nostr.KindComment)", got)
-	}
-}
-
-func TestParseKind_Explicit(t *testing.T) {
-	m := &model{kindInput: textinput.Model{}}
-	m.kindInput.SetValue("3")
-
-	got := m.parseKind()
-	if got != 3 {
-		t.Errorf("parseKind() = %d, want 3", got)
-	}
-}
-
-func TestParseKind_ExplicitInvalid(t *testing.T) {
-	m := &model{kindInput: textinput.Model{}}
-	m.kindInput.SetValue("abc")
-
-	got := m.parseKind()
-	if got != 1 {
-		t.Errorf("parseKind() with invalid = %d, want 1 (default)", got)
-	}
-}
-
-func TestAddReply(t *testing.T) {
-	parent := &nostr.Event{
-		ID:    [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-		PubKey: [32]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
-		Kind: 1,
-	}
+func TestTagAdd_NewTag(t *testing.T) {
 	m := &model{}
-	m.AddReply(parent)
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.tags = []Tag{{"e", "event1"}}
+	m.editingTagIndex = -1
+	m.editingItemIndex = -1
+	m.tagInput.Focus()
+	m.tagInput.SetValue("newtag")
 
-	if m.composeKind != KindReply {
-		t.Errorf("composeKind = %v, want KindReply", m.composeKind)
-	}
-	if m.parentEvent != parent {
-		t.Errorf("parentEvent not set correctly")
-	}
-	if m.parentID != parent.ID.Hex() {
-		t.Errorf("parentID = %q, want %q", m.parentID, parent.ID.Hex())
-	}
+	msg := tea.KeyPressMsg{Text: "enter"}
+	m.Update(msg)
+
 	if len(m.tags) != 2 {
-		t.Fatalf("len(m.tags) = %d, want 2", len(m.tags))
+		t.Errorf("len(m.tags) = %d, want 2", len(m.tags))
 	}
-	if m.tags[0][0] != "e" || m.tags[0][1] != parent.ID.Hex() {
-		t.Errorf("tags[0] = %v, want e-tag with parent ID", m.tags[0])
-	}
-	if m.tags[1][0] != "p" || m.tags[1][1] != parent.PubKey.Hex() {
-		t.Errorf("tags[1] = %v, want p-tag with parent PubKey", m.tags[1])
+	if m.tags[1][0] != "newtag" {
+		t.Errorf("m.tags[1][0] = %q, want 'newtag'", m.tags[1][0])
 	}
 }
 
-func TestAddQuote(t *testing.T) {
-	parent := &nostr.Event{
-		ID:    [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-		PubKey: [32]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
-		Kind: 1,
-	}
+func TestTagAdd_AppendToExisting(t *testing.T) {
 	m := &model{}
-	m.AddQuote(parent)
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.tags = []Tag{{"e", "event1"}}
+	m.editingTagIndex = 0
+	m.editingItemIndex = 2
+	m.tagInput.Focus()
+	m.tagInput.SetValue("relay1")
 
-	if m.composeKind != KindQuote {
-		t.Errorf("composeKind = %v, want KindQuote", m.composeKind)
+	msg := tea.KeyPressMsg{Text: "enter"}
+	m.Update(msg)
+
+	if len(m.tags[0]) != 3 {
+		t.Errorf("len(m.tags[0]) = %d, want 3", len(m.tags[0]))
 	}
-	if m.parentEvent != parent {
-		t.Errorf("parentEvent not set correctly")
-	}
-	if m.quotedID != parent.ID.Hex() {
-		t.Errorf("quotedID = %q, want %q", m.quotedID, parent.ID.Hex())
-	}
-	if len(m.tags) != 1 {
-		t.Fatalf("len(m.tags) = %d, want 1", len(m.tags))
-	}
-	if m.tags[0][0] != "q" || m.tags[0][1] != parent.ID.Hex() {
-		t.Errorf("tags[0] = %v, want q-tag with quoted ID", m.tags[0])
+	if m.tags[0][2] != "relay1" {
+		t.Errorf("m.tags[0][2] = %q, want 'relay1'", m.tags[0][2])
 	}
 }
 
-// Note: ClearDraft calls contentInput.SetValue("") which panics on
-// uninitialized textarea (nil viewport). Requires full tea.App
-// initialization. Covered by AddReply+Update integration tests in the future.
+func TestTagAdd_InsertAtMiddle(t *testing.T) {
+	m := &model{}
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.tags = []Tag{{"e", "a", "c"}}
+	m.editingTagIndex = 0
+	m.editingItemIndex = 1
+	m.tagInput.Focus()
+	m.tagInput.SetValue("b")
 
-func TestRenderHeader(t *testing.T) {
-	tests := []struct {
-		name string
-		kind ComposeKind
-		addr string
-		want string
-	}{
-		{"KindNote", KindNote, "", "New Note"},
-		{"KindReply", KindReply, "", "Reply"},
-		{"KindQuote", KindQuote, "", "Quote"},
-		{"KindCommunity", KindCommunity, "cool.nfx", "Community: cool.nfx"},
+	msg := tea.KeyPressMsg{Text: "enter"}
+	m.Update(msg)
+
+	if len(m.tags[0]) != 4 {
+		t.Errorf("len(m.tags[0]) = %d, want 4", len(m.tags[0]))
 	}
+	if m.tags[0][0] != "e" || m.tags[0][1] != "b" || m.tags[0][2] != "a" || m.tags[0][3] != "c" {
+		t.Errorf("m.tags[0] = %v, want [e b a c]", m.tags[0])
+	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &model{composeKind: tt.kind, communityAddr: tt.addr}
-			got := m.renderHeader()
-			if got != tt.want {
-				t.Errorf("renderHeader() = %q, want %q", got, tt.want)
-			}
-		})
+func TestTagBackspace_AtAppendPosition(t *testing.T) {
+	m := &model{}
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.tags = []Tag{{"e", "a", "b"}}
+	m.editingTagIndex = 0
+	m.editingItemIndex = 3
+	m.tagInput.Focus()
+	m.tagInput.SetValue("")
+
+	msg := tea.KeyPressMsg{Text: "backspace"}
+	m.Update(msg)
+
+	if len(m.tags[0]) != 2 {
+		t.Errorf("len(m.tags[0]) = %d, want 2", len(m.tags[0]))
+	}
+	if m.tags[0][0] != "e" || m.tags[0][1] != "a" {
+		t.Errorf("m.tags[0] = %v, want [e a]", m.tags[0])
+	}
+	if m.editingItemIndex != 2 {
+		t.Errorf("m.editingItemIndex = %d, want 2", m.editingItemIndex)
+	}
+}
+
+func TestTagBackspace_AtMiddleItem(t *testing.T) {
+	m := &model{}
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.tags = []Tag{{"e", "a", "b", "c"}}
+	m.editingTagIndex = 0
+	m.editingItemIndex = 2
+	m.tagInput.Focus()
+	m.tagInput.SetValue("")
+
+	msg := tea.KeyPressMsg{Text: "backspace"}
+	m.Update(msg)
+
+	if len(m.tags[0]) != 3 {
+		t.Errorf("len(m.tags[0]) = %d, want 3", len(m.tags[0]))
+	}
+	if m.tags[0][0] != "e" || m.tags[0][1] != "a" || m.tags[0][2] != "c" {
+		t.Errorf("m.tags[0] = %v, want [e a c]", m.tags[0])
+	}
+	if m.editingItemIndex != 1 {
+		t.Errorf("m.editingItemIndex = %d, want 1", m.editingItemIndex)
+	}
+}
+
+func TestTagBackspace_AtFirstItemDeletesTag(t *testing.T) {
+	m := &model{}
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.tags = []Tag{{"e", "event1"}, {"p", "pubkey1"}}
+	m.editingTagIndex = 0
+	m.editingItemIndex = 0
+	m.tagInput.Focus()
+	m.tagInput.SetValue("")
+
+	msg := tea.KeyPressMsg{Text: "backspace"}
+	m.Update(msg)
+
+	if len(m.tags) != 2 {
+		t.Errorf("len(m.tags) = %d, want 2", len(m.tags))
+	}
+	if m.tags[0][0] != "event1" {
+		t.Errorf("m.tags[0] = %v, want [event1]", m.tags[0])
+	}
+	if m.editingItemIndex != 0 {
+		t.Errorf("m.editingItemIndex = %d, want 0", m.editingItemIndex)
+	}
+}
+
+func TestTagTab_EmptySlotGoesToContent(t *testing.T) {
+	m := &model{}
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.contentInput = textarea.New()
+	m.kindInput = textinput.New()
+	m.tags = []Tag{{"e", "event1"}}
+	m.editingTagIndex = -1
+	m.editingItemIndex = -1
+	m.tagInput.Focus()
+	m.tagInput.SetValue("")
+
+	msg := tea.KeyPressMsg{Text: "tab"}
+	m.Update(msg)
+
+	if m.tagInput.Focused() {
+		t.Errorf("tagInput should be blurred")
+	}
+	if !m.contentInput.Focused() {
+		t.Errorf("contentInput should be focused")
+	}
+	if m.editingTagIndex != -1 {
+		t.Errorf("m.editingTagIndex = %d, want -1", m.editingTagIndex)
+	}
+}
+
+func TestTagShiftTab_EmptySlotGoesToPreviousTag(t *testing.T) {
+	m := &model{}
+	m.keys = newKeyMap()
+	m.tagInput = textinput.New()
+	m.contentInput = textarea.New()
+	m.kindInput = textinput.New()
+	m.tags = []Tag{{"e", "event1"}, {"p", "pubkey1"}}
+	m.editingTagIndex = 1
+	m.editingItemIndex = 0
+	m.tagInput.Focus()
+	m.tagInput.SetValue("")
+
+	msg := tea.KeyPressMsg{Text: "shift+tab"}
+	m.Update(msg)
+
+	if m.editingTagIndex != 0 {
+		t.Errorf("m.editingTagIndex = %d, want 0", m.editingTagIndex)
+	}
+	if m.editingItemIndex != 2 {
+		t.Errorf("m.editingItemIndex = %d, want 2", m.editingItemIndex)
 	}
 }

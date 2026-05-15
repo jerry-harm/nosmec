@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/05-15-compose-tag-input-refactor/prd.md", "note": "full PRD with requirements, page design, technical approach"}
+{"file": ".trellis/tasks/05-15-compose-tag-input-refactor/research/pop-tag-ux.md", "note": "pop reference: prompt-as-label pattern, state-driven styling, no borders"}
+{"file": ".trellis/tasks/05-15-tddsystematic/research/parseTagInput-separator.md", "note": "bug: SplitN fix for URL preservation"}
+{"file": "tui/compose/model.go", "note": "parseTagInput line 539, renderView lines 613-632, tagInput prompt management"}
