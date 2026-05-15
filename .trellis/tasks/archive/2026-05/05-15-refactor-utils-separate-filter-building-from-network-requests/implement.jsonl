@@ -1,0 +1,14 @@
+[
+  {
+    "name": "extract-filter-builders",
+    "notes": "Extract BuildNoteFilter, BuildPostFilter, BuildProfileFilter etc. from get.go"
+  },
+  {
+    "name": "refactor-get-functions",
+    "notes": "Rewrite GetNote, GetPost, GetProfile to use builders + nostr SDK directly"
+  },
+  {
+    "name": "add-filter-builder-tests",
+    "notes": "Pure function table-driven tests for all filter builders"
+  }
+]
