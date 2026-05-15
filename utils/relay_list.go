@@ -152,9 +152,8 @@ func publishRelayListMetadata(ctx context.Context, app *config.AppContext, secre
 		read := relay.Read != nil && *relay.Read
 		write := relay.Write != nil && *relay.Write
 		if read && write {
-			continue
-		}
-		if read {
+			tags = append(tags, nostr.Tag{"r", relay.URL})
+		} else if read {
 			tags = append(tags, nostr.Tag{"r", relay.URL, "read"})
 		} else if write {
 			tags = append(tags, nostr.Tag{"r", relay.URL, "write"})
