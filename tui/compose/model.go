@@ -243,7 +243,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.contentInput.SetWidth(msg.Width - 4)
-		m.contentInput.SetHeight(10)
 		m.tagInput.SetWidth(msg.Width - 4)
 		return m, nil
 
