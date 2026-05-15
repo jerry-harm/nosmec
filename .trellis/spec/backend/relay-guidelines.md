@@ -279,8 +279,5 @@ nosmec config dm-relay sync         # then PublishRelayList
 
 ## Files
 
-- `utils/relay_list.go` — `PublishRelayList`, `SyncRelaysFromNetwork`
-- `utils/user_relays.go` — `DiscoverUserRelays`, `EnsureRelays`
-- `config/types.go` — relay config structs
-- `config/context.go` — relay helper methods, `TrackRelays`, `Close`
+- `utils/filters.go` — pure filter builder functions (no side effects, unit-testable without mocks)
 - `utils/get.go` — `GetEvent`, `GetProfile`, relay selection strategy

@@ -84,6 +84,58 @@ if err != nil {
 
 **Prevention**: Always use `nostr.IDFromHex()`, `nostr.PubKeyFromHex()`, `nostr.SecretKeyFromHex()` for hex-to-type conversions.
 
+### Filter Builder Validation
+
+**Symptom**: `nostr.IDFromHex()` accepts any 64-character string without error, even invalid hex like `"gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"`.
+
+**Bug Location**: Any filter builder that calls `nostr.IDFromHex()` without pre-validation.
+
+**Correct**:
+```go
+var noteIDRegex = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
+
+func BuildNoteFilter(noteID string) (nostr.Filter, error) {
+    if noteID == "" || !noteIDRegex.MatchString(noteID) {
+        return nostr.Filter{}, ErrInvalidNoteID
+    }
+    id, err := nostr.IDFromHex(noteID)
+    if err != nil {
+        return nostr.Filter{}, ErrInvalidNoteID
+    }
+    return nostr.Filter{IDs: []nostr.ID{id}, Limit: 1}, nil
+}
+```
+
+**Why**: `nostr.IDFromHex` treats any 64-char string as valid hex (uppercase A-F are also valid digits in hex). A regex validation before the call ensures early rejection of obviously invalid inputs.
+
+**Prevention**: Always validate hex string format (64 chars, only 0-9a-fA-F) before calling `nostr.IDFromHex()`/`nostr.PubKeyFromHex()`.
+
+### Pure Filter Builders Enable Unit Testing Without Mocks
+
+**Pattern**: Extract filter-building logic into pure functions separate from network request orchestration. Filter builders return `nostr.Filter` structs with no side effects, making them directly testable without mocking `nostr.Pool`.
+
+```go
+// utils/filters.go — pure, testable
+func BuildNoteFilter(noteID string) (nostr.Filter, error) { ... }
+func BuildProfileFilter(pubKey nostr.PubKey) nostr.Filter { ... }
+
+// utils/get.go — composes builders + nostr SDK
+func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
+    filter, err := BuildNoteFilter(noteID)  // tested via table-driven tests
+    if err != nil {
+        return nil
+    }
+    return GetEvent(ctx, filter, opts)  // network orchestration
+}
+```
+
+**Why this pattern**:
+- Pure functions (no network, no cache, no side effects) are unit-testable without mocks
+- `nostr.Filter` is a data structure — builders that return it are inherently pure
+- Network orchestration stays in the original functions which require the full stack
+
+**Files**: `utils/filters.go`, `utils/filters_test.go`, `utils/get.go`
+
 ---
 
 ## Required Patterns
