@@ -613,9 +613,10 @@ func (m *model) renderView() string {
 			}
 			if m.editingItemIndex >= len(tag) {
 				if len(tag) > 0 {
-					b.WriteString(fmt.Sprintf("  [%s] %s\n", tag[0], strings.Join(tag[1:], ", ")))
+					b.WriteString(fmt.Sprintf("  [%s] %s >", tag[0], strings.Join(tag[1:], ", ")))
+				} else {
+					b.WriteString("  > ")
 				}
-				b.WriteString("  > ")
 				b.WriteString(m.tagInput.View())
 				b.WriteString("\n")
 			}
@@ -629,9 +630,9 @@ func (m *model) renderView() string {
 		b.WriteString("  > ")
 		b.WriteString(m.tagInput.View())
 		b.WriteString("\n")
-		b.WriteString("  enter: add tag | tab: next field | backspace: delete\n")
+		b.WriteString(m.styles.help.Render("  enter: add tag | tab: next field | backspace: delete\n"))
 	} else if m.tagInput.Focused() {
-		b.WriteString("  enter: add tag | tab: next field | backspace: delete\n")
+		b.WriteString(m.styles.help.Render("  enter: add tag | tab: next field | backspace: delete\n"))
 	} else if !m.tagInput.Focused() {
 		b.WriteString("  >\n")
 	}
