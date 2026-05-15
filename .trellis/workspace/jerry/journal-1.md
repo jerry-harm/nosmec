@@ -945,3 +945,44 @@ Extracted pure filter builder functions (BuildNoteFilter, BuildProfileFilter, et
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: Compose tag input UX refactor
+
+**Date**: 2026-05-15
+**Task**: Compose tag input UX refactor
+**Branch**: `main`
+
+### Summary
+
+Refactored compose tag input UX: Tag as []string with item-level editing, removed parseTagInput. Fixed backspace slice bug, proper test initialization, placeholder/hint/spacing/layout fixes. All tests passing.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1978167` | (see git log) |
+| `3e39400` | (see git log) |
+| `55f1b99` | (see git log) |
+| `52e6ac2` | (see git log) |
+| `d19fde5` | (see git log) |
+| `4455015` | (see git log) |
+| `ca9324d` | (see git log) |
+| `7cbef92` | (see git log) |
+| `56b61f3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
