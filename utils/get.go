@@ -152,11 +152,7 @@ func GetProfile(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) *nos
 		return nil
 	}
 
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
-		Authors: []nostr.PubKey{pubKey},
-		Limit:   1,
-	}
+	filter := BuildProfileFilter(pubKey)
 
 	// Build combined relay list: AllReadableRelays + KnownRelays
 	allRelays := opts.App.AllReadableRelays()
@@ -208,27 +204,17 @@ func GetProfileName(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions) 
 }
 
 func GetNote(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
-	id, err := nostr.IDFromHex(noteID)
+	filter, err := BuildNoteFilter(noteID)
 	if err != nil {
 		return nil
-	}
-
-	filter := nostr.Filter{
-		IDs:   []nostr.ID{id},
-		Limit: 1,
 	}
 	return GetEvent(ctx, filter, opts)
 }
 
 func GetNoteAsync(ctx context.Context, noteID string, opts *GetOptions) *nostr.Event {
-	id, err := nostr.IDFromHex(noteID)
+	filter, err := BuildNoteFilter(noteID)
 	if err != nil {
 		return nil
-	}
-
-	filter := nostr.Filter{
-		IDs:   []nostr.ID{id},
-		Limit: 1,
 	}
 	return GetEventAsync(ctx, filter, opts)
 }
@@ -244,14 +230,10 @@ func GetParentEvent(ctx context.Context, event *nostr.Event, opts *GetOptions) *
 	}
 
 	parentID := replyTag[1]
-	id, err := nostr.IDFromHex(parentID)
+
+	filter, err := BuildParentEventFilter(parentID)
 	if err != nil {
 		return nil
-	}
-
-	filter := nostr.Filter{
-		IDs:   []nostr.ID{id},
-		Limit: 1,
 	}
 
 	var relays []string
@@ -294,11 +276,7 @@ func GetProfileAsync(ctx context.Context, pubKey nostr.PubKey, opts *GetOptions)
 		return nil
 	}
 
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
-		Authors: []nostr.PubKey{pubKey},
-		Limit:   1,
-	}
+	filter := BuildProfileFilter(pubKey)
 
 	allRelays := opts.App.AllReadableRelays()
 	knownRelays := opts.App.Config().KnownRelays
@@ -341,11 +319,7 @@ func GetProfiles(ctx context.Context, pubKeys []nostr.PubKey, opts *GetOptions) 
 		return nil
 	}
 
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindProfileMetadata},
-		Authors: pubKeys,
-		Limit:   1,
-	}
+	filter := BuildProfilesFilter(pubKeys)
 
 	relays := opts.Relays
 	if len(relays) == 0 {
@@ -450,14 +424,7 @@ func GetMyTimeline(ctx context.Context, limit int, until nostr.Timestamp, opts *
 		relays = opts.App.AllReadableRelays()
 	}
 
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindTextNote},
-		Authors: []nostr.PubKey{pubKey},
-		Limit:   limit,
-	}
-	if until > 0 {
-		filter.Until = until
-	}
+	filter := BuildTimelineFilter(pubKey, limit, until)
 
 	out := make(chan *nostr.Event)
 	go func() {
@@ -486,13 +453,7 @@ func GetGlobalTimeline(ctx context.Context, limit int, until nostr.Timestamp, op
 		relays = opts.App.Config().KnownRelays
 	}
 
-	filter := nostr.Filter{
-		Kinds: []nostr.Kind{nostr.KindTextNote},
-		Limit: limit,
-	}
-	if until > 0 {
-		filter.Until = until
-	}
+	filter := BuildGlobalTimelineFilter(limit, until)
 
 	out := make(chan *nostr.Event)
 	go func() {
@@ -549,20 +510,7 @@ func GetFollowedTimeline(ctx context.Context, limit int, until nostr.Timestamp, 
 	out := make(chan *nostr.Event)
 	go func() {
 		if len(authors) > 0 || len(communityAddrs) > 0 || len(hashtags) > 0 {
-			kinds := []nostr.Kind{nostr.KindTextNote, nostr.KindComment}
-			filter := nostr.Filter{
-				Kinds: kinds,
-				Limit: limit * 3,
-			}
-			if until > 0 {
-				filter.Until = until
-			}
-			if len(authors) > 0 {
-				filter.Authors = authors
-			}
-			if len(communityAddrs) > 0 {
-				filter.Tags = nostr.TagMap{"a": communityAddrs}
-			}
+			filter := BuildFollowedTimelineFilter(authors, communityAddrs, hashtags, limit, until)
 
 			seen := make(map[nostr.ID]bool)
 			ch := opts.App.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
