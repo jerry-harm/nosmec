@@ -374,6 +374,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							m.editingItemIndex++
 						}
 					}
+				} else {
+					if m.editingTagIndex >= 0 && m.editingItemIndex >= len(m.tags[m.editingTagIndex]) {
+						m.tagInput.Blur()
+						m.contentInput.Focus()
+						m.editingTagIndex = -1
+						m.editingItemIndex = -1
+					}
 				}
 				m.tagInput.SetValue("")
 				return m, nil
@@ -636,10 +643,7 @@ func (m *model) renderView() string {
 	} else if !m.tagInput.Focused() {
 		b.WriteString("  >\n")
 	}
-	b.WriteString(m.styles.fieldLabel.Render("Content:"))
-	b.WriteString("\n")
-	b.WriteString(m.styles.inputArea.Render(m.contentInput.View()))
-	b.WriteString("\n\n")
+	b.WriteString(m.contentInput.View())
 
 	b.WriteString(m.help.View(m.keys))
 
