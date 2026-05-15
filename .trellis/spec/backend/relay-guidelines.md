@@ -82,17 +82,10 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 
 ### Relay List Discovery with Verification
 
-For fetching other's relay lists (not the user's own):
+> **Deprecated**: This approach is no longer used. Relays are now added unconditionally and connectivity is verified only at config save time.
 
-```go
-func DiscoverAndVerifyRelays(ctx context.Context, app *config.AppContext, filter nostr.Filter) ([]string, error)
-```
-
-- Queries relays for events matching the filter (e.g., Kind 10002 from any user)
-- Parses `["r", <url>]` or `["r", <url>, "read"|"write"]` tags
-- Verifies each relay connectivity via `RelayConnect` + `IsConnected`
-- Returns only reachable relays (read + write combined, not distinguished)
-- Returns empty list if all relays unreachable
+Previously (now abandoned):
+- `DiscoverAndVerifyRelays` queried relays for events matching a filter, parsed relay tags, verified connectivity via `RelayConnect` + `IsConnected`, and returned only reachable relays.
 
 ### When KnownRelays Are Updated
 

@@ -1,0 +1,24 @@
+[
+  {
+    "name": "tdd-nostr-operation-tests",
+    "research": ".trellis/tasks/research/test-coverage-audit.md",
+    "spec": ".trellis/spec/backend/quality-guidelines.md",
+    "notes": "Phase 2: Nostr operation tests - publishRelayListMetadata nil pointer, ParseCommunityAddr, ReplyToNote, etc."
+  },
+  {
+    "name": "tdd-tui-bounds-tests",
+    "research": ".trellis/tasks/research/test-coverage-audit.md",
+    "notes": "Phase 3: TUI bounds tests for timeline/model.go, compose/model.go, dm/model.go, thread.go"
+  },
+  {
+    "name": "goleak-test-main",
+    "research": ".trellis/tasks/research/test-coverage-audit.md",
+    "spec": ".trellis/spec/backend/quality-guidelines.md",
+    "notes": "Phase 1: Add TestMain with goleak.VerifyTestMain"
+  },
+  {
+    "name": "utility-coverage-tests",
+    "research": ".trellis/tasks/research/test-coverage-audit.md",
+    "notes": "Phase 4: Cover untested utils - show.go, alias.go"
+  }
+]

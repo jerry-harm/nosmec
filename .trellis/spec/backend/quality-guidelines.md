@@ -104,6 +104,89 @@ Always use SDK-provided conversion functions:
 
 ---
 
+## Testing & TDD
+
+### Core Principle
+
+Tests are **executable specifications** — they constrain behavior, not coverage targets.
+
+**TDD Cycle (Red-Green-Refactor)**:
+1. **RED**: Write failing test first, watch it fail
+2. **GREEN**: Write minimal code to pass
+3. **REFACTOR**: Clean up while staying green
+
+**Iron Rule**: No production code without a failing test first. If code exists before tests, delete and start over.
+
+### Test Quality Requirements
+
+| Requirement | Description |
+|------------|-------------|
+| **Named subtests** | Every `t.Run` needs a `name` field describing the behavior |
+| **Minimal tests** | One assertion per test. "and" in name = split it |
+| **Real code** | Mock only when unavoidable; prefer real behavior |
+| **`require` for guards** | Use `require.New(t)` for preconditions (nil checks, error early returns) |
+| **`assert` for verification** | Use `assert.New(t)` for final state checks |
+| **`t.Parallel()`** | Independent tests should run in parallel |
+| **Goroutine leak detection** | Packages with goroutines need `goleak.VerifyTestMain` in `TestMain` |
+| **Integration build tags** | Tests needing external services use `//go:build integration` |
+
+### Common Patterns
+
+```go
+// Table-driven with named subtests
+tests := []struct {
+    name string
+    input string
+    want  string
+}{
+    {name: "basic case", input: "hello", want: "hello"},
+    {name: "empty string", input: "", want: ""},
+}
+for _, tt := range tests {
+    t.Run(tt.name, func(t *testing.T) {
+        is := assert.New(t)
+        must := require.New(t)
+        // setup with must (stops on failure)
+        result, err := process(tt.input)
+        must.NoError(err)
+        // verify with is
+        is.Equal(tt.want, result)
+    })
+}
+```
+
+### Argument Order (testify)
+
+**Always**: `(expected, actual)` — swapping produces backwards diffs.
+
+### Build Tags
+
+```go
+//go:build integration
+package mypackage_test
+```
+
+Run integration tests: `go test -tags=integration ./...`
+
+### Goroutine Leak Detection
+
+```go
+func TestMain(m *testing.M) {
+    goleak.VerifyTestMain(m)
+}
+```
+
+### Test File Naming
+
+- `package foo` (white-box) → `foo_test.go`
+- `package foo_test` (black-box) → `foo_test.go`
+
+### NIP-50 Extensions Not Blocked by Local Relay
+
+NIP-50 search extensions (`language:`, `domain:`, `nsfw:`, `sentiment:`, `include:spam`) are passed as-is to relays. Our local Bleve only supports basic full-text search — extensions are handled by external relays that support NIP-50.
+
+---
+
 ## NIP-19 Format Convention
 
 All user-facing outputs (CLI, TUI, logs) MUST use NIP-19 bech32 format:
