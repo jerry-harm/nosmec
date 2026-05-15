@@ -643,7 +643,7 @@ func (m *model) renderView() string {
 	} else if !m.tagInput.Focused() {
 		b.WriteString("  >\n")
 	}
-	b.WriteString(m.contentInput.View())
+	b.WriteString(m.styles.inputArea.Render(m.contentInput.View()))
 
 	b.WriteString(m.help.View(m.keys))
 
