@@ -1,0 +1,19 @@
+[
+  {
+    "name": "add-dependencies",
+    "notes": "Add testify and gomock dependencies"
+  },
+  {
+    "name": "research-mock-patterns",
+    "research": ".trellis/tasks/05-15-implement-mock-test-infrastructure-for-tdd-tests/research/mock-patterns.md",
+    "notes": "gmock pattern for concrete types"
+  },
+  {
+    "name": "create-testutil",
+    "notes": "testutil package with MockAppContext"
+  },
+  {
+    "name": "write-mock-tests",
+    "notes": "TDD tests for GetPost, GetParentPostInfo, ReplyToNote"
+  }
+]
