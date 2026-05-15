@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 27
-- **Last Active**: 2026-05-14
+- **Total Sessions**: 28
+- **Last Active**: 2026-05-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~913 | Active |
+| `journal-1.md` | ~947 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 28 | 2026-05-15 | Extract filter builders from get.go for pure-unit-testability | `def8019`, `0bf9151` | `main` |
 | 27 | 2026-05-14 | Relay design doc: event hints, discovery patterns, local relay role | `5208a36` | `main` |
 | 26 | 2026-05-14 | Local relay cache-only: exclude from writable relay list | `92a582e` | `main` |
 | 25 | 2026-05-14 | Relay discovery fixes: error handling + relay selection consistency | `4b2a7be`, `a311f41` | `main` |

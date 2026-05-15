@@ -911,3 +911,37 @@ Updated relay-guidelines.md with: 1) Event-provided relay hints from e/p/a/q tag
 ### Next Steps
 
 - None - task complete
+
+
+## Session 28: Extract filter builders from get.go for pure-unit-testability
+
+**Date**: 2026-05-15
+**Task**: Extract filter builders from get.go for pure-unit-testability
+**Branch**: `main`
+
+### Summary
+
+Extracted pure filter builder functions (BuildNoteFilter, BuildProfileFilter, etc.) from get.go into utils/filters.go with table-driven tests. Key insight: nostr.IDFromHex accepts any 64-char string without error, requiring pre-validation via regex. Refactored get.go to use builders. Updated quality-guidelines.md and relay-guidelines.md with new patterns.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `def8019` | (see git log) |
+| `0bf9151` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
