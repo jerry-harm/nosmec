@@ -432,10 +432,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.editingTagIndex < 0 {
 					m.tagInput.Blur()
 					m.contentInput.Focus()
+				} else if m.editingTagIndex < len(m.tags)-1 {
+					m.editingTagIndex++
+					m.editingItemIndex = len(m.tags[m.editingTagIndex])
+					m.tagInput.SetValue("")
 				} else {
 					m.tagInput.SetValue("")
 					m.editingTagIndex = -1
 					m.editingItemIndex = -1
+					m.tagInput.Blur()
+					m.contentInput.Focus()
 				}
 				return m, nil
 			}
