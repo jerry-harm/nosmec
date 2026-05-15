@@ -172,7 +172,7 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 	m.contentInput.Prompt = "| "
 
 	m.tagInput = textinput.New()
-	m.tagInput.Placeholder = "e:eventId p:pubkey a:addr t:hashtag r:relay:purpose q:eventId"
+	m.tagInput.Placeholder = "input tag"
 	m.tagInput.SetStyles(textinput.Styles{
 		Focused: textinput.StyleState{
 			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
@@ -629,6 +629,9 @@ func (m *model) renderView() string {
 		b.WriteString("  > ")
 		b.WriteString(m.tagInput.View())
 		b.WriteString("\n")
+		b.WriteString("  enter: add tag | tab: next field | backspace: delete\n")
+	} else if m.tagInput.Focused() {
+		b.WriteString("  enter: add tag | tab: next field | backspace: delete\n")
 	} else if !m.tagInput.Focused() {
 		b.WriteString("  >\n")
 	}
