@@ -47,10 +47,9 @@ func TestUpdate_AddTag(t *testing.T) {
 	m.keys = newKeyMap()
 	m.tagInput = textinput.New()
 	m.tagInput.Focus()
-	m.tagInput.SetValue("e:abc123")
+	m.tagInput.SetValue(`["e","abc123"]`)
 	m.tags = []Tag{}
-	m.editingTagIndex = -1
-	m.editingItemIndex = -1
+	m.editingIndex = -1
 
 	msg := tea.KeyPressMsg{Text: "enter"}
 	m.Update(msg)
@@ -58,8 +57,8 @@ func TestUpdate_AddTag(t *testing.T) {
 	if len(m.tags) != 1 {
 		t.Errorf("len(m.tags) = %d, want 1", len(m.tags))
 	}
-	if len(m.tags[0]) != 1 || m.tags[0][0] != "e:abc123" {
-		t.Errorf("tags[0] = %v, want [e:abc123]", m.tags[0])
+	if len(m.tags[0]) != 2 || m.tags[0][0] != "e" || m.tags[0][1] != "abc123" {
+		t.Errorf("tags[0] = %v, want [e, abc123]", m.tags[0])
 	}
 }
 
@@ -91,7 +90,7 @@ func TestUpdate_Quit(t *testing.T) {
 	m.kindInput = textinput.New()
 	m.tagInput = textinput.New()
 	m.isStandalone = true
-	m.editingTagIndex = -1
+	m.editingIndex = -2
 
 	msg := tea.KeyPressMsg{Text: "esc"}
 	got, cmd := m.Update(msg)

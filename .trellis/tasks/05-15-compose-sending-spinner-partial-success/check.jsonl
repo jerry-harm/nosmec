@@ -1,0 +1,1 @@
+{"file": "tui/compose/model.go", "reason": "Check spinner integration in Init/Update, partial-success logic in sendContent"}

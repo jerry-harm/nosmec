@@ -1,0 +1,2 @@
+{"file": "tui/compose/model.go", "reason": "Main compose model - sendContent, Update, spinner integration, error collection"}
+{"file": "tui/compose/styles.go", "reason": "If new styles needed for spinner display"}

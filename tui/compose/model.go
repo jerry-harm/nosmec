@@ -2,6 +2,7 @@ package compose
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -53,9 +54,8 @@ type model struct {
 	tagInput     textinput.Model
 	spinner      spinner.Model
 
-	tags              []Tag
-	editingTagIndex   int
-	editingItemIndex  int
+	tags         []Tag
+	editingIndex int // -2=not in tag mode, -1=empty slot, >=0=editing tags[editingIndex]
 
 	errMsg    string
 	success   bool
@@ -174,7 +174,7 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 	m.contentInput.Prompt = "| "
 
 	m.tagInput = textinput.New()
-	m.tagInput.Placeholder = "input tag"
+	m.tagInput.Placeholder = `["tag1","tag2"]`
 	m.tagInput.SetStyles(textinput.Styles{
 		Focused: textinput.StyleState{
 			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
@@ -280,16 +280,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if key.Matches(msg, m.keys.quit) {
-			if m.editingTagIndex >= 0 {
+			if m.editingIndex >= 0 {
 				m.saveTagEdit()
-				m.editingTagIndex = -1
+				m.editingIndex = -2
 				m.tagInput.SetValue("")
 				return m, nil
 			}
 			if m.isStandalone {
 				return m, tea.Quit
 			}
-			// Send bubblon close instead of tea.Quit to preserve draft state
 			return m, func() tea.Msg { return bubblon.Close() }
 		}
 
@@ -298,28 +297,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.kindInput.Blur()
 				m.tagInput.Focus()
 				if len(m.tags) > 0 {
-					m.editingTagIndex = len(m.tags) - 1
-					m.editingItemIndex = len(m.tags[m.editingTagIndex])
-					m.tagInput.SetValue("")
+					m.editingIndex = 0
+					m.tagInput.SetValue(tagToListString(m.tags[m.editingIndex]))
 				} else {
-					m.editingTagIndex = -1
-					m.editingItemIndex = -1
+					m.editingIndex = -1
 					m.tagInput.SetValue("")
 				}
 				return m, nil
 			}
 			if key.Matches(msg, m.keys.prevField) {
 				m.kindInput.Blur()
-				m.tagInput.Focus()
-				if len(m.tags) > 0 {
-					m.editingTagIndex = len(m.tags) - 1
-					m.editingItemIndex = len(m.tags[m.editingTagIndex])
-					m.tagInput.SetValue("")
-				} else {
-					m.editingTagIndex = -1
-					m.editingItemIndex = -1
-					m.tagInput.SetValue("")
-				}
+				m.contentInput.Focus()
 				return m, nil
 			}
 		}
@@ -334,12 +322,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.contentInput.Blur()
 				m.tagInput.Focus()
 				if len(m.tags) > 0 {
-					m.editingTagIndex = len(m.tags) - 1
-					m.editingItemIndex = len(m.tags[m.editingTagIndex])
-					m.tagInput.SetValue("")
+					m.editingIndex = len(m.tags) - 1
+					m.tagInput.SetValue(tagToListString(m.tags[m.editingIndex]))
 				} else {
-					m.editingTagIndex = -1
-					m.editingItemIndex = -1
+					m.editingIndex = -1
 					m.tagInput.SetValue("")
 				}
 				return m, nil
@@ -362,103 +348,78 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if key.Matches(msg, m.keys.addTag) {
 				if tagValue != "" {
-					if m.editingTagIndex < 0 {
-						m.tags = append(m.tags, Tag{tagValue})
-						m.editingTagIndex = len(m.tags) - 1
-						m.editingItemIndex = 1
-					} else {
-						tag := m.tags[m.editingTagIndex]
-						if m.editingItemIndex >= len(tag) {
-							m.tags[m.editingTagIndex] = append(tag, tagValue)
-							m.editingItemIndex = len(m.tags[m.editingTagIndex])
+					if tag, err := parseTagListInput(tagValue); err == nil {
+						if m.editingIndex < 0 {
+							m.tags = append(m.tags, tag)
 						} else {
-							newTag := make([]string, len(tag)+1)
-							copy(newTag, tag[:m.editingItemIndex])
-							newTag[m.editingItemIndex] = tagValue
-							copy(newTag[m.editingItemIndex+1:], tag[m.editingItemIndex:])
-							m.tags[m.editingTagIndex] = newTag
-							m.editingItemIndex++
+							m.tags[m.editingIndex] = tag
 						}
 					}
+					m.tagInput.SetValue("")
+					m.editingIndex = -1
 				} else {
-					if m.editingTagIndex >= 0 && m.editingItemIndex >= len(m.tags[m.editingTagIndex]) {
-						m.tagInput.Blur()
-						m.contentInput.Focus()
-						m.editingTagIndex = -1
-						m.editingItemIndex = -1
-					}
+					// Empty input: blur to contentInput
+					m.tagInput.Blur()
+					m.contentInput.Focus()
+					m.editingIndex = -2
 				}
-				m.tagInput.SetValue("")
 				return m, nil
 			}
 
 			if msg.String() == "backspace" && tagValue == "" {
-				if m.editingTagIndex < 0 {
+				if m.editingIndex < 0 {
 					if len(m.tags) > 0 {
-						m.editingTagIndex = len(m.tags) - 1
-						m.editingItemIndex = len(m.tags[m.editingTagIndex])
+						m.editingIndex = len(m.tags) - 1
+						m.tagInput.SetValue(tagToListString(m.tags[m.editingIndex]))
 					}
-					return m, nil
-				}
-				tag := m.tags[m.editingTagIndex]
-				if m.editingItemIndex >= len(tag) {
-					if len(tag) > 0 {
-						m.tags[m.editingTagIndex] = tag[:len(tag)-1]
-					}
-					m.editingItemIndex = len(m.tags[m.editingTagIndex])
-				} else if m.editingItemIndex > 0 {
-					newTag := append(tag[:m.editingItemIndex], tag[m.editingItemIndex+1:]...)
-					m.tags[m.editingTagIndex] = newTag
-					m.editingItemIndex--
 				} else {
-					if len(tag) == 1 {
-						m.tags = append(m.tags[:m.editingTagIndex], m.tags[m.editingTagIndex+1:]...)
-						if len(m.tags) > 0 {
-							m.editingTagIndex = len(m.tags) - 1
-							m.editingItemIndex = len(m.tags[m.editingTagIndex])
-						} else {
-							m.editingTagIndex = -1
-							m.editingItemIndex = -1
-						}
+					m.tags = append(m.tags[:m.editingIndex], m.tags[m.editingIndex+1:]...)
+					if len(m.tags) == 0 {
+						m.editingIndex = -1
 					} else {
-						m.tags[m.editingTagIndex] = tag[1:]
-						m.editingItemIndex = 0
+						m.editingIndex = len(m.tags) - 1
 					}
 				}
 				return m, nil
 			}
 
 			if key.Matches(msg, m.keys.nextField) || msg.String() == "tab" {
-				if m.editingTagIndex < 0 {
+				if m.editingIndex < 0 {
+					// editingIndex == -1: empty slot → go to contentInput
 					m.tagInput.Blur()
 					m.contentInput.Focus()
-				} else if m.editingTagIndex < len(m.tags)-1 {
-					m.editingTagIndex++
-					m.editingItemIndex = len(m.tags[m.editingTagIndex])
-					m.tagInput.SetValue("")
+					m.editingIndex = -2
+				} else if m.editingIndex < len(m.tags)-1 {
+					// editingIndex points to a tag, advance to next
+					m.editingIndex++
+					m.tagInput.SetValue(tagToListString(m.tags[m.editingIndex]))
 				} else {
+					// editingIndex is last tag → go to empty slot (-1), stay in tagInput
 					m.tagInput.SetValue("")
-					m.editingTagIndex = -1
-					m.editingItemIndex = -1
-					m.tagInput.Blur()
-					m.contentInput.Focus()
+					m.editingIndex = -1
 				}
 				return m, nil
 			}
 
 			if key.Matches(msg, m.keys.prevField) || msg.String() == "shift+tab" {
-				if m.editingTagIndex < 0 {
+				if m.editingIndex < 0 {
 					if len(m.tags) > 0 {
-						m.editingTagIndex = len(m.tags) - 1
-						m.editingItemIndex = len(m.tags[m.editingTagIndex])
+						m.editingIndex = len(m.tags) - 1
+						m.tagInput.SetValue(tagToListString(m.tags[m.editingIndex]))
+					} else {
+						// empty slot with no tags: go to kindInput
+						m.tagInput.Blur()
+						m.kindInput.Focus()
+						m.editingIndex = -2
 					}
-				} else if m.editingItemIndex > 0 {
-					m.editingItemIndex--
+				} else if m.editingIndex > 0 {
+					m.editingIndex--
+					m.tagInput.SetValue(tagToListString(m.tags[m.editingIndex]))
 				} else {
-					if m.editingTagIndex > 0 {
-						m.editingTagIndex--
-						m.editingItemIndex = len(m.tags[m.editingTagIndex])
-					}
+					// editingIndex == 0: go to kindInput
+					m.tagInput.Blur()
+					m.kindInput.Focus()
+					m.editingIndex = -2
 				}
 				return m, nil
 			}
@@ -487,10 +448,10 @@ func (m *model) prevField() {
 }
 
 func (m *model) saveTagEdit() {
-	if m.editingTagIndex >= 0 && m.editingTagIndex < len(m.tags) && m.editingItemIndex >= 0 && m.editingItemIndex < len(m.tags[m.editingTagIndex]) {
+	if m.editingIndex >= 0 && m.editingIndex < len(m.tags) {
 		tagValue := strings.TrimSpace(m.tagInput.Value())
 		if tagValue != "" {
-			m.tags[m.editingTagIndex][m.editingItemIndex] = tagValue
+			m.tags[m.editingIndex] = Tag{tagValue}
 		}
 	}
 }
@@ -623,38 +584,20 @@ func (m *model) renderView() string {
 	b.WriteString(m.styles.fieldLabel.Render("Tags:"))
 	b.WriteString("\n")
 	for i, tag := range m.tags {
-		if i == m.editingTagIndex && m.tagInput.Focused() {
-			if m.editingItemIndex < len(tag) {
-				for j := 0; j < len(tag); j++ {
-					if j == m.editingItemIndex {
-						if j > 0 {
-							b.WriteString(fmt.Sprintf("  [%s] %s >%s\n", tag[0], strings.Join(tag[1:j], ", "), m.tagInput.View()))
-						} else {
-							b.WriteString(fmt.Sprintf("  [%s] >%s\n", tag[0], m.tagInput.View()))
-						}
-						break
-					}
-				}
-			}
-			if m.editingItemIndex >= len(tag) {
-				if len(tag) > 0 {
-					b.WriteString(fmt.Sprintf("  [%s] %s >", tag[0], strings.Join(tag[1:], ", ")))
-				} else {
-					b.WriteString("  > ")
-				}
-				b.WriteString(m.tagInput.View())
-				b.WriteString("\n")
-			}
+		if i == m.editingIndex && m.tagInput.Focused() {
+			b.WriteString("  > ")
+			b.WriteString(m.tagInput.View())
+			b.WriteString("\n")
 		} else {
 			if len(tag) > 0 {
 				b.WriteString(fmt.Sprintf("  [%s] %s\n", tag[0], strings.Join(tag[1:], ", ")))
 			}
 		}
 	}
-	if m.tagInput.Focused() && m.editingTagIndex < 0 {
+	if m.tagInput.Focused() && m.editingIndex == -1 {
 		b.WriteString("  > ")
 		b.WriteString(m.tagInput.View())
-		b.WriteString("\n\n")
+		b.WriteString("\n")
 	} else if !m.tagInput.Focused() {
 		b.WriteString("  >\n")
 	}
@@ -677,6 +620,26 @@ func (m *model) renderHeader() string {
 	default:
 		return "New Note"
 	}
+}
+
+func tagToListString(tag Tag) string {
+	if len(tag) == 0 {
+		return "[]"
+	}
+	b, _ := json.Marshal(tag)
+	return string(b)
+}
+
+func parseTagListInput(s string) (Tag, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, fmt.Errorf("empty input")
+	}
+	var tag Tag
+	if err := json.Unmarshal([]byte(s), &tag); err != nil {
+		return nil, err
+	}
+	return tag, nil
 }
 
 func PrepareReply(w window.Window, event *nostr.Event) {
