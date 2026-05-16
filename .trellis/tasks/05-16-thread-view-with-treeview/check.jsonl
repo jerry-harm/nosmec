@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/tui/index.md", "reason": "TUI testing patterns, component tests, golden file tests"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Code reuse patterns for event display components across different views"}
+{"file": ".trellis/spec/backend/nostr-sdk-usage.md", "reason": "Pool usage, relay hints, error handling for thread fetch"}
+{"file": ".trellis/tasks/05-16-thread-view-with-treeview/prd.md", "reason": "PRD with acceptance criteria to verify implementation"}

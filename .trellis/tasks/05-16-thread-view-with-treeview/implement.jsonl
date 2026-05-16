@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/tui/index.md", "reason": "TUI component patterns, focus management, state machines for navigation, sync helpers for async operations"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer data flow - thread view spans backend (Pool, relays) and TUI (tree view rendering)"}
+{"file": ".trellis/spec/backend/nostr-sdk-usage.md", "reason": "Pool.FetchMany usage, relay hints, NIP-10 compliance for thread fetching"}
+{"file": ".trellis/tasks/05-16-thread-view-with-treeview/prd.md", "reason": "PRD with thread logic, NIP-10 rules, keyboard navigation requirements"}

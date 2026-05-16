@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Relay management patterns, KnownRelays, TrackRelays usage"}
+{"file": "utils/user_relays.go", "reason": "DiscoverUserRelays implementation to reuse for batch fetching"}
+{"file": "tui/window/event/thread_treeview.go", "reason": "Need to modify fetchRootEvent/fetchRepliesToRoot to use e-tag relay hints"}
