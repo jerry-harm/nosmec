@@ -12,20 +12,6 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 )
 
-type ProfileMetadata struct {
-	Name        string `json:"name,omitempty"`
-	About       string `json:"about,omitempty"`
-	Picture     string `json:"picture,omitempty"`
-	DisplayName string `json:"display_name,omitempty"`
-	Website     string `json:"website,omitempty"`
-	Banner      string `json:"banner,omitempty"`
-	Bot         *bool  `json:"bot,omitempty"`
-	Birthday    string `json:"birthday,omitempty"`
-	NIP05       string `json:"nip05,omitempty"`
-	Lud06       string `json:"lud06,omitempty"`
-	Lud16       string `json:"lud16,omitempty"`
-}
-
 type RelayInfo struct {
 	URL   string `json:"url"`
 	Read  bool   `json:"read"`
@@ -58,23 +44,20 @@ type FullProfile struct {
 	Hashtags   []HashtagInfo     `json:"hashtags,omitempty"`
 }
 
-func profileConfigToMetadata(pc config.ProfileConfig) ProfileMetadata {
-	return ProfileMetadata{
+func profileConfigToMetadata(pc config.ProfileConfig) sdk.ProfileMetadata {
+	return sdk.ProfileMetadata{
 		Name:        pc.Name,
 		About:       pc.About,
 		Picture:     pc.Picture,
 		DisplayName: pc.DisplayName,
 		Website:     pc.Website,
 		Banner:      pc.Banner,
-		Bot:         pc.Bot,
-		Birthday:    pc.Birthday,
 		NIP05:       pc.NIP05,
-		Lud06:       pc.Lud06,
-		Lud16:       pc.Lud16,
+		LUD16:       pc.Lud16,
 	}
 }
 
-func metadataToProfileConfig(pm ProfileMetadata) config.ProfileConfig {
+func metadataToProfileConfig(pm sdk.ProfileMetadata, bot *bool, birthday string) config.ProfileConfig {
 	return config.ProfileConfig{
 		Name:        pm.Name,
 		About:       pm.About,
@@ -82,22 +65,8 @@ func metadataToProfileConfig(pm ProfileMetadata) config.ProfileConfig {
 		DisplayName: pm.DisplayName,
 		Website:     pm.Website,
 		Banner:      pm.Banner,
-		Bot:         pm.Bot,
-		Birthday:    pm.Birthday,
-		NIP05:       pm.NIP05,
-		Lud06:       pm.Lud06,
-		Lud16:       pm.Lud16,
-	}
-}
-
-func ProfileMetadataFromSDK(pm sdk.ProfileMetadata) ProfileMetadata {
-	return ProfileMetadata{
-		Name:        pm.Name,
-		DisplayName: pm.DisplayName,
-		About:       pm.About,
-		Website:     pm.Website,
-		Picture:     pm.Picture,
-		Banner:      pm.Banner,
+		Bot:         bot,
+		Birthday:    birthday,
 		NIP05:       pm.NIP05,
 		Lud16:       pm.LUD16,
 	}
@@ -111,6 +80,9 @@ func SetProfile(ctx context.Context, app *config.AppContext, publishOnly bool, n
 
 	cfg := app.Config()
 	metadata := profileConfigToMetadata(cfg.Profile)
+	var profileBot *bool
+	var profileBirthday string
+	profileNIP05 := metadata.NIP05
 
 	profileChanged := false
 
@@ -140,23 +112,20 @@ func SetProfile(ctx context.Context, app *config.AppContext, publishOnly bool, n
 	}
 	if isSet(bot) {
 		b := bot == "true" || bot == "1"
-		metadata.Bot = &b
+		profileBot = &b
 		profileChanged = true
 	}
 	if isSet(birthday) {
-		metadata.Birthday = birthday
+		profileBirthday = birthday
 		profileChanged = true
 	}
 	if isSet(nip05) {
 		metadata.NIP05 = nip05
 		profileChanged = true
-	}
-	if isSet(lud06) {
-		metadata.Lud06 = lud06
-		profileChanged = true
+		profileNIP05 = nip05
 	}
 	if isSet(lud16) {
-		metadata.Lud16 = lud16
+		metadata.LUD16 = lud16
 		profileChanged = true
 	}
 
@@ -168,11 +137,10 @@ func SetProfile(ctx context.Context, app *config.AppContext, publishOnly bool, n
 		newCfg.DisplayName = metadata.DisplayName
 		newCfg.Website = metadata.Website
 		newCfg.Banner = metadata.Banner
-		newCfg.Bot = metadata.Bot
-		newCfg.Birthday = metadata.Birthday
-		newCfg.NIP05 = metadata.NIP05
-		newCfg.Lud06 = metadata.Lud06
-		newCfg.Lud16 = metadata.Lud16
+		newCfg.Bot = profileBot
+		newCfg.Birthday = profileBirthday
+		newCfg.NIP05 = profileNIP05
+		newCfg.Lud16 = metadata.LUD16
 
 		if err := app.SetProfile(newCfg); err != nil {
 			return nil, fmt.Errorf("failed to save profile config: %w", err)
@@ -225,7 +193,8 @@ func SyncProfile(ctx context.Context, app *config.AppContext) error {
 		return fmt.Errorf("failed to parse profile: %w", err)
 	}
 
-	newCfg := metadataToProfileConfig(ProfileMetadataFromSDK(metadata))
+	cfg := app.Config()
+	newCfg := metadataToProfileConfig(metadata, cfg.Profile.Bot, cfg.Profile.Birthday)
 
 	if err := app.SetProfile(newCfg); err != nil {
 		return fmt.Errorf("failed to save profile config: %w", err)
