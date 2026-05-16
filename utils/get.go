@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -219,6 +220,91 @@ func GetNoteAsync(ctx context.Context, noteID string, opts *GetOptions) *nostr.E
 	return GetEventAsync(ctx, filter, opts)
 }
 
+// FindRootEvent identifies the root event for a given event per NIP-10.
+// Returns the root event ID and a boolean indicating if the given event IS the root.
+func FindRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err error) {
+	if event == nil {
+		return nostr.ID{}, false, errors.New("nil event")
+	}
+
+	// Collect all e tags using FindAll
+	var eTags []nostr.Tag
+	for tag := range event.Tags.FindAll("e") {
+		eTags = append(eTags, tag)
+	}
+
+	// Check if event has "root" marker - if so, event IS the root
+	for _, tag := range eTags {
+		if len(tag) >= 4 && tag[3] == "root" {
+			// Event has root marker, so event IS the root
+			return event.ID, true, nil
+		}
+	}
+
+	// No "root" marker found - check for "reply" marker
+	for _, tag := range eTags {
+		if len(tag) >= 4 && tag[3] == "reply" {
+			// This event is a reply - find the root by following the chain
+			// Look for first e tag with "root" marker
+			for _, t := range eTags {
+				if len(t) >= 4 && t[3] == "root" {
+					id, err := nostr.IDFromHex(t[1])
+					if err != nil {
+						return nostr.ID{}, false, err
+					}
+					return id, false, nil
+				}
+			}
+			// No "root" marker in this event - event IS the root (original note with reply marker is unusual but possible)
+			// Actually, if event has "reply" but no "root", it's a reply to something
+			// We return the first e tag's target as the parent - the caller should fetch it
+			return nostr.ID{}, false, nil
+		}
+	}
+
+	// No e tags at all - this IS the root (original note)
+	if len(eTags) == 0 {
+		return event.ID, true, nil
+	}
+
+	// Has e tags but no markers - treat as root
+	return event.ID, true, nil
+}
+
+// QueryRepliesToRoot queries all events referencing the root event.
+// Uses Pool.FetchMany() to get ALL events, not just one.
+func QueryRepliesToRoot(ctx context.Context, rootID nostr.ID, opts *GetOptions) []*nostr.Event {
+	if opts == nil || opts.App == nil {
+		return nil
+	}
+
+	relays := opts.App.AllReadableRelays()
+	if len(relays) == 0 {
+		return nil
+	}
+
+	// Query for all events with #e = rootID
+	filter := nostr.Filter{
+		Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
+		Tags:  nostr.TagMap{"e": []string{rootID.Hex()}},
+		Limit: 100,
+	}
+
+	ctxQuery, cancel := context.WithTimeout(ctx, opts.App.QueryTimeout())
+	defer cancel()
+
+	results := opts.App.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+
+	var events []*nostr.Event
+	for relayEvent := range results {
+		events = append(events, &relayEvent.Event)
+	}
+
+	return events
+}
+
+// GetParentEvent retrieves the parent event for a given event per NIP-10.
+// It follows the "reply" marker to find the direct parent.
 func GetParentEvent(ctx context.Context, event *nostr.Event, opts *GetOptions) *nostr.Event {
 	if event == nil || opts == nil || opts.App == nil {
 		return nil

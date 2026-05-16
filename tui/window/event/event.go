@@ -265,7 +265,7 @@ func (m *EventView) thread() tea.Cmd {
 	if m.ctrl == nil {
 		return nil
 	}
-	threadView := NewThreadView(m.event, m.app, m.width, m.height, m.ctrl)
+	threadView := NewThreadTreeView(m.event, m.app, m.width, m.height, m.ctrl)
 	return bubblon.Open(threadView)
 }
 
