@@ -1,10 +1,17 @@
+//go:build integration
+
 package config
 
 import (
 	"testing"
 
 	"fiatjaf.com/nostr"
+	"go.uber.org/goleak"
 )
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m, goleak.IgnoreTopFunction("github.com/blevesearch/bleve_index_api.AnalysisWorker"))
+}
 
 func TestGetRelay(t *testing.T) {
 	relayList := []Relay{
