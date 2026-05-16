@@ -16,19 +16,17 @@ import (
 )
 
 // extractParentID extracts the parent event ID from NIP-10 e tags.
-// Returns empty string if event is a root (no "reply" marker).
+// Returns empty string if event is a root (no "reply" marker) or if parent hex is invalid.
 func extractParentID(event *nostr.Event) string {
 	if event == nil {
 		return ""
 	}
 
-	// Find first e tag with "reply" marker
 	for _, tag := range event.Tags {
-		if len(tag) >= 4 && tag[0] == "e" && tag[3] == "reply" {
+		if len(tag) >= 4 && tag[0] == "e" && tag[3] == "reply" && nostr.IsValid32ByteHex(tag[1]) {
 			return tag[1]
 		}
 	}
-	// No reply marker found - treat as root
 	return ""
 }
 
@@ -298,14 +296,12 @@ func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTree
 			seen[parentID] = true
 			id, err := nostr.IDFromHex(parentID)
 			if err != nil {
-				// Skip placeholder if the parent hex is invalid
 				continue
 			}
 			placeholder := nostr.Event{
 				Content: "[loading...]",
 				ID:      id,
 				Kind:    nostr.KindTextNote,
-				Tags:    nostr.Tags{{"e", parentID, "", "reply"}},
 			}
 			items = append(items, placeholder)
 		}
