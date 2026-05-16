@@ -258,13 +258,39 @@ func (m *threadTreeView) buildTree(events []*nostr.Event) (*treeview.Tree[nostr.
 		return nil, nil
 	}
 
-	// Convert to slice for treeview
-	items := make([]nostr.Event, len(events))
-	for i, e := range events {
-		items[i] = *e
+	eventMap := make(map[string]*nostr.Event)
+	for _, e := range events {
+		eventMap[e.ID.Hex()] = e
 	}
 
-	// Create tree with expand function (expand 1 level down by default)
+	var items []nostr.Event
+	seen := make(map[string]bool)
+
+	for _, e := range events {
+		if seen[e.ID.Hex()] {
+			continue
+		}
+		seen[e.ID.Hex()] = true
+		items = append(items, *e)
+	}
+
+	for _, e := range events {
+		parentID := extractParentID(e)
+		if parentID != "" && !seen[parentID] {
+			seen[parentID] = true
+			parentEvent := &nostr.Event{
+				Content: "[loading...]",
+				Kind:    nostr.KindTextNote,
+				Tags:    nostr.Tags{{"e", parentID, "", "reply"}},
+			}
+			id, _ := nostr.IDFromHex(parentID)
+			parentEvent.ID = id
+			items = append(items, *parentEvent)
+		}
+	}
+
+	_ = eventMap // silence unused warning
+
 	tree, err := treeview.NewTreeFromFlatData(
 		context.Background(),
 		items,
@@ -320,40 +346,47 @@ func (m *threadTreeView) View() tea.View {
 	if m.loadError != nil {
 		b.WriteString(m.styles.statusMessage.Render("[error: "+m.loadError.Error()+"]"))
 		b.WriteString("\n")
-		return tea.NewView(b.String())
+	}
+
+	// Always show current event at minimum
+	if m.event != nil {
+		b.WriteString(m.styles.currentEvent.Render("> "+truncateContent(m.event.Content, 60)+" ("+m.event.PubKey.Hex()[:8]+")"))
+		b.WriteString("\n\n")
 	}
 
 	if m.tree == nil {
-		b.WriteString(m.styles.statusMessage.Render("[no thread data]"))
-		b.WriteString("\n")
-		return tea.NewView(b.String())
-	}
-
-	// Render tree
-	rendered, err := m.tree.Render(context.Background())
-	if err != nil {
-		b.WriteString(m.styles.statusMessage.Render("[render error]"))
-		b.WriteString("\n")
-		return tea.NewView(b.String())
-	}
-
-	// Highlight current event by applying style
-	lines := strings.Split(rendered, "\n")
-	for i, line := range lines {
-		if strings.Contains(line, m.currentEventID[:8]) {
-			lines[i] = m.styles.currentEvent.Render(line)
+		if m.event == nil {
+			b.WriteString(m.styles.statusMessage.Render("[no thread data]"))
+			b.WriteString("\n")
+		}
+	} else {
+		// Render tree
+		rendered, err := m.tree.Render(context.Background())
+		if err != nil {
+			b.WriteString(m.styles.statusMessage.Render("[render error]"))
+			b.WriteString("\n")
+		} else {
+			lines := strings.Split(rendered, "\n")
+			for i, line := range lines {
+				if strings.Contains(line, m.currentEventID[:8]) {
+					lines[i] = m.styles.currentEvent.Render(line)
+				}
+			}
+			b.WriteString(strings.Join(lines, "\n"))
+			b.WriteString("\n")
 		}
 	}
 
-	b.WriteString(strings.Join(lines, "\n"))
-	b.WriteString("\n\n")
-
-	// Help
 	b.WriteString(m.styles.helpStyle.Render("↑↓ navigate · → expand · ← collapse · esc back"))
 
-	v := tea.NewView(b.String())
-	v.AltScreen = true
-	return v
+	return tea.NewView(b.String())
+}
+
+func truncateContent(content string, maxLen int) string {
+	if len(content) > maxLen {
+		return content[:maxLen-3] + "..."
+	}
+	return content
 }
 
 // NewThreadTreeView creates a new tree-based thread view
