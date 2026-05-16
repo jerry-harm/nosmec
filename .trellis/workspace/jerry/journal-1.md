@@ -1126,3 +1126,36 @@ Fixed nosmec gossip failing silently (subscription IDs were npub, not hex). Used
 ### Next Steps
 
 - None - task complete
+
+
+## Session 34: test thread buildTuiModel, Update, View; fix placeholder cycle and hex validation
+
+**Date**: 2026-05-16
+**Task**: test thread buildTuiModel, Update, View; fix placeholder cycle and hex validation
+**Branch**: `main`
+
+### Summary
+
+Added 23 unit test cases for thread_treeview.go covering buildTuiModel (empty/single/root+reply/duplicate/placeholder/invalid-hex/focus-fallback), Update (loaded-msg/error/resize/esc/non-esc/delegate), View (loading/error/no-data/fallback/tree/title). Fixed two bugs: (1) placeholder events had self-referencing e tag causing cyclic reference in treeview, removed the tag; (2) extractParentID didn't validate hex, causing treeview errors with invalid parent IDs — added nostr.IsValid32ByteHex check. Updated existing tests to use valid 64-char hex IDs. All tests pass (31 tests, 0 failures).
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `939e81f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
