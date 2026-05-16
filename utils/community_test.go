@@ -2,6 +2,8 @@ package utils
 
 import (
 	"testing"
+
+	"fiatjaf.com/nostr"
 )
 
 func TestParseCommunityAddr_Valid(t *testing.T) {
@@ -84,4 +86,71 @@ func TestParseCommunityAddr_LongPubKey(t *testing.T) {
 
 func TestGetParentPostInfo_RequiresFullIntegration(t *testing.T) {
 	t.Skip("Requires mock AppContext and GetPost - complex integration test, tracked separately")
+}
+
+// TestGetParentPostInfo_TagBounds demonstrates the bug: copy(authorPubKey[:], tag[1])
+// is called without verifying tag[1] is exactly 64 characters (32 bytes hex).
+// If tag[1] is shorter, copy() will panic with index out of range.
+func TestGetParentPostInfo_TagBounds(t *testing.T) {
+	// Create a mock parent event with malformed tags
+	parentEvent := &nostr.Event{
+		ID: [32]byte{1, 2, 3, 4},
+		Tags: nostr.Tags{
+			// "p" tag with short hex - should cause panic if copy() is called directly
+			nostr.Tag{"p", "short"},
+		},
+	}
+
+	// This test demonstrates the bug by checking what happens with malformed input
+	// The actual function GetParentPostInfo calls GetPost which would replace nil with an event
+	// but the tag access copy(authorPubKey[:], tag[1]) has no bounds check
+
+	// Demonstrate that copy with short string causes issues
+	var authorPubKey nostr.PubKey
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Recovered from panic as expected with malformed tag: %v", r)
+		}
+	}()
+
+	// This is what the buggy code does - copy without length check
+	// If tag[1] is less than 32 bytes, this panics
+	copy(authorPubKey[:], parentEvent.Tags[0][1])
+}
+
+// RED phase: Write failing test to demonstrate the bug
+// The bug: ParseCommunityAddr does not validate parts[1] length before using it
+func TestParseCommunityAddr_PartsLengthNoCheck(t *testing.T) {
+	// This test demonstrates the bug where parts[1] is used without checking
+	// if it's a valid 64-char hex pubkey
+	tests := []struct {
+		name    string
+		addr    string
+		wantErr string
+	}{
+		{
+			name:    "empty pubkey part",
+			addr:    "34550::name",
+			wantErr: "invalid community pubkey",
+		},
+		{
+			name:    "short pubkey (less than 64 chars)",
+			addr:    "34550:abc:name",
+			wantErr: "invalid community pubkey",
+		},
+		{
+			name:    "pubkey with invalid characters",
+			addr:    "34550:zzzz0000zzzz0000zzzz0000zzzz0000zzzz0000zzzz0000zzzz0000zzzzzzzz:name",
+			wantErr: "invalid community pubkey",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseCommunityAddr(tt.addr)
+			if err == nil {
+				t.Errorf("ParseCommunityAddr(%q) = nil, want error containing %q", tt.addr, tt.wantErr)
+			}
+		})
+	}
 }

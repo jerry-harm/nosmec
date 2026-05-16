@@ -129,3 +129,25 @@ func TestBuildQuoteTags(t *testing.T) {
 		t.Errorf("quote tag not found for id %s", quotedID)
 	}
 }
+
+// TestReplyToNote_ParentEventNilPubKey demonstrates the bug: parentEvent.PubKey.Hex()
+// is called without checking if PubKey is set (zero value). The nil check on parentEvent
+// passes if GetNote returns an event with zero PubKey, then accessing .PubKey.Hex() works
+// on a zero pubkey (returns "0000...0000") but may not be the intended behavior.
+func TestReplyToNote_ParentEventNilPubKey(t *testing.T) {
+	// This tests that when parentEvent is non-nil but has a zero/empty PubKey,
+	// the function still works (returns empty hex string) - behavior may be undesirable
+	// but not a panic, so this is informational only
+	parentEvent := &nostr.Event{
+		ID:      [32]byte{1, 2, 3, 4},
+		PubKey:  nostr.PubKey{}, // zero value PubKey
+		Content: "parent content",
+		Tags:    nostr.Tags{{"e", "parent-id", "", "reply"}},
+	}
+
+	// If parentEvent.PubKey is zero, Hex() returns all zeros
+	hex := parentEvent.PubKey.Hex()
+	if hex != "0000000000000000000000000000000000000000000000000000000000000000" {
+		t.Errorf("zero PubKey hex = %q, want all zeros", hex)
+	}
+}
