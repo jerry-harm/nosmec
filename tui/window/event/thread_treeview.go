@@ -112,7 +112,7 @@ type threadTreeView struct {
 	event    *nostr.Event
 	root     *nostr.Event
 	app      *config.AppContext
-	tree     *treeview.Tree[nostr.Event]
+	tuiModel *treeview.TuiTreeModel[nostr.Event]
 	provider *NostrEventProvider
 	styles   threadStyles
 	keys     threadKeyMap
@@ -121,8 +121,8 @@ type threadTreeView struct {
 	height   int
 
 	// Loading states
-	loading    bool
-	loadError  error
+	loading   bool
+	loadError error
 
 	// Current event tracking for highlighting
 	currentEventID string
@@ -130,17 +130,27 @@ type threadTreeView struct {
 	mu sync.Mutex
 }
 
+// threadKeyMapCustom returns a TuiTreeModel keymap that works inside a bubblon bubble.
+// Esc is removed from the Quit binding so we can handle it ourselves for Close(),
+// since the default tea.Quit would exit the entire application.
+func threadKeyMapCustom() treeview.KeyMap {
+	km := treeview.DefaultKeyMap()
+	// Remove "esc" from Quit — we handle esc as bubblon.Close() in our Update
+	km.Quit = nil
+	return km
+}
+
 func newThreadTreeView(event *nostr.Event, app *config.AppContext, width, height int, ctrl *bubblon.Controller) *threadTreeView {
 	return &threadTreeView{
-		event:           event,
-		app:             app,
-		styles:          newThreadStyles(),
-		keys:            newThreadKeyMap(),
-		ctrl:            ctrl,
-		width:           width,
-		height:          height,
-		currentEventID:  event.ID.Hex(),
-		provider:        &NostrEventProvider{},
+		event:          event,
+		app:            app,
+		styles:         newThreadStyles(),
+		keys:           newThreadKeyMap(),
+		ctrl:           ctrl,
+		width:          width,
+		height:         height,
+		currentEventID: event.ID.Hex(),
+		provider:       &NostrEventProvider{},
 	}
 }
 
@@ -183,7 +193,7 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			if rootEvent != nil {
 				events = append(events, rootEvent)
 			}
-			_ = rootRelays // silence unused warning
+			_ = rootRelays // available for future relay hint collection
 		}
 
 		// Step 2: Fetch all direct replies to root
@@ -192,10 +202,11 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			events = append(events, replyEvents...)
 		}
 
-		// Step 3: Build tree from flat data
-		tree, err := m.buildTree(events)
+		// Step 3: Build tree from flat data, then wrap in TuiTreeModel
+		tuiModel, err := m.buildTuiModel(events)
+
 		m.mu.Lock()
-		m.tree = tree
+		m.tuiModel = tuiModel
 		m.loading = false
 		m.mu.Unlock()
 
@@ -260,19 +271,18 @@ func (m *threadTreeView) fetchRepliesToRoot(ctx context.Context, rootID nostr.ID
 	return events
 }
 
-func (m *threadTreeView) buildTree(events []*nostr.Event) (*treeview.Tree[nostr.Event], error) {
+// buildTuiModel builds a treeview.Tree from flat events, then wraps it in a
+// TuiTreeModel with proper keyboard navigation, custom keymap, and the current
+// event pre-focused.
+func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTreeModel[nostr.Event], error) {
 	if len(events) == 0 {
 		return nil, nil
-	}
-
-	eventMap := make(map[string]*nostr.Event)
-	for _, e := range events {
-		eventMap[e.ID.Hex()] = e
 	}
 
 	var items []nostr.Event
 	seen := make(map[string]bool)
 
+	// Pass 1: add real events, deduplicating by ID
 	for _, e := range events {
 		if seen[e.ID.Hex()] {
 			continue
@@ -281,30 +291,57 @@ func (m *threadTreeView) buildTree(events []*nostr.Event) (*treeview.Tree[nostr.
 		items = append(items, *e)
 	}
 
+	// Pass 2: add placeholder nodes for missing parents
 	for _, e := range events {
 		parentID := extractParentID(e)
 		if parentID != "" && !seen[parentID] {
 			seen[parentID] = true
-			parentEvent := &nostr.Event{
+			id, err := nostr.IDFromHex(parentID)
+			if err != nil {
+				// Skip placeholder if the parent hex is invalid
+				continue
+			}
+			placeholder := nostr.Event{
 				Content: "[loading...]",
+				ID:      id,
 				Kind:    nostr.KindTextNote,
 				Tags:    nostr.Tags{{"e", parentID, "", "reply"}},
 			}
-			id, _ := nostr.IDFromHex(parentID)
-			parentEvent.ID = id
-			items = append(items, *parentEvent)
+			items = append(items, placeholder)
 		}
 	}
-
-	_ = eventMap // silence unused warning
 
 	tree, err := treeview.NewTreeFromFlatData(
 		context.Background(),
 		items,
 		m.provider,
 	)
+	if err != nil {
+		return nil, err
+	}
 
-	return tree, err
+	// Focus the current event so the user sees where they are in the thread.
+	// Note: SetFocusedID triggers the focus policy which may scroll the viewport
+	// to bring the node into view, but the actual visual highlight depends on
+	// the NodeProvider used by TuiTreeModel's renderer.
+	if _, err := tree.SetFocusedID(context.Background(), m.currentEventID); err != nil {
+		// If the current event isn't in the tree (e.g. it's a reply to a parent
+		// that hasn't loaded yet), focus the root instead.
+		_ = err // non-fatal
+		if m.root != nil {
+			tree.SetFocusedID(context.Background(), m.root.ID.Hex())
+		}
+	}
+
+	// Wrap in TuiTreeModel for keyboard navigation and viewport management
+	tuiModel := treeview.NewTuiTreeModel(tree,
+		treeview.WithTuiWidth[nostr.Event](m.width),
+		treeview.WithTuiHeight[nostr.Event](m.height-4), // leave room for title + help
+		treeview.WithTuiKeyMap[nostr.Event](threadKeyMapCustom()),
+		treeview.WithTuiDisableNavBar[nostr.Event](true), // we render our own help bar
+	)
+
+	return tuiModel, nil
 }
 
 type threadTreeLoadedMsg struct {
@@ -321,15 +358,34 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tea.KeyPressMsg:
-		kmsg := msg
-		if key.Matches(kmsg.Key(), m.keys.quit) {
-			return m, func() tea.Msg { return bubblon.Close() }
-		}
-
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		// Propagate resize to the TuiTreeModel's viewport
+		if m.tuiModel != nil {
+			_, cmd := m.tuiModel.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+
+	case tea.KeyPressMsg:
+		// Esc always means "close the bubble" (not quit the app)
+		if key.Matches(msg.Key(), m.keys.quit) {
+			return m, func() tea.Msg { return bubblon.Close() }
+		}
+
+		// Delegate all other keyboard input to the TuiTreeModel for
+		// Up/Down/Left/Right/Enter navigation and search
+		if m.tuiModel != nil {
+			_, cmd := m.tuiModel.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Let the TuiTreeModel handle any other messages (background color, etc.)
+	if m.tuiModel != nil {
+		_, cmd := m.tuiModel.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
@@ -339,52 +395,39 @@ func (m *threadTreeView) View() tea.View {
 	var b strings.Builder
 
 	b.WriteString(m.styles.title.Render("Thread"))
-	b.WriteString("\n\n")
+	b.WriteString("\n")
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.loading {
-		b.WriteString(m.styles.placeholder.Render("[loading thread...]"))
+		b.WriteString(m.styles.placeholder.Render("  [loading thread...]"))
 		b.WriteString("\n")
 		return tea.NewView(b.String())
 	}
 
 	if m.loadError != nil {
-		b.WriteString(m.styles.statusMessage.Render("[error: "+m.loadError.Error()+"]"))
+		b.WriteString(m.styles.statusMessage.Render("  [error: " + m.loadError.Error() + "]"))
 		b.WriteString("\n")
 	}
 
-	// Always show current event at minimum
-	if m.event != nil {
-		b.WriteString(m.styles.currentEvent.Render("> "+truncateContent(m.event.Content, 60)+" ("+m.event.PubKey.Hex()[:8]+")"))
-		b.WriteString("\n\n")
-	}
-
-	if m.tree == nil {
-		if m.event == nil {
-			b.WriteString(m.styles.statusMessage.Render("[no thread data]"))
-			b.WriteString("\n")
-		}
+	if m.tuiModel != nil {
+		// Use the TuiTreeModel's viewport-based rendering which includes
+		// focus indicator, expand/collapse markers, and scroll support.
+		b.WriteString("\n")
+		tuiView := m.tuiModel.View()
+		b.WriteString(tuiView.Content)
+	} else if m.event != nil {
+		// Fallback: show at least the current event when no tree is available
+		b.WriteString("\n")
+		b.WriteString(m.styles.currentEvent.Render("> " + truncateContent(m.event.Content, 60) + " (" + m.event.PubKey.Hex()[:8] + ")"))
+		b.WriteString("\n")
 	} else {
-		// Render tree
-		rendered, err := m.tree.Render(context.Background())
-		if err != nil {
-			b.WriteString(m.styles.statusMessage.Render("[render error]"))
-			b.WriteString("\n")
-		} else {
-			lines := strings.Split(rendered, "\n")
-			for i, line := range lines {
-				if strings.Contains(line, m.currentEventID[:8]) {
-					lines[i] = m.styles.currentEvent.Render(line)
-				}
-			}
-			b.WriteString(strings.Join(lines, "\n"))
-			b.WriteString("\n")
-		}
+		b.WriteString(m.styles.statusMessage.Render("  [no thread data]"))
+		b.WriteString("\n")
 	}
 
-	b.WriteString(m.styles.helpStyle.Render("↑↓ navigate · → expand · ← collapse · esc back"))
+	b.WriteString(m.styles.helpStyle.Render("\n↑↓ navigate · →← expand/collapse · enter search · esc back"))
 
 	return tea.NewView(b.String())
 }
