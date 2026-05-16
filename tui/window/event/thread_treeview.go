@@ -204,7 +204,7 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 }
 
 func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Event, []string) {
-	// Get relay hints from current event's e tags
+	// Get relay hints from current event's e tags - use them first
 	relayHints := utils.ExtractRelayHints(m.event)
 
 	relays := relayHints
@@ -222,7 +222,14 @@ func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*
 
 	result := m.app.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
 	if result == nil {
-		return nil, nil
+		// Fallback to all readable relays if e-tag relay hints failed
+		fallback := m.app.AllReadableRelays()
+		if len(fallback) > 0 && len(relayHints) > 0 {
+			result = m.app.Pool().QuerySingle(ctx, fallback, filter, nostr.SubscriptionOptions{})
+		}
+		if result == nil {
+			return nil, nil
+		}
 	}
 
 	return &result.Event, relays
