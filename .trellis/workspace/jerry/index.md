@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 29
-- **Last Active**: 2026-05-15
+- **Total Sessions**: 30
+- **Last Active**: 2026-05-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~988 | Active |
+| `journal-1.md` | ~1024 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 30 | 2026-05-16 | compose tag UX + spinner | `dccfdf1`, `ff5cb89`, `deb24a3`, `5f95e9b` | `main` |
 | 29 | 2026-05-15 | Compose tag input UX refactor | `1978167`, `3e39400`, `55f1b99`, `52e6ac2`, `d19fde5`, `4455015`, `ca9324d`, `7cbef92`, `56b61f3` | `main` |
 | 28 | 2026-05-15 | Extract filter builders from get.go for pure-unit-testability | `def8019`, `0bf9151` | `main` |
 | 27 | 2026-05-14 | Relay design doc: event hints, discovery patterns, local relay role | `5208a36` | `main` |

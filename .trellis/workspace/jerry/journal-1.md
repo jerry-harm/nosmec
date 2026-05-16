@@ -986,3 +986,39 @@ Refactored compose tag input UX: Tag as []string with item-level editing, remove
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: compose tag UX + spinner
+
+**Date**: 2026-05-16
+**Task**: compose tag UX + spinner
+**Branch**: `main`
+
+### Summary
+
+Refactored compose tag input: replaced dual editingTagIndex+editingItemIndex with single editingIndex, JSON list format for tag input, WYSIWYG linear navigation (Tab/Shift+Tab). Added spinner.Dot for send animation with partial success. Created tui-testing and golang-testing skills in .agents/skills/.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dccfdf1` | (see git log) |
+| `ff5cb89` | (see git log) |
+| `deb24a3` | (see git log) |
+| `5f95e9b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
