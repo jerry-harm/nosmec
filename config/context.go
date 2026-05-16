@@ -446,3 +446,34 @@ func (a *AppContext) Close() error {
 	}
 	return nil
 }
+
+func (a *AppContext) PersistKnownRelays() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	relays := make([]string, 0, len(a.knownRelays))
+	for r := range a.knownRelays {
+		relays = append(relays, r)
+	}
+
+	if len(relays) == 0 {
+		return nil
+	}
+
+	existing := make(map[string]struct{})
+	for _, r := range a.cfg.KnownRelays {
+		existing[r] = struct{}{}
+	}
+	for _, r := range relays {
+		existing[r] = struct{}{}
+	}
+
+	merged := make([]string, 0, len(existing))
+	for r := range existing {
+		merged = append(merged, r)
+	}
+
+	a.cfg.KnownRelays = merged
+	a.viper.Set("known_relays", merged)
+	return a.viper.WriteConfig()
+}

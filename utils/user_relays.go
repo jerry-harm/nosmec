@@ -45,7 +45,7 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 		Limit:   1,
 	}
 
-	relays := app.AllReadableRelays()
+	relays := getAllCandidateRelays(app)
 	if len(relays) == 0 {
 		return nil, nil
 	}
@@ -63,19 +63,32 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 	}
 
 	readRelays, writeRelays := nip65.ParseRelayList(*event)
+	allRelays := append(readRelays, writeRelays...)
 
-	reachableRead, _ := VerifyRelaysConnectivity(ctx, app, readRelays)
-	reachableWrite, _ := VerifyRelaysConnectivity(ctx, app, writeRelays)
+	EnsureRelays(app, allRelays)
 
-	CacheEvent(event, app)
+	return allRelays, nil
+}
 
-	EnsureRelays(app, reachableRead)
-	EnsureRelays(app, reachableWrite)
+func getAllCandidateRelays(app *config.AppContext) []string {
+	seen := make(map[string]struct{})
+	var result []string
 
-	app.TrackRelays(reachableRead)
-	app.TrackRelays(reachableWrite)
+	for _, r := range app.AllReadableRelays() {
+		if _, ok := seen[r]; !ok {
+			seen[r] = struct{}{}
+			result = append(result, r)
+		}
+	}
 
-	return reachableRead, nil
+	for _, r := range app.Config().KnownRelays {
+		if _, ok := seen[r]; !ok {
+			seen[r] = struct{}{}
+			result = append(result, r)
+		}
+	}
+
+	return result
 }
 
 func DiscoverUserRelaysWithFallback(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error) {

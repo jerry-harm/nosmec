@@ -83,7 +83,11 @@ func runGossip(cmd *cobra.Command, args []string) {
 			relays = append(relays, r)
 		}
 		app.TrackRelays(relays)
-		fmt.Println("Relays tracked. They will be saved to config on next app close.")
+		if err := app.PersistKnownRelays(); err != nil {
+			fmt.Printf("Warning: failed to persist relays: %v\n", err)
+		} else {
+			fmt.Printf("Saved %d relays to config.\n", len(relays))
+		}
 	}
 }
 
