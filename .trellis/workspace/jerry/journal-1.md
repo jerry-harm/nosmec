@@ -1092,3 +1092,37 @@ Completed migration from utils.ProfileMetadata to sdk.ProfileMetadata: removed d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 33: fix gossip npub decode, migrate thread to TuiTreeModel
+
+**Date**: 2026-05-16
+**Task**: fix gossip npub decode, migrate thread to TuiTreeModel
+**Branch**: `main`
+
+### Summary
+
+Fixed nosmec gossip failing silently (subscription IDs were npub, not hex). Used nip19.Decode per nostr-sdk-usage spec. Added TrackRelays to DiscoverUserRelays per relay-guidelines spec. Trellis-check found 8 issues in thread_treeview.go: migrated from raw treeview.Tree to TuiTreeModel for keyboard navigation (Up/Down/Left/Right/Enter); fixed placeholder ID error handling; fixed current event focus via SetFocusedID; removed dead eventMap; fixed compile errors with generic type parameters; custom KeyMap to handle Esc locally. PTY tested: gossip discovers 4 relays, persists to config. All tests pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b90e209` | (see git log) |
+| `508cedd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
