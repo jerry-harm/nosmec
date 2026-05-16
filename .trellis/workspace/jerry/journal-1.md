@@ -1022,3 +1022,40 @@ Refactored compose tag input: replaced dual editingTagIndex+editingItemIndex wit
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: Complete systematic test coverage improvement with TDD
+
+**Date**: 2026-05-16
+**Task**: Complete systematic test coverage improvement with TDD
+**Branch**: `main`
+
+### Summary
+
+Implemented all 4 phases of TDD test coverage improvement: (1) TestMain with goleak for goroutine leak detection, (2) Nostr operation TDD bounds tests for ParseCommunityAddr, GetParentPostInfo, ReplyToNote, FetchRecipientReadRelays, syncUsersFromNetwork, (3) TUI bounds tests for timeline, dm, and thread, (4) utility coverage tests for show.go and alias.go. Updated quality-guidelines.md with TDD patterns documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7f94402` | (see git log) |
+| `23d58b0` | (see git log) |
+| `354c72a` | (see git log) |
+| `ea4556c` | (see git log) |
+| `cf1c9bb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
