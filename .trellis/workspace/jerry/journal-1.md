@@ -1059,3 +1059,36 @@ Implemented all 4 phases of TDD test coverage improvement: (1) TestMain with gol
 ### Next Steps
 
 - None - task complete
+
+
+## Session 32: Migrate utils.ProfileMetadata to sdk.ProfileMetadata
+
+**Date**: 2026-05-16
+**Task**: Migrate utils.ProfileMetadata to sdk.ProfileMetadata
+**Branch**: `main`
+
+### Summary
+
+Completed migration from utils.ProfileMetadata to sdk.ProfileMetadata: removed duplicate struct, removed ProfileMetadataFromSDK conversion function, updated profileConfigToMetadata and metadataToProfileConfig to work with sdk.ProfileMetadata directly. Also cleaned up 5 empty tasks and archived 2 completed tasks.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c9b1744` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

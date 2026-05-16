@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 31
+- **Total Sessions**: 32
 - **Last Active**: 2026-05-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1061 | Active |
+| `journal-1.md` | ~1094 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 32 | 2026-05-16 | Migrate utils.ProfileMetadata to sdk.ProfileMetadata | `c9b1744` | `main` |
 | 31 | 2026-05-16 | Complete systematic test coverage improvement with TDD | `7f94402`, `23d58b0`, `354c72a`, `ea4556c`, `cf1c9bb` | `main` |
 | 30 | 2026-05-16 | compose tag UX + spinner | `dccfdf1`, `ff5cb89`, `deb24a3`, `5f95e9b` | `main` |
 | 29 | 2026-05-15 | Compose tag input UX refactor | `1978167`, `3e39400`, `55f1b99`, `52e6ac2`, `d19fde5`, `4455015`, `ca9324d`, `7cbef92`, `56b61f3` | `main` |
