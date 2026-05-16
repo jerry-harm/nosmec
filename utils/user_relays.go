@@ -47,25 +47,32 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 
 	relays := getAllCandidateRelays(app)
 	if len(relays) == 0 {
+		logger.Debug("DiscoverUserRelays: no candidate relays", "pubkey", pubKey.Hex())
 		return nil, nil
 	}
+
+	logger.Debug("DiscoverUserRelays: querying", "pubkey", pubKey.Hex(), "relays", relays)
 
 	results := app.Pool().FetchManyReplaceable(ctx, relays, filter, nostr.SubscriptionOptions{})
 
 	var event *nostr.Event
 	results.Range(func(key nostr.ReplaceableKey, ev nostr.Event) bool {
+		logger.Debug("DiscoverUserRelays: got event", "pubkey", pubKey.Hex(), "eventID", ev.ID.Hex())
 		event = &ev
 		return false
 	})
 
 	if event == nil {
+		logger.Debug("DiscoverUserRelays: no event found", "pubkey", pubKey.Hex())
 		return nil, nil
 	}
 
 	readRelays, writeRelays := nip65.ParseRelayList(*event)
 	allRelays := append(readRelays, writeRelays...)
+	logger.Debug("DiscoverUserRelays: parsed relays", "pubkey", pubKey.Hex(), "read", readRelays, "write", writeRelays)
 
 	EnsureRelays(app, allRelays)
+	app.TrackRelays(allRelays)
 
 	return allRelays, nil
 }
@@ -74,20 +81,27 @@ func getAllCandidateRelays(app *config.AppContext) []string {
 	seen := make(map[string]struct{})
 	var result []string
 
-	for _, r := range app.AllReadableRelays() {
+	readable := app.AllReadableRelays()
+	logger.Debug("getAllCandidateRelays: AllReadableRelays", "count", len(readable), "relays", readable)
+
+	for _, r := range readable {
 		if _, ok := seen[r]; !ok {
 			seen[r] = struct{}{}
 			result = append(result, r)
 		}
 	}
 
-	for _, r := range app.Config().KnownRelays {
+	known := app.Config().KnownRelays
+	logger.Debug("getAllCandidateRelays: KnownRelays", "count", len(known), "relays", known)
+
+	for _, r := range known {
 		if _, ok := seen[r]; !ok {
 			seen[r] = struct{}{}
 			result = append(result, r)
 		}
 	}
 
+	logger.Debug("getAllCandidateRelays: total candidates", "count", len(result))
 	return result
 }
 

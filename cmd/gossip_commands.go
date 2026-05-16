@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
@@ -31,6 +33,8 @@ func runGossip(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	logger.Debug("runGossip: starting", "users", len(subs))
+
 	var relayCount int32
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -40,9 +44,14 @@ func runGossip(cmd *cobra.Command, args []string) {
 	completed := 0
 
 	for _, sub := range subs {
-		go func(pubkeyHex string) {
-			pk, err := hexToPubKey(pubkeyHex)
-			if err != nil {
+		go func(subID string) {
+			prefix, value, err := nip19.Decode(subID)
+			if err != nil || prefix != "npub" {
+				results <- nil
+				return
+			}
+			pk, ok := value.(nostr.PubKey)
+			if !ok {
 				results <- nil
 				return
 			}
@@ -51,7 +60,6 @@ func runGossip(cmd *cobra.Command, args []string) {
 				results <- nil
 				return
 			}
-			atomic.AddInt32(&relayCount, int32(len(relays)))
 			results <- relays
 		}(sub.ID)
 	}
@@ -66,9 +74,11 @@ func runGossip(cmd *cobra.Command, args []string) {
 		case r := <-results:
 			completed++
 			if r != nil {
+				logger.Debug("runGossip: got relays from user", "completed", completed, "relayCount", len(r))
 				for _, rel := range r {
 					relaySet[rel] = struct{}{}
 				}
+				atomic.AddInt32(&relayCount, int32(len(r)))
 			}
 			fmt.Printf("\rProcessing: %d/%d users, %d relays found", completed, len(subs), atomic.LoadInt32(&relayCount))
 		case <-ticker.C:
@@ -78,19 +88,10 @@ func runGossip(cmd *cobra.Command, args []string) {
 	fmt.Printf("\nDiscovered %d unique relays from %d users\n", len(relaySet), len(subs))
 
 	if len(relaySet) > 0 {
-		relays := make([]string, 0, len(relaySet))
-		for r := range relaySet {
-			relays = append(relays, r)
-		}
-		app.TrackRelays(relays)
 		if err := app.PersistKnownRelays(); err != nil {
 			fmt.Printf("Warning: failed to persist relays: %v\n", err)
 		} else {
-			fmt.Printf("Saved %d relays to config.\n", len(relays))
+			fmt.Printf("Saved %d relays to config.\n", len(relaySet))
 		}
 	}
-}
-
-func hexToPubKey(hex string) (nostr.PubKey, error) {
-	return nostr.PubKeyFromHex(hex)
 }
