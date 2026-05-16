@@ -233,6 +233,45 @@ func TestMain(m *testing.M) {
 - `package foo` (white-box) → `foo_test.go`
 - `package foo_test` (black-box) → `foo_test.go`
 
+### TUI Testing with teatest
+
+For BubbleTea TUI components, use `charmbracelet/x/exp/teatest`:
+
+```go
+import "github.com/charmbracelet/x/exp/teatest"
+
+func TestTUI(t *testing.T) {
+    tm := teatest.NewTestModel(t, model{})
+    tm.Send(msg)
+    tm.Output()     // intermediate output
+    tm.FinalModel(t) // final state
+}
+```
+
+**CI-safe testing** (no colors):
+```go
+lipgloss.SetColorProfile(termenv.Ascii)
+```
+
+### Phase 2: Nostr Operation TDD (Bounds Checks)
+
+Functions that access slice/array indices without bounds checks need TDD tests:
+
+| Function | Risk | Test Pattern |
+|----------|------|--------------|
+| `ParseCommunityAddr` | `parts[1]` without len check | Malformed address with no second part |
+| `GetParentPostInfo` | `authorPubKey[:]` no length validation | Invalid hex pubkey |
+| `FetchRecipientReadRelays` | `tag[1]` without len check | Empty event Tags |
+| `syncUsersFromNetwork` | `tag[1]`, `tag[2]`, `tag[3]` without len checks | Short tags |
+
+### Phase 3: TUI Bounds Tests
+
+| File | Risk | Test Pattern |
+|------|------|--------------|
+| `timeline/model.go` | `items[len-1]` without bounds | Empty items list, navigate prev |
+| `dm/model.go` | `m.messages` append with nil viewport | Empty messages |
+| `thread.go` | `m.replies[i]` without bounds | Empty replies |
+
 ### NIP-50 Extensions Not Blocked by Local Relay
 
 NIP-50 search extensions (`language:`, `domain:`, `nsfw:`, `sentiment:`, `include:spam`) are passed as-is to relays. Our local Bleve only supports basic full-text search — extensions are handled by external relays that support NIP-50.
