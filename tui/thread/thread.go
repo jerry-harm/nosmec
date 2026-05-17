@@ -43,12 +43,14 @@ func newStyles() styles {
 }
 
 type keyMap struct {
-	quit key.Binding
+	quit    key.Binding
+	refresh key.Binding
 }
 
 func newKeyMap() keyMap {
 	return keyMap{
-		quit: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		quit:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 	}
 }
 
@@ -363,6 +365,7 @@ func (m *Model) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Eve
 }
 
 const maxThreadDepth = 10
+const queryBatchSize = 50
 
 func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
 	relays := utils.GetQueryRelays(m.event, m.app)
@@ -378,32 +381,42 @@ func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nost
 
 	for depth := 0; depth < maxThreadDepth && len(queryIDs) > 0; depth++ {
 		logger.Debug("thread: fetchThreadReplies depth", "depth", depth, "queryIDs", len(queryIDs))
-		filter := nostr.Filter{
-			Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
-			Tags:  nostr.TagMap{"e": queryIDs},
-		}
 
-		ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
-		defer cancel()
-		results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
-
-		var batchCount int
 		var nextIDs []string
 
-		for relayEvent := range results {
-			batchCount++
-			ev := relayEvent.Event
-			if seen[ev.ID.Hex()] {
-				continue
+		for start := 0; start < len(queryIDs); start += queryBatchSize {
+			end := start + queryBatchSize
+			if end > len(queryIDs) {
+				end = len(queryIDs)
 			}
-			seen[ev.ID.Hex()] = true
+			batch := queryIDs[start:end]
 
-			eventCopy := ev
-			allEvents = append(allEvents, &eventCopy)
-			nextIDs = append(nextIDs, ev.ID.Hex())
+			filter := nostr.Filter{
+				Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
+				Tags:  nostr.TagMap{"e": batch},
+			}
+
+			ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
+			results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+
+			var batchCount int
+			for relayEvent := range results {
+				batchCount++
+				ev := relayEvent.Event
+				if seen[ev.ID.Hex()] {
+					continue
+				}
+				seen[ev.ID.Hex()] = true
+
+				eventCopy := ev
+				allEvents = append(allEvents, &eventCopy)
+				nextIDs = append(nextIDs, ev.ID.Hex())
+			}
+			cancel()
+			logger.Debug("thread: fetchThreadReplies batch", "depth", depth, "batchIDs", len(batch), "found", batchCount)
 		}
 
-		logger.Debug("thread: fetchThreadReplies batch", "depth", depth, "found", batchCount, "new", len(nextIDs))
+		logger.Debug("thread: fetchThreadReplies depth done", "depth", depth, "newIDs", len(nextIDs))
 		queryIDs = nextIDs
 	}
 
@@ -543,6 +556,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if key.Matches(msg.Key(), m.keys.refresh) {
+			m.fetched = false
+			return m, m.fetchThread()
+		}
+
 		if m.tuiModel != nil {
 			_, cmd := m.tuiModel.Update(msg)
 			return m, cmd
@@ -575,7 +593,7 @@ func (m *Model) View() tea.View {
 		b.WriteString("\n")
 	}
 
-	b.WriteString(m.styles.helpStyle.Render("\n↑↓ navigate · →← expand/collapse · enter view · esc back"))
+	b.WriteString(m.styles.helpStyle.Render("\n↑↓ navigate · →← expand/collapse · enter view · r refresh · esc back"))
 
 	v := tea.NewView(b.String())
 	v.AltScreen = true
