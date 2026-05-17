@@ -18,6 +18,7 @@ type AppContext struct {
 	mu           sync.RWMutex
 	viper        *viper.Viper
 	knownRelays  map[string]struct{}
+	hints        *HintsDB
 }
 
 func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext {
@@ -27,11 +28,16 @@ func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.
 		cfg:         cfg,
 		viper:       v,
 		knownRelays: make(map[string]struct{}),
+		hints:       GlobalHints(),
 	}
 }
 
 func (a *AppContext) Pool() *nostr.Pool {
 	return a.pool
+}
+
+func (a *AppContext) Hints() *HintsDB {
+	return a.hints
 }
 
 func (a *AppContext) Store() StoreInterface {

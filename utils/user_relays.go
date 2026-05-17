@@ -123,3 +123,51 @@ func EnsureRelays(app *config.AppContext, urls []string) {
 		app.Pool().EnsureRelay(url)
 	}
 }
+
+// GetQueryRelays returns the ordered relay list for querying events related to the given event.
+// Priority: 1. tag[2] relay hints  2. HintsDB outbox (from e tag[3] author pubkeys)
+// 3. AllReadableRelays  4. KnownRelays fallback.
+func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string {
+	seen := make(map[string]struct{})
+	var result []string
+
+	// 1. Relay hints from tags (tag[2])
+	hints := ExtractRelayHints(event)
+	for _, r := range hints {
+		if _, ok := seen[r]; !ok {
+			seen[r] = struct{}{}
+			result = append(result, r)
+		}
+	}
+
+	// 2. Outbox relays from e tag[3] author pubkeys via HintsDB
+	for tag := range event.Tags.FindAll("e") {
+		if len(tag) >= 4 && tag[3] != "" && nostr.IsValid32ByteHex(tag[3]) {
+			outbox := app.Hints().TopN(tag[3], 3)
+			for _, r := range outbox {
+				if _, ok := seen[r]; !ok {
+					seen[r] = struct{}{}
+					result = append(result, r)
+				}
+			}
+		}
+	}
+
+	// 3. All readable relays (configured + local)
+	for _, r := range app.AllReadableRelays() {
+		if _, ok := seen[r]; !ok {
+			seen[r] = struct{}{}
+			result = append(result, r)
+		}
+	}
+
+	// 4. KnownRelays fallback
+	for _, r := range app.Config().KnownRelays {
+		if _, ok := seen[r]; !ok {
+			seen[r] = struct{}{}
+			result = append(result, r)
+		}
+	}
+
+	return result
+}

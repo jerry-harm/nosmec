@@ -174,21 +174,54 @@ func loadConfig() *Config {
 	return &config
 }
 
-func NewPool() *nostr.Pool {
-	return nostr.NewPool(nostr.PoolOptions{
+func NewPool(hints *HintsDB) *nostr.Pool {
+	opts := nostr.PoolOptions{
 		RelayOptions: nostr.RelayOptions{
 			NoticeHandler: func(relay *nostr.Relay, notice string) {
 				logger.Debug("NOTICE from %s: '%s'", relay.URL, notice)
 			},
 		},
-	})
+	}
+	if hints != nil {
+		opts.EventMiddleware = func(ie nostr.RelayEvent) {
+			ev := ie.Event
+			if ev.PubKey != [32]byte{} {
+				hints.Record(ev.PubKey.Hex(), ie.Relay.URL, HintEventFetched)
+			}
+			// Record relay hints from p tags
+			_ = ev.Tags.FindAll("p")
+			for tag := range ev.Tags.FindAll("p") {
+				if len(tag) >= 3 && tag[1] != "" && tag[2] != "" {
+					hints.Record(tag[1], tag[2], HintFromTag)
+				}
+			}
+			// Record relay list hints from kind 10002
+			if ev.Kind == nostr.KindRelayListMetadata {
+				for tag := range ev.Tags.FindAll("r") {
+					if len(tag) >= 2 {
+						hints.Record(ev.PubKey.Hex(), tag[1], HintInRelayList)
+					}
+				}
+			}
+		}
+	}
+	return nostr.NewPool(opts)
+}
+
+var globalHints *HintsDB
+
+func GlobalHints() *HintsDB {
+	if globalHints == nil {
+		globalHints = NewHintsDB()
+	}
+	return globalHints
 }
 
 func GlobalPool() *nostr.Pool {
 	if globalPool != nil {
 		return globalPool
 	}
-	globalPool = NewPool()
+	globalPool = NewPool(GlobalHints())
 	return globalPool
 }
 
