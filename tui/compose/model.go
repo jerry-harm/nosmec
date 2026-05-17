@@ -130,10 +130,6 @@ type sendSuccessMsg struct {
 	eventID string
 }
 
-// CloseComposeMsg is sent when the user presses esc or sends successfully
-// to notify the window manager to close the compose window (but preserve state)
-type CloseComposeMsg struct{}
-
 func NewNoteCompose(app *config.AppContext) *model {
 	return newCompose(app, KindNote, nil, "", "")
 }
@@ -257,7 +253,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.errMsg = msg.err
 		m.statusMsg = "Failed: " + msg.err
 		m.sending = false
-		return m, tea.Quit
+		// Stay on compose page so user can retry — don't close
+		return m, nil
 
 	case sendSuccessMsg:
 		m.success = true
@@ -265,7 +262,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "Posted successfully!"
 		m.sending = false
 		m.ClearDraft()
-		return m, tea.Quit
+		if m.isStandalone {
+			return m, tea.Quit
+		}
+		return m, func() tea.Msg { return bubblon.Close() }
 	}
 
 	if m.sending {
@@ -499,7 +499,7 @@ func (m *model) sendContent(content string) tea.Cmd {
 				}
 			}
 		} else {
-			hasSuccess = true
+			return sendErrorMsg{err: "no writable relays configured"}
 		}
 
 		if hasSuccess {
