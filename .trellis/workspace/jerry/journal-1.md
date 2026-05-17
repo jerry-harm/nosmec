@@ -1225,3 +1225,37 @@ Fixed CLI entry point (nosmec event <id>) by injecting bubblon controller via Se
 ### Next Steps
 
 - None - task complete
+
+
+## Session 37: implement HintsDB auto-learning and unified GetQueryRelays relay strategy
+
+**Date**: 2026-05-17
+**Task**: implement HintsDB auto-learning and unified GetQueryRelays relay strategy
+**Branch**: `main`
+
+### Summary
+
+Designed and implemented HintsDB (config/hints.go): learned relay→pubkey associations from every incoming event via Pool.EventMiddleware. Four hint types with SDK-compatible scoring formula (^1.3 decay). Auto-learning hooks: author event receipt (700pts), p-tag relay hints (20pts), kind:10002 relay list entries (350pts). Created GetQueryRelays (utils/user_relays.go): unified 4-level priority — tag[2] hints → HintsDB outbox (e tag[3]) → AllReadableRelays → KnownRelays. Replaced ad-hoc relay selection in fetchRootEvent/fetchThreadReplies. Added 5 HintsDB unit tests (record, TopN, empty, limit, invalid input). Updated relay-guidelines.md spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e0cf3b1` | (see git log) |
+| `097b632` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
