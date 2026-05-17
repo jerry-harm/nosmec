@@ -1159,3 +1159,36 @@ Added 23 unit test cases for thread_treeview.go covering buildTuiModel (empty/si
 ### Next Steps
 
 - None - task complete
+
+
+## Session 35: fix NIP-10 reply parsing, multi-level thread fetch, clarify kind:1111 scope
+
+**Date**: 2026-05-17
+**Task**: fix NIP-10 reply parsing, multi-level thread fetch, clarify kind:1111 scope
+**Branch**: `main`
+
+### Summary
+
+Corrected NIP-10 reply tag parsing: direct reply with only 'root' marker now correctly returns root tag value as parent (was treating as root-level node). extractRootEvent now distinguishes self-referencing root from direct reply. Aligned FindRootEvent in utils/get.go. Replaced single-level fetchRepliesToRoot with recursive fetchThreadReplies (max depth 10) that queries #e level by level to build complete thread trees. Clarified kind:1111 (NIP-22) vs kind:1 scope — they are mutually exclusive per NIP-10 and NIP-22 specs. Community kind:1111 support deferred for later reuse of the same fetch logic. Added NIP-10 parsing table to relay-guidelines.md. All tests pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dfea33a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
