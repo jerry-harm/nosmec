@@ -121,8 +121,9 @@ Previously (now abandoned):
 | NIP-65 discovery (per-user) | `DiscoverUserRelays` | On-demand during profile queries |
 | Config persistence | `TrackRelays` → `Close()` | Only on app shutdown |
 | Network sync (self only) | `SyncRelaysFromNetwork` | Manual `config sync` command |
+| **Auto-learning** | `HintsDB` via `Pool.EventMiddleware` | **Every incoming event** |
 
-**Note**: Relay connectivity is verified only at config persistence time. During runtime, Pool uses lazy connection — unreachable relays are ignored by the pool.
+**Note**: Relay connectivity is verified only at config persistence time. During runtime, Pool uses lazy connection — unreachable relays are ignored by the pool. HintsDB scoring decays over time (^1.3), so stale associations naturally fade.
 
 ---
 
@@ -182,12 +183,22 @@ When a `GetOptions` has no explicit relay list, functions must follow this fallb
 ```go
 relays := opts.Relays
 if len(relays) == 0 {
-    relays = opts.App.AllReadableRelays()   // local + configured relays
-}
-if len(relays) == 0 {
-    relays = opts.App.Config().KnownRelays  // discovered fallback
+    relays = utils.GetQueryRelays(opts.Event, opts.App)
 }
 ```
+
+**`GetQueryRelays` priority** (implemented in `utils/user_relays.go`):
+
+1. **tag[2] relay hints** — `ExtractRelayHints(event)` from e/p/a/q tags
+2. **HintsDB outbox** — `app.Hints().TopN(pubkey, 3)` from e tag[3] author pubkeys
+3. **AllReadableRelays()** — configured relays + local relay
+4. **KnownRelays** — NIP-65 discovered + gossip fallback
+
+**HintsDB** (`config/hints.go`): learns relay→pubkey from every incoming event via Pool.EventMiddleware.
+- HintEventFetched (700pts): successfully received event from relay
+- HintInRelayList (350pts): author listed relay in kind:10002
+- HintFromTag (20pts): p-tag relay hint
+- Scoring: `basePoints * 1e10 / (age + 86400)^1.3` (same formula as nostr SDK)
 
 **Why**: `AllReadableRelays()` includes the local relay (cache) first, which provides resilience when configured relays fail. `KnownRelays` is a last-resort pool of relays discovered from NIP-65.
 
