@@ -886,7 +886,9 @@ func TestExtractParentID_PositionalFirstTagIsSelf(t *testing.T) {
 }
 
 func TestExtractRootEvent_PositionalSingleTag(t *testing.T) {
+	// Single positional e tag = reply to that event (not root)
 	id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+	someID, _ := nostr.IDFromHex(testSomeID)
 	event := &nostr.Event{
 		ID:      id,
 		Content: "note",
@@ -898,11 +900,11 @@ func TestExtractRootEvent_PositionalSingleTag(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if !isRoot {
-		t.Errorf("single positional e tag with no marker should be root")
+	if isRoot {
+		t.Errorf("single positional e tag should NOT be root (it's a reply to that event)")
 	}
-	if rootID != event.ID {
-		t.Errorf("root ID should equal event ID (single positional tag)")
+	if rootID != someID {
+		t.Errorf("provisional root should be the parent event, got %v, want %v", rootID, someID)
 	}
 }
 

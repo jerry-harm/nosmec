@@ -172,7 +172,7 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 	}
 
 	// Phase 2: positional e tags (deprecated, backward compat)
-	// First valid e tag = root, last = reply
+	// First valid e tag = root, last = reply. If only one, it IS the parent.
 	validTags := collectETags(event.Tags)
 	if len(validTags) >= 2 {
 		rootTagValue = validTags[0][1]
@@ -181,6 +181,15 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 			if err != nil {
 				return nostr.ID{}, false, err
 			}
+			return rootFromTag, false, nil
+		}
+	}
+	if len(validTags) == 1 {
+		// Single positional e tag = reply to that event. The parent is
+		// the tagged event; we don't know the real root, so use
+		// the parent as provisional root.
+		rootFromTag, err := nostr.IDFromHex(validTags[0][1])
+		if err == nil && rootFromTag != event.ID {
 			return rootFromTag, false, nil
 		}
 	}
