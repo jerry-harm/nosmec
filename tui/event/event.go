@@ -47,6 +47,7 @@ type EventView struct {
 	showRawJSON  bool
 	loading      bool
 	fetchedEvent bool
+	ownEvent     bool
 	help         help.Model
 	keys         eventKeyMap
 
@@ -92,6 +93,7 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		showRawJSON:   false,
 		ctrl:          ctrl,
 	}
+	m.ownEvent = m.isOwnEvent()
 	m.initStyles()
 	m.initViewport(width, height)
 	m.initKeyBindings()
@@ -187,6 +189,17 @@ func (m *EventView) fetchProfileNameAsync() tea.Cmd {
 	}
 }
 
+func (m *EventView) isOwnEvent() bool {
+	if m.event == nil {
+		return false
+	}
+	pk, err := m.app.GetMyPubKey()
+	if err != nil {
+		return false
+	}
+	return m.event.PubKey == pk
+}
+
 func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -210,6 +223,9 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 		case "q":
 			return m.quote()
 		case "d":
+			if !m.ownEvent {
+				return nil
+			}
 			m.confirmDelete = true
 			return nil
 		case "f":
@@ -331,6 +347,7 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.fetchedEvent = true
 		if m.event != nil {
+			m.ownEvent = m.isOwnEvent()
 			return m, m.fetchProfileNameAsync()
 		}
 		return m, nil
@@ -378,8 +395,19 @@ func (m *EventView) View() tea.View {
 	var bottom string
 	if m.confirmDelete {
 		bottom = "\n" + m.styles.confirm.Render("[Delete this event? (Y/n)]")
-	} else {
+	} else if m.ownEvent {
 		bottom = "\n" + m.help.View(m.keys)
+	} else {
+		keys := eventKeyMap{
+			reply:   m.keys.reply,
+			quote:   m.keys.quote,
+			follow:  m.keys.follow,
+			open:    m.keys.open,
+			rawjson: m.keys.rawjson,
+			thread:  m.keys.thread,
+			quit:    m.keys.quit,
+		}
+		bottom = "\n" + m.help.View(keys)
 	}
 
 	v := tea.NewView(m.viewport.View() + bottom)
