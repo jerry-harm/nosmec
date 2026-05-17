@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/utils"
 )
 
 const ComposeWindowID = "compose"
@@ -189,10 +190,12 @@ func (m *model) AddReply(parentEvent *nostr.Event) {
 	m.composeKind = KindReply
 	m.parentEvent = parentEvent
 	m.parentID = parentEvent.ID.Hex()
-	m.tags = append(m.tags,
-		Tag{"e", parentEvent.ID.Hex()},
-		Tag{"p", parentEvent.PubKey.Hex()},
-	)
+
+	tags := utils.BuildReplyTags(parentEvent, "")
+	for _, t := range tags {
+		m.tags = append(m.tags, Tag(t))
+	}
+	m.tags = append(m.tags, Tag{"p", parentEvent.PubKey.Hex()})
 }
 
 func (m *model) AddQuote(parentEvent *nostr.Event) {

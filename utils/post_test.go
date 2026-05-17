@@ -22,27 +22,40 @@ func TestQuoteNoteTags(t *testing.T) {
 }
 
 func TestReplyToNoteTags(t *testing.T) {
-	parentID := "parent-event-id"
-	parentPubKey := nostr.PubKey{}
-
-	tags := nostr.Tags{
-		{"e", parentID, "", "reply"},
-		{"p", parentPubKey.Hex()},
+	// Root event (no e tags) → reply should have only "root" marker
+	rootEvent := &nostr.Event{
+		ID:      [32]byte{1},
+		Content: "root",
+		Kind:    nostr.KindTextNote,
+		Tags:    nostr.Tags{},
+	}
+	tags := BuildReplyTags(rootEvent, "")
+	if len(tags) != 1 {
+		t.Fatalf("len(tags) = %d, want 1", len(tags))
+	}
+	if tags[0][0] != "e" || tags[0][3] != "root" {
+		t.Errorf("direct reply to root: got %v, want [e id '' root]", tags[0])
 	}
 
+	// Nested reply (parent has root marker) → reply should have "root" + "reply"
+	nestedParent := &nostr.Event{
+		ID:      [32]byte{2},
+		Content: "nested parent",
+		Kind:    nostr.KindTextNote,
+		Tags: nostr.Tags{
+			{"e", rootEvent.ID.Hex(), "", "root"},
+			{"e", "some-parent-id", "", "reply"},
+		},
+	}
+	tags = BuildReplyTags(nestedParent, "")
 	if len(tags) != 2 {
-		t.Errorf("len(tags) = %d, want 2", len(tags))
+		t.Fatalf("len(tags) = %d, want 2", len(tags))
 	}
-
-	if tags[0][0] != "e" || tags[0][1] != parentID {
-		t.Errorf("tags[0] = %v, want [e, %s]", tags[0], parentID)
+	if tags[0][3] != "root" || tags[0][1] != rootEvent.ID.Hex() {
+		t.Errorf("root tag: got %v", tags[0])
 	}
-	if tags[0][3] != "reply" {
-		t.Errorf("tags[0][3] = %q, want %q", tags[0][3], "reply")
-	}
-
-	if tags[1][0] != "p" {
-		t.Errorf("tags[1][0] = %q, want %q", tags[1][0], "p")
+	if tags[1][3] != "reply" || tags[1][1] != nestedParent.ID.Hex() {
+		t.Errorf("reply tag: got %v", tags[1])
 	}
 }
 
@@ -82,28 +95,30 @@ func TestDeleteNoteEventKind(t *testing.T) {
 }
 
 func TestBuildReplyTags(t *testing.T) {
-	parentID := "abcd1234"
+	id, _ := nostr.IDFromHex("abcd123400000000000000000000000000000000000000000000000000000000")
 	parentPubKeyHex := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-
-	tags := nostr.Tags{
-		{"e", parentID, "", "reply"},
-		{"p", parentPubKeyHex},
+	parentEvent := &nostr.Event{
+		ID:      id,
+		Content: "test parent",
+		Kind:    nostr.KindTextNote,
+		Tags:    nostr.Tags{},
 	}
 
-	foundReply := false
+	tags := BuildReplyTags(parentEvent, "")
+	tags = append(tags, nostr.Tag{"p", parentPubKeyHex})
+
+	foundRoot := false
 	foundP := false
 	for _, tag := range tags {
-		if len(tag) >= 2 {
-			if tag[0] == "e" && len(tag) >= 4 && tag[3] == "reply" {
-				foundReply = true
-			}
-			if tag[0] == "p" {
-				foundP = true
-			}
+		if len(tag) >= 4 && tag[0] == "e" && tag[3] == "root" {
+			foundRoot = true
+		}
+		if tag[0] == "p" {
+			foundP = true
 		}
 	}
-	if !foundReply {
-		t.Error("reply tag not found")
+	if !foundRoot {
+		t.Error("root tag not found in reply tags")
 	}
 	if !foundP {
 		t.Error("p tag not found")
