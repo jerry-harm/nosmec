@@ -345,6 +345,10 @@ func (m *Model) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Eve
 	relays := utils.GetQueryRelays(m.event, m.app)
 	logger.Debug("thread: fetchRootEvent", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
+		relays = m.app.AllReadableRelays()
+		logger.Debug("thread: fetchRootEvent fallback to AllReadableRelays", "relays", len(relays))
+	}
+	if len(relays) == 0 {
 		logger.Debug("thread: fetchRootEvent no relays available")
 		return nil, nil
 	}
@@ -370,6 +374,10 @@ const queryBatchSize = 50
 func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
 	relays := utils.GetQueryRelays(m.event, m.app)
 	logger.Debug("thread: fetchThreadReplies", "rootID", rootID.Hex()[:8], "relays", len(relays))
+	if len(relays) == 0 {
+		relays = m.app.AllReadableRelays()
+		logger.Debug("thread: fetchThreadReplies fallback to AllReadableRelays", "relays", len(relays))
+	}
 	if len(relays) == 0 {
 		logger.Debug("thread: fetchThreadReplies no relays")
 		return nil

@@ -98,6 +98,8 @@ func (c Controller) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return c, nil
 		}
 
+		return c, tea.Quit
+
 	default:
 		if top := c.top(); top != nil {
 			m, cmd := top.Update(msg)
