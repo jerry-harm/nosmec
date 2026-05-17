@@ -12,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/bubblon"
 	"github.com/jerry-harm/nosmec/utils"
 )
@@ -287,8 +288,12 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 
 		rootID, isRoot, err := extractRootEvent(m.event)
 		if err != nil {
+			logger.Error("thread: extractRootEvent failed", "error", err)
 			return threadTreeLoadedMsg{err: err}
 		}
+		logger.Debug("thread: fetchThread start", "eventID", m.event.ID.Hex()[:8],
+			"rootID", rootID.Hex()[:8], "isRoot", isRoot,
+			"eTags", len(collectETags(m.event.Tags)))
 
 		events = append(events, m.event)
 
@@ -296,11 +301,14 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			m.mu.Lock()
 			m.root = m.event
 			m.mu.Unlock()
+			logger.Debug("thread: event IS root")
 		} else {
-			rootEvent, _ := m.fetchRootEvent(ctx, rootID)
+			rootEvent, rootRelays := m.fetchRootEvent(ctx, rootID)
 			m.mu.Lock()
 			m.root = rootEvent
 			m.mu.Unlock()
+			logger.Debug("thread: fetchRootEvent result", "found", rootEvent != nil,
+				"relays", len(rootRelays))
 			if rootEvent != nil {
 				events = append(events, rootEvent)
 			}
@@ -311,7 +319,10 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 		// event may be old/pruned, but replies (including the current
 		// event) should still be findable via #e query.
 		replyEvents := m.fetchThreadReplies(ctx, rootID)
+		logger.Debug("thread: fetchThreadReplies result", "count", len(replyEvents))
 		events = append(events, replyEvents...)
+
+		logger.Debug("thread: total events for tree", "count", len(events))
 
 		m.mu.Lock()
 		tuiModel, err := m.buildTuiModel(events)
@@ -320,6 +331,7 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 		}
 		m.fetched = true
 		m.mu.Unlock()
+		logger.Debug("thread: fetchThread done", "tuiModel", tuiModel != nil, "err", err)
 
 		return threadTreeLoadedMsg{err: err}
 	}
@@ -327,7 +339,9 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 
 func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Event, []string) {
 	relays := utils.GetQueryRelays(m.event, m.app)
+	logger.Debug("thread: fetchRootEvent", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
+		logger.Debug("thread: fetchRootEvent no relays available")
 		return nil, nil
 	}
 
@@ -338,9 +352,11 @@ func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*
 
 	result := m.app.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
 	if result == nil {
+		logger.Debug("thread: fetchRootEvent QuerySingle returned nil")
 		return nil, nil
 	}
 
+	logger.Debug("thread: fetchRootEvent found root event")
 	return &result.Event, relays
 }
 
@@ -348,7 +364,9 @@ const maxThreadDepth = 10
 
 func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
 	relays := utils.GetQueryRelays(m.event, m.app)
+	logger.Debug("thread: fetchThreadReplies", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
+		logger.Debug("thread: fetchThreadReplies no relays")
 		return nil
 	}
 
@@ -357,6 +375,7 @@ func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID
 	queryIDs := []string{rootID.Hex()}
 
 	for depth := 0; depth < maxThreadDepth && len(queryIDs) > 0; depth++ {
+		logger.Debug("thread: fetchThreadReplies depth", "depth", depth, "queryIDs", len(queryIDs))
 		filter := nostr.Filter{
 			Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
 			Tags:  nostr.TagMap{"e": queryIDs},
@@ -366,9 +385,11 @@ func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID
 		results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
 		cancel()
 
+		var batchCount int
 		var nextIDs []string
 
 		for relayEvent := range results {
+			batchCount++
 			ev := relayEvent.Event
 			if seen[ev.ID.Hex()] {
 				continue
@@ -380,9 +401,11 @@ func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID
 			nextIDs = append(nextIDs, ev.ID.Hex())
 		}
 
+		logger.Debug("thread: fetchThreadReplies batch", "depth", depth, "found", batchCount, "new", len(nextIDs))
 		queryIDs = nextIDs
 	}
 
+	logger.Debug("thread: fetchThreadReplies done", "total", len(allEvents))
 	return allEvents
 }
 
