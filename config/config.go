@@ -210,8 +210,8 @@ func NewPool(h sdk_hints.HintsDB) *nostr.Pool {
 			if ev.PubKey != [32]byte{} {
 				h.Save(ev.PubKey, ie.Relay.URL, sdk_hints.MostRecentEventFetched, nostr.Now())
 			}
-			// Track event→relay for NIP-10 e tag relay hints
-			if ev.ID != [32]byte{} {
+			// Track event→relay for NIP-10 e tag relay hints (skip local relay)
+			if ev.ID != [32]byte{} && ie.Relay.URL != localRelayURL {
 				TrackEventRelay(ev.ID.Hex(), ie.Relay.URL)
 			}
 			for tag := range ev.Tags.FindAll("p") {
@@ -473,10 +473,13 @@ var (
 )
 
 // TrackEventRelay records which relay an event was fetched from.
+// Does not overwrite existing entries — the first (remote) relay wins.
 func TrackEventRelay(eventID, relayURL string) {
 	eventRelayMu.Lock()
 	defer eventRelayMu.Unlock()
-	eventRelays[eventID] = relayURL
+	if _, ok := eventRelays[eventID]; !ok {
+		eventRelays[eventID] = relayURL
+	}
 }
 
 // GetEventRelay returns the relay URL an event was fetched from.
