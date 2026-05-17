@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -14,15 +13,14 @@ import (
 )
 
 var (
-	testParentID = "0000000000000000000000000000000000000000000000000000000000000001"
+	testParentID      = "0000000000000000000000000000000000000000000000000000000000000001"
 	testFirstParentID = "0000000000000000000000000000000000000000000000000000000000000002"
 	testSecondParentID = "0000000000000000000000000000000000000000000000000000000000000003"
-	testSomeID = "0000000000000000000000000000000000000000000000000000000000000004"
-	testRootMarkerID = "abcd000000000000000000000000000000000000000000000000000000000000"
+	testSomeID        = "0000000000000000000000000000000000000000000000000000000000000004"
+	testRootMarkerID  = "abcd000000000000000000000000000000000000000000000000000000000000"
 )
 
 func TestExtractParentID_RootEvent(t *testing.T) {
-	// Event with no e tags = root (no parent)
 	event := &nostr.Event{
 		Content: "root note",
 		Tags:    nostr.Tags{},
@@ -34,7 +32,6 @@ func TestExtractParentID_RootEvent(t *testing.T) {
 }
 
 func TestExtractParentID_RootMarker(t *testing.T) {
-	// Root marker pointing to different event = direct reply, parent is root tag value
 	event := &nostr.Event{
 		Content: "direct reply to root",
 		Tags: nostr.Tags{
@@ -42,23 +39,18 @@ func TestExtractParentID_RootMarker(t *testing.T) {
 		},
 	}
 	parentID := extractParentID(event)
-	expectedRootID, _ := nostr.IDFromHex(testRootMarkerID)
-	// For a direct reply, root IS the parent (event's own ID differs from root marker)
 	if event.ID.Hex() != testRootMarkerID {
 		if parentID != testRootMarkerID {
 			t.Errorf("direct reply should have parent = root marker ID %q, got %q", testRootMarkerID, parentID)
 		}
 	} else {
-		// Self-referencing root marker = this IS the root
 		if parentID != "" {
 			t.Errorf("self-root event should have empty parent ID, got %q", parentID)
 		}
 	}
-	_ = expectedRootID
 }
 
 func TestExtractParentID_ReplyMarker(t *testing.T) {
-	// Event with "reply" marker - parent is the e tag value
 	event := &nostr.Event{
 		Content: "reply note",
 		Tags: nostr.Tags{
@@ -72,7 +64,6 @@ func TestExtractParentID_ReplyMarker(t *testing.T) {
 }
 
 func TestExtractParentID_ReplyMarkerWithRelay(t *testing.T) {
-	// Event with "reply" marker and relay hint
 	event := &nostr.Event{
 		Content: "reply note with relay",
 		Tags: nostr.Tags{
@@ -86,7 +77,6 @@ func TestExtractParentID_ReplyMarkerWithRelay(t *testing.T) {
 }
 
 func TestExtractParentID_MultipleETags(t *testing.T) {
-	// Multiple e tags - should pick the first one with "reply" marker
 	event := &nostr.Event{
 		Content: "multi e-tag note",
 		Tags: nostr.Tags{
@@ -100,17 +90,43 @@ func TestExtractParentID_MultipleETags(t *testing.T) {
 	}
 }
 
-func TestExtractParentID_NoMarker(t *testing.T) {
-	// e tag without marker - treat as root (no parent per NIP-10)
+func TestExtractParentID_PositionalSingleTag(t *testing.T) {
 	event := &nostr.Event{
-		Content: "note with e tag but no marker",
+		Content: "note with single positional e tag",
 		Tags: nostr.Tags{
 			nostr.Tag{"e", testSomeID},
 		},
 	}
 	parentID := extractParentID(event)
+	if parentID != testSomeID {
+		t.Errorf("single positional e tag should be parent, got %q", parentID)
+	}
+}
+
+func TestExtractParentID_PositionalTwoTags(t *testing.T) {
+	event := &nostr.Event{
+		Content: "note with two positional e tags",
+		Tags: nostr.Tags{
+			nostr.Tag{"e", testRootMarkerID},
+			nostr.Tag{"e", testParentID},
+		},
+	}
+	parentID := extractParentID(event)
+	if parentID != testParentID {
+		t.Errorf("last positional e tag should be parent, got %q (want %q)", parentID, testParentID)
+	}
+}
+
+func TestExtractParentID_NoMarker(t *testing.T) {
+	event := &nostr.Event{
+		Content: "note with e tag but no valid hex",
+		Tags: nostr.Tags{
+			nostr.Tag{"e", "invalid"},
+		},
+	}
+	parentID := extractParentID(event)
 	if parentID != "" {
-		t.Errorf("e tag without marker should be treated as root, got %q", parentID)
+		t.Errorf("invalid hex e tag should return empty, got %q", parentID)
 	}
 }
 
@@ -129,7 +145,6 @@ func TestExtractRootEvent_NilEvent(t *testing.T) {
 }
 
 func TestExtractRootEvent_NoETags(t *testing.T) {
-	// No e tags = root
 	event := &nostr.Event{
 		Content: "root note",
 		Tags:    nostr.Tags{},
@@ -147,7 +162,6 @@ func TestExtractRootEvent_NoETags(t *testing.T) {
 }
 
 func TestExtractRootEvent_RootMarker(t *testing.T) {
-	// Root marker pointing to DIFFERENT event = direct reply, NOT root
 	event := &nostr.Event{
 		Content: "direct reply with root marker",
 		Tags: nostr.Tags{
@@ -168,7 +182,6 @@ func TestExtractRootEvent_RootMarker(t *testing.T) {
 }
 
 func TestExtractRootEvent_ReplyMarker(t *testing.T) {
-	// Reply marker = event is NOT root, find parent with root marker
 	event := &nostr.Event{
 		Content: "reply note",
 		Tags: nostr.Tags{
@@ -190,7 +203,6 @@ func TestExtractRootEvent_ReplyMarker(t *testing.T) {
 }
 
 func TestExtractRootEvent_ReplyNoRoot(t *testing.T) {
-	// Reply marker but no root marker - treat event as root
 	event := &nostr.Event{
 		Content: "reply without root marker",
 		Tags: nostr.Tags{
@@ -210,7 +222,6 @@ func TestExtractRootEvent_ReplyNoRoot(t *testing.T) {
 }
 
 func TestExtractRootEvent_SelfRootMarker(t *testing.T) {
-	// Root marker pointing to self = this event IS the root
 	id, _ := nostr.IDFromHex(testSomeID)
 	event := &nostr.Event{
 		ID:      id,
@@ -231,8 +242,28 @@ func TestExtractRootEvent_SelfRootMarker(t *testing.T) {
 	}
 }
 
+func TestExtractRootEvent_PositionalTwoTags(t *testing.T) {
+	event := &nostr.Event{
+		Content: "note with positional e tags",
+		Tags: nostr.Tags{
+			nostr.Tag{"e", testRootMarkerID},
+			nostr.Tag{"e", testParentID},
+		},
+	}
+	rootID, isRoot, err := extractRootEvent(event)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if isRoot {
+		t.Errorf("event with two positional e tags should not be root")
+	}
+	expectedRootID, _ := nostr.IDFromHex(testRootMarkerID)
+	if rootID != expectedRootID {
+		t.Errorf("first positional e tag should be root, got %v", rootID)
+	}
+}
+
 func TestExtractParentID_DirectReply(t *testing.T) {
-	// Direct reply: only "root" marker, root IS the parent
 	event := &nostr.Event{
 		Content: "direct reply",
 		Tags: nostr.Tags{
@@ -246,7 +277,6 @@ func TestExtractParentID_DirectReply(t *testing.T) {
 }
 
 func TestExtractParentID_NestedReply(t *testing.T) {
-	// Nested reply: both "root" and "reply" markers — parent is reply tag
 	event := &nostr.Event{
 		Content: "nested reply",
 		Tags: nostr.Tags{
@@ -279,7 +309,6 @@ func TestNostrEventProvider_Name(t *testing.T) {
 		PubKey:  [32]byte{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 	name := p.Name(event)
-	// Name should be truncated and include short pubkey
 	if len(name) == 0 {
 		t.Errorf("expected non-empty name")
 	}
@@ -445,7 +474,6 @@ func TestBuildTuiModel(t *testing.T) {
 				return
 			}
 
-			// Verify nodes exist by iterating the tree (All walks all nodes including children)
 			tree := tuiModel.Tree
 			found := map[string]bool{}
 			for nodeInfo, err := range tree.All(context.Background()) {
@@ -465,53 +493,138 @@ func TestBuildTuiModel(t *testing.T) {
 	}
 }
 
-func TestThreadTreeView_Update(t *testing.T) {
-	t.Run("loaded msg without error clears loading", func(t *testing.T) {
-		m := &threadTreeView{
-			loading: true,
-			styles:  newThreadStyles(),
-			keys:    newThreadKeyMap(),
-			width:   80,
-			height:  25,
+func TestBuildInitialTree(t *testing.T) {
+	t.Run("root event builds self as tree", func(t *testing.T) {
+		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+		event := &nostr.Event{
+			ID:      id,
+			Content: "hello world",
+			Kind:    nostr.KindTextNote,
+			Tags:    nostr.Tags{},
 		}
-		// Manually simulate what fetchThread does: clear loading before sending msg
-		m.loading = false
+		m := &threadTreeView{
+			event:          event,
+			currentEventID: id.Hex(),
+			provider:       &NostrEventProvider{},
+			styles:         newThreadStyles(),
+			width:          80,
+			height:         25,
+		}
+		m.buildInitialTree()
+
+		if m.tuiModel == nil {
+			t.Fatal("expected non-nil tuiModel")
+		}
+		// fetched remains false until async relay fetch completes
+
+		v := m.View()
+		if !strings.Contains(v.Content, "hello world") {
+			t.Errorf("View should contain event content, got: %s", v.Content)
+		}
+	})
+
+	t.Run("direct reply builds root placeholder + event", func(t *testing.T) {
+		id, _ := nostr.IDFromHex(strings.Repeat("b", 64))
+		rootID, _ := nostr.IDFromHex(testRootMarkerID)
+		event := &nostr.Event{
+			ID:      id,
+			Content: "direct reply",
+			Kind:    nostr.KindTextNote,
+			Tags: nostr.Tags{
+				{"e", testRootMarkerID, "", "root"},
+			},
+		}
+		m := &threadTreeView{
+			event:          event,
+			currentEventID: id.Hex(),
+			provider:       &NostrEventProvider{},
+			styles:         newThreadStyles(),
+			width:          80,
+			height:         25,
+		}
+		m.buildInitialTree()
+
+		if m.tuiModel == nil {
+			t.Fatal("expected non-nil tuiModel")
+		}
+
+		tree := m.tuiModel.Tree
+		found := map[string]bool{}
+		for nodeInfo, err := range tree.All(context.Background()) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			ev := nodeInfo.Node.Data()
+			found[(*ev).ID.Hex()] = true
+		}
+		if !found[id.Hex()] {
+			t.Error("missing current event")
+		}
+		if !found[rootID.Hex()] {
+			t.Error("missing root placeholder")
+		}
+	})
+
+	t.Run("nested reply builds root + parent placeholders + event", func(t *testing.T) {
+		id, _ := nostr.IDFromHex(strings.Repeat("c", 64))
+		event := &nostr.Event{
+			ID:      id,
+			Content: "nested reply",
+			Kind:    nostr.KindTextNote,
+			Tags: nostr.Tags{
+				{"e", testRootMarkerID, "", "root"},
+				{"e", testParentID, "", "reply"},
+			},
+		}
+		m := &threadTreeView{
+			event:          event,
+			currentEventID: id.Hex(),
+			provider:       &NostrEventProvider{},
+			styles:         newThreadStyles(),
+			width:          80,
+			height:         25,
+		}
+		m.buildInitialTree()
+
+		if m.tuiModel == nil {
+			t.Fatal("expected non-nil tuiModel")
+		}
+
+		tree := m.tuiModel.Tree
+		found := map[string]bool{}
+		for nodeInfo, err := range tree.All(context.Background()) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			ev := nodeInfo.Node.Data()
+			found[(*ev).ID.Hex()] = true
+		}
+		if !found[id.Hex()] {
+			t.Error("missing current event")
+		}
+		if !found[testRootMarkerID] {
+			t.Error("missing root placeholder")
+		}
+		if !found[testParentID] {
+			t.Error("missing parent placeholder")
+		}
+	})
+}
+
+func TestThreadTreeView_Update(t *testing.T) {
+	t.Run("loaded msg triggers rerender", func(t *testing.T) {
+		m := &threadTreeView{
+			styles: newThreadStyles(),
+			keys:   newThreadKeyMap(),
+			width:  80,
+			height: 25,
+		}
 		newModel, cmd := m.Update(threadTreeLoadedMsg{err: nil})
 		if cmd != nil {
 			t.Errorf("expected nil cmd, got %v", cmd)
 		}
-		updated, ok := newModel.(*threadTreeView)
-		if !ok {
+		if _, ok := newModel.(*threadTreeView); !ok {
 			t.Fatal("unexpected model type")
-		}
-		if updated.loading {
-			t.Error("loading should be false after loaded msg")
-		}
-	})
-
-	t.Run("loaded msg with error sets loadError", func(t *testing.T) {
-		m := &threadTreeView{
-			loading: true,
-			styles:  newThreadStyles(),
-			keys:    newThreadKeyMap(),
-			width:   80,
-			height:  25,
-		}
-		m.loading = false
-		testErr := errors.New("fetch failed")
-		newModel, cmd := m.Update(threadTreeLoadedMsg{err: testErr})
-		if cmd != nil {
-			t.Errorf("expected nil cmd, got %v", cmd)
-		}
-		updated, ok := newModel.(*threadTreeView)
-		if !ok {
-			t.Fatal("unexpected model type")
-		}
-		if updated.loadError == nil || updated.loadError.Error() != testErr.Error() {
-			t.Errorf("loadError = %v, want %v", updated.loadError, testErr)
-		}
-		if updated.loading {
-			t.Error("loading should be false after loaded msg (error)")
 		}
 	})
 
@@ -544,7 +657,6 @@ func TestThreadTreeView_Update(t *testing.T) {
 		if cmd == nil {
 			t.Fatal("expected close cmd for esc")
 		}
-		// Execute the cmd to verify it sends a close message
 		msg := cmd()
 		if msg == nil {
 			t.Error("esc cmd returned nil message")
@@ -566,7 +678,6 @@ func TestThreadTreeView_Update(t *testing.T) {
 	})
 
 	t.Run("key delegates to tuiModel when set", func(t *testing.T) {
-		// Build a simple tree for the TuiTreeModel
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 		event := nostr.Event{ID: id, Content: "test", Kind: nostr.KindTextNote}
 		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
@@ -595,7 +706,6 @@ func TestThreadTreeView_Update(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// Focus the node so GetFocusedNode returns it
 		tree.SetFocusedID(context.Background(), id.Hex())
 
 		tuiModel := treeview.NewTuiTreeModel(tree,
@@ -619,7 +729,7 @@ func TestThreadTreeView_Update(t *testing.T) {
 
 	t.Run("enter on placeholder does not open detail", func(t *testing.T) {
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
-		placeholder := nostr.Event{ID: id, Content: "[loading...]", Kind: nostr.KindTextNote}
+		placeholder := nostr.Event{ID: id, Content: "[...]", Kind: nostr.KindTextNote}
 		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{placeholder}, &NostrEventProvider{})
 		if err != nil {
 			t.Fatal(err)
@@ -647,35 +757,7 @@ func TestThreadTreeView_Update(t *testing.T) {
 }
 
 func TestThreadTreeView_View(t *testing.T) {
-	t.Run("loading shows spinner", func(t *testing.T) {
-		m := &threadTreeView{
-			loading: true,
-			styles:  newThreadStyles(),
-			keys:    newThreadKeyMap(),
-			width:   80,
-			height:  25,
-		}
-		v := m.View()
-		if !strings.Contains(v.Content, "loading") {
-			t.Errorf("View() should contain loading indicator, got: %s", v.Content)
-		}
-	})
-
-	t.Run("error shows error message", func(t *testing.T) {
-		m := &threadTreeView{
-			loadError: errors.New("test error"),
-			styles:    newThreadStyles(),
-			keys:      newThreadKeyMap(),
-			width:     80,
-			height:    25,
-		}
-		v := m.View()
-		if !strings.Contains(v.Content, "test error") {
-			t.Errorf("View() should contain error message, got: %s", v.Content)
-		}
-	})
-
-	t.Run("no data and no event shows no thread data", func(t *testing.T) {
+	t.Run("no data shows no thread data", func(t *testing.T) {
 		m := &threadTreeView{
 			styles: newThreadStyles(),
 			keys:   newThreadKeyMap(),
@@ -685,21 +767,6 @@ func TestThreadTreeView_View(t *testing.T) {
 		v := m.View()
 		if !strings.Contains(v.Content, "no thread data") {
 			t.Errorf("View() should indicate no data, got: %s", v.Content)
-		}
-	})
-
-	t.Run("event without tree shows fallback", func(t *testing.T) {
-		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
-		m := &threadTreeView{
-			event:  &nostr.Event{ID: id, Content: "hello", Kind: nostr.KindTextNote},
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
-			width:  80,
-			height: 25,
-		}
-		v := m.View()
-		if !strings.Contains(v.Content, "hello") {
-			t.Errorf("View() should show event content, got: %s", v.Content)
 		}
 	})
 
@@ -728,6 +795,32 @@ func TestThreadTreeView_View(t *testing.T) {
 		}
 		if !strings.Contains(v.Content, "Thread") {
 			t.Errorf("View() should contain title, got: %s", v.Content)
+		}
+	})
+
+	t.Run("unfetched shows fetching indicator in title", func(t *testing.T) {
+		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+		event := nostr.Event{ID: id, Content: "test", Kind: nostr.KindTextNote}
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		tuiModel := treeview.NewTuiTreeModel(tree,
+			treeview.WithTuiWidth[nostr.Event](80),
+			treeview.WithTuiHeight[nostr.Event](20),
+		)
+
+		m := &threadTreeView{
+			styles:   newThreadStyles(),
+			keys:     newThreadKeyMap(),
+			width:    80,
+			height:   25,
+			tuiModel: tuiModel,
+			fetched:  false,
+		}
+		v := m.View()
+		if !strings.Contains(v.Content, "fetching") {
+			t.Errorf("View() should contain fetching indicator, got: %s", v.Content)
 		}
 	})
 
@@ -776,14 +869,40 @@ func TestExtractParentID_NilEvent(t *testing.T) {
 	}
 }
 
-func TestExtractParentID_ShortTag(t *testing.T) {
+func TestExtractParentID_PositionalFirstTagIsSelf(t *testing.T) {
+	id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 	event := &nostr.Event{
-		Content: "note with short e tag",
-		Tags:    nostr.Tags{nostr.Tag{"e", "ab"}},
+		ID:      id,
+		Content: "note",
+		Tags: nostr.Tags{
+			{"e", id.Hex()},
+			{"e", testSomeID},
+		},
 	}
 	parentID := extractParentID(event)
-	if parentID != "" {
-		t.Errorf("e tag without reply marker should return empty, got %q", parentID)
+	if parentID != testSomeID {
+		t.Errorf("last positional e tag should be parent when first is self, got %q", parentID)
+	}
+}
+
+func TestExtractRootEvent_PositionalSingleTag(t *testing.T) {
+	id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+	event := &nostr.Event{
+		ID:      id,
+		Content: "note",
+		Tags: nostr.Tags{
+			{"e", testSomeID},
+		},
+	}
+	rootID, isRoot, err := extractRootEvent(event)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if !isRoot {
+		t.Errorf("single positional e tag with no marker should be root")
+	}
+	if rootID != event.ID {
+		t.Errorf("root ID should equal event ID (single positional tag)")
 	}
 }
 
