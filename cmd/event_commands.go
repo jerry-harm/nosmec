@@ -8,7 +8,7 @@ import (
 	"github.com/jerry-harm/nosmec/tui/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/tui/window/event"
+	"github.com/jerry-harm/nosmec/tui/event"
 	"github.com/spf13/cobra"
 )
 

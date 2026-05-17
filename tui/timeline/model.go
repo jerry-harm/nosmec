@@ -17,7 +17,7 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/tui/window/event"
+	"github.com/jerry-harm/nosmec/tui/event"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
