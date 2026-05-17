@@ -71,11 +71,12 @@ func extractParentID(event *nostr.Event) string {
 		if len(tag) < 4 || tag[3] == "" {
 			continue
 		}
-		hasMarkers = true
 		switch tag[3] {
 		case "reply":
+			hasMarkers = true
 			replyTagValue = tag[1]
 		case "root":
+			hasMarkers = true
 			rootTagValue = tag[1]
 		}
 	}
@@ -139,11 +140,12 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 		if len(tag) < 4 || tag[3] == "" {
 			continue
 		}
-		hasMarkers = true
 		switch tag[3] {
 		case "reply":
+			hasMarkers = true
 			hasReplyMarker = true
 		case "root":
+			hasMarkers = true
 			rootTagValue = tag[1]
 		}
 	}
