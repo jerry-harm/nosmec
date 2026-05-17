@@ -409,54 +409,58 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		// Track search mode: "/" enters search, esc/enter exit it
-		if msg.Text == "/" {
+		if msg.String() == "/" {
 			m.searching = true
-		}
-
-		// Delegate to TuiTreeModel first (handles search, nav, expand/collapse)
-		var tuiCmd tea.Cmd
-		if m.tuiModel != nil {
-			_, tuiCmd = m.tuiModel.Update(msg)
 		}
 
 		// Esc: cancel search if active, otherwise close thread
 		if key.Matches(msg.Key(), m.keys.quit) {
 			if m.searching {
 				m.searching = false
-				return m, tuiCmd
+				// Cancel search: delegate to treeview then return
+				if m.tuiModel != nil {
+					_, cmd := m.tuiModel.Update(msg)
+					return m, cmd
+				}
+				return m, nil
 			}
 			return m, func() tea.Msg { return bubblon.Close() }
 		}
 
-		// Enter while searching = accept search, not open event detail
-		if m.searching && msg.String() == "enter" {
-			m.searching = false
-			return m, tuiCmd
-		}
-
-		// Enter: open event detail for the focused tree node (not in search mode)
-		if msg.String() == "enter" && m.tuiModel != nil {
-			focused := m.tuiModel.GetFocusedNode()
-			if focused != nil {
-				eventPtr := focused.Data()
-				if eventPtr != nil {
-					ev := *eventPtr
-					if ev.Content != "[loading...]" && ev.ID != [32]byte{} {
-						eventView := New(&ev, m.app, m.width, m.height, "", m.ctrl)
-						return m, bubblon.Open(eventView)
+		// Enter: accept search or open event detail
+		if msg.String() == "enter" {
+			if m.searching {
+				m.searching = false
+				if m.tuiModel != nil {
+					_, cmd := m.tuiModel.Update(msg)
+					return m, cmd
+				}
+				return m, nil
+			}
+			if m.tuiModel != nil {
+				focused := m.tuiModel.GetFocusedNode()
+				if focused != nil {
+					eventPtr := focused.Data()
+					if eventPtr != nil {
+						ev := *eventPtr
+						if ev.Content != "[loading...]" && ev.ID != [32]byte{} {
+							eventView := New(&ev, m.app, m.width, m.height, "", m.ctrl)
+							return m, bubblon.Open(eventView)
+						}
 					}
 				}
 			}
+			return m, nil
 		}
 
-		// Delegate remaining keyboard input to TuiTreeModel
+		// All other keys: delegate to TuiTreeModel (←→ expand/collapse, ↑↓ nav, letters for search)
 		if m.tuiModel != nil {
 			_, cmd := m.tuiModel.Update(msg)
 			return m, cmd
 		}
 	}
 
-	// Let the TuiTreeModel handle any other messages (background color, etc.)
+	// Non-keypress messages: delegate to TuiTreeModel (WindowSizeMsg, etc.)
 	if m.tuiModel != nil {
 		_, cmd := m.tuiModel.Update(msg)
 		return m, cmd
@@ -503,7 +507,9 @@ func (m *threadTreeView) View() tea.View {
 
 	b.WriteString(m.styles.helpStyle.Render("\n↑↓ navigate · →← expand/collapse · enter search · esc back"))
 
-	return tea.NewView(b.String())
+	v := tea.NewView(b.String())
+	v.AltScreen = true
+	return v
 }
 
 func truncateContent(content string, maxLen int) string {
