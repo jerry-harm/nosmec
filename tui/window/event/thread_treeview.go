@@ -153,12 +153,13 @@ type threadTreeView struct {
 // threadKeyMapCustom returns a TuiTreeModel keymap that works inside a bubblon bubble.
 // - Esc is removed from Quit → handled locally as bubblon.Close()
 // - Enter is removed from Toggle/SearchStart → handled locally for event detail
-// - SearchStart uses "/" instead of Enter
+// - SearchStart uses "/", SearchCancel uses "ctrl+c" (esc closes thread view)
 func threadKeyMapCustom() treeview.KeyMap {
 	km := treeview.DefaultKeyMap()
 	km.Quit = nil
-	km.Toggle = nil        // don't toggle on enter
+	km.Toggle = nil
 	km.SearchStart = []string{"/"}
+	km.SearchCancel = []string{"ctrl+c"}
 	return km
 }
 

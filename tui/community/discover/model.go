@@ -69,6 +69,18 @@ func newStyles() styles {
 	}
 }
 
+func (s styles) setupListDelegate(delegate *list.DefaultDelegate) {
+	delegate.Styles.SelectedTitle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFF00")).
+		Bold(true)
+	delegate.Styles.SelectedDesc = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFF00"))
+	delegate.Styles.NormalTitle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#00FF00"))
+	delegate.Styles.NormalDesc = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#AAAAAA"))
+}
+
 type keyMap struct {
 	quit key.Binding
 	kill key.Binding
@@ -93,7 +105,13 @@ func NewModel(app *config.AppContext) *model {
 	m.keys = newKeyMap()
 
 	delegate := list.NewDefaultDelegate()
-	m.list = list.New(nil, delegate, 0, 0)
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(lipgloss.Color("#FFFF00")).
+		BorderForeground(lipgloss.Color("#25A065"))
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+		Foreground(lipgloss.Color("#DDDDDD"))
+
+	m.list = list.New(nil, delegate, 80, 20)
 	m.list.Title = "Community Discovery"
 	m.list.Styles.Title = m.styles.title
 
