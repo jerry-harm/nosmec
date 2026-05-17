@@ -9,11 +9,47 @@ import (
 	"github.com/Digital-Shane/treeview/v2"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/bubblon"
 	"github.com/jerry-harm/nosmec/utils"
 )
+
+type threadStyles struct {
+	title         lipgloss.Style
+	statusMessage lipgloss.Style
+	helpStyle     lipgloss.Style
+	currentEvent  lipgloss.Style
+	placeholder   lipgloss.Style
+}
+
+func newThreadStyles() threadStyles {
+	return threadStyles{
+		title: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#25A065")).
+			Padding(0, 1),
+		statusMessage: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#04B575")),
+		helpStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#AAAAAA")),
+		currentEvent: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFF00")),
+		placeholder: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888888")),
+	}
+}
+
+type threadKeyMap struct {
+	quit key.Binding
+}
+
+func newThreadKeyMap() threadKeyMap {
+	return threadKeyMap{
+		quit: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+	}
+}
 
 func extractParentID(event *nostr.Event) string {
 	if event == nil {
