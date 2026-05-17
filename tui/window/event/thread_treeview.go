@@ -254,11 +254,12 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			return threadTreeLoadedMsg{err: err}
 		}
 
+		events = append(events, m.event)
+
 		if isRoot {
 			m.mu.Lock()
 			m.root = m.event
 			m.mu.Unlock()
-			events = append(events, m.event)
 		} else {
 			rootEvent, _ := m.fetchRootEvent(ctx, rootID)
 			m.mu.Lock()
@@ -276,7 +277,9 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 
 		m.mu.Lock()
 		tuiModel, err := m.buildTuiModel(events)
-		m.tuiModel = tuiModel
+		if tuiModel != nil {
+			m.tuiModel = tuiModel
+		}
 		m.fetched = true
 		m.mu.Unlock()
 
