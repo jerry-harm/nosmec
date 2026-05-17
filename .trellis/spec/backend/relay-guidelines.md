@@ -64,6 +64,33 @@ func GetEventWithHint(ctx context.Context, eventID string, hintRelay string, opt
 
 ---
 
+## NIP-10 Reply Tag Parsing (Corrected)
+
+Per [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md), marked e tags (PREFERRED format):
+
+```
+["e", <id>, <relay>, <marker>, <pubkey>]
+```
+
+| Scenario | e tags | Parent ID | Root ID | Is Root |
+|----------|--------|-----------|---------|---------|
+| Root event | (none) | — | self | true |
+| Direct reply | `["e", root, relay, "root"]` | **root ID** | root ID | **false** |
+| Nested reply | `["e", root, relay, "root"]` + `["e", parent, relay, "reply"]` | reply tag value | root tag value | false |
+| Self-root | `["e", self, relay, "root"]` (ID points to self) | — | self | true |
+| No markers | `["e", id]` (positional, deprecated) | — | self | true |
+
+**Critical rule from NIP-10**: "For top level replies (those replying directly to the root event), only the `'root'` marker should be used." A single `"root"` marker pointing to a different event means this is a DIRECT REPLY, not the root.
+
+**Implementation**: `extractParentID` (thread_treeview.go) and `FindRootEvent` (utils/get.go) both follow this table.
+
+**Thread fetch strategy**: Recursive level-by-level via `fetchThreadReplies()`:
+1. Query `#e = rootID` → level 1 replies
+2. Collect level 1 event IDs, query `#e = {IDs}` → level 2
+3. Repeat until no new events or max depth (10)
+
+---
+
 ## Relay Discovery from NIP-65 (kind:10002)
 
 When querying a user's profile or other data, discover their NIP-65 relay list first.

@@ -16,16 +16,35 @@ import (
 )
 
 // extractParentID extracts the parent event ID from NIP-10 e tags.
-// Returns empty string if event is a root (no "reply" marker) or if parent hex is invalid.
+// For nested replies: uses the "reply" marker tag.
+// For direct replies to root: falls back to the "root" marker tag (no "reply" marker per NIP-10).
+// Returns empty string if event is a root (no e tags, or only self-referencing root tag).
 func extractParentID(event *nostr.Event) string {
 	if event == nil {
 		return ""
 	}
 
+	var rootTagValue string
+	var replyTagValue string
+
 	for _, tag := range event.Tags {
-		if len(tag) >= 4 && tag[0] == "e" && tag[3] == "reply" && nostr.IsValid32ByteHex(tag[1]) {
-			return tag[1]
+		if len(tag) < 4 || tag[0] != "e" || !nostr.IsValid32ByteHex(tag[1]) {
+			continue
 		}
+		switch tag[3] {
+		case "reply":
+			replyTagValue = tag[1]
+		case "root":
+			rootTagValue = tag[1]
+		}
+	}
+
+	if replyTagValue != "" {
+		return replyTagValue
+	}
+	// Direct reply: only "root" marker, root IS the parent
+	if rootTagValue != "" && rootTagValue != event.ID.Hex() {
+		return rootTagValue
 	}
 	return ""
 }
@@ -37,50 +56,53 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 		return nostr.ID{}, false, errors.New("nil event")
 	}
 
-	// Collect all e tags
 	var eTags []nostr.Tag
 	for tag := range event.Tags.FindAll("e") {
 		eTags = append(eTags, tag)
 	}
 
-	// No e tags - this event IS the root (original note)
 	if len(eTags) == 0 {
 		return event.ID, true, nil
 	}
 
-	// Check if this event has a "reply" marker (it's a reply to something)
 	hasReplyMarker := false
+	var rootTagValue string
+
 	for _, tag := range eTags {
-		if len(tag) >= 4 && tag[3] == "reply" {
+		if len(tag) < 4 {
+			continue
+		}
+		switch tag[3] {
+		case "reply":
 			hasReplyMarker = true
-			break
+		case "root":
+			rootTagValue = tag[1]
 		}
 	}
 
-	// If this event has "reply" marker, it's NOT the root - find root from "root" tags
 	if hasReplyMarker {
-		for _, tag := range eTags {
-			if len(tag) >= 4 && tag[3] == "root" {
-				rootFromTag, err := nostr.IDFromHex(tag[1])
-				if err != nil {
-					return nostr.ID{}, false, err
-				}
-				return rootFromTag, false, nil
+		// Nested reply: has "reply" marker → not root, find root from "root" marker
+		if rootTagValue != "" {
+			rootFromTag, err := nostr.IDFromHex(rootTagValue)
+			if err != nil {
+				return nostr.ID{}, false, err
 			}
+			return rootFromTag, false, nil
 		}
-		// Has "reply" but no "root" marker - treat event as root
+		// Has "reply" but no "root" marker — treat event as root (legacy)
 		return event.ID, true, nil
 	}
 
-	// No "reply" marker - check for "root" marker
-	for _, tag := range eTags {
-		if len(tag) >= 4 && tag[3] == "root" {
-			// "root" marker means this event IS the root
-			return event.ID, true, nil
+	if rootTagValue != "" && rootTagValue != event.ID.Hex() {
+		// Direct reply: only "root" marker pointing to a different event → NOT root
+		rootFromTag, err := nostr.IDFromHex(rootTagValue)
+		if err != nil {
+			return nostr.ID{}, false, err
 		}
+		return rootFromTag, false, nil
 	}
 
-	// Has e tags but no markers - treat as root per NIP-10
+	// Has e tags but no markers, or root tag points to self → treat as root
 	return event.ID, true, nil
 }
 
@@ -194,9 +216,9 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			_ = rootRelays // available for future relay hint collection
 		}
 
-		// Step 2: Fetch all direct replies to root
+		// Step 2: Fetch all replies recursively (multi-level)
 		if m.root != nil {
-			replyEvents := m.fetchRepliesToRoot(ctx, m.root.ID)
+			replyEvents := m.fetchThreadReplies(ctx, m.root.ID)
 			events = append(events, replyEvents...)
 		}
 
@@ -244,29 +266,56 @@ func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*
 	return &result.Event, relays
 }
 
-func (m *threadTreeView) fetchRepliesToRoot(ctx context.Context, rootID nostr.ID) []*nostr.Event {
+const maxThreadDepth = 10
+
+// fetchThreadReplies recursively fetches all replies in a thread tree.
+// Starts from root and works outward level by level, each level querying
+// #e against the previous level's event IDs. Stops when no new events
+// are found or maxThreadDepth is reached.
+func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
 	relays := m.app.AllReadableRelays()
 	if len(relays) == 0 {
 		return nil
 	}
 
-	filter := nostr.Filter{
-		Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
-		Tags:  nostr.TagMap{"e": []string{rootID.Hex()}},
-		Limit: 100,
+	var allEvents []*nostr.Event
+	seen := map[string]bool{rootID.Hex(): true}
+
+	// The set of IDs to query #e against in each iteration
+	queryIDs := []string{rootID.Hex()}
+
+	for depth := 0; depth < maxThreadDepth && len(queryIDs) > 0; depth++ {
+		filter := nostr.Filter{
+			Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
+			Tags:  nostr.TagMap{"e": queryIDs},
+		}
+
+		ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
+		results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+		cancel()
+
+		var batch []*nostr.Event
+		var nextIDs []string
+
+		for relayEvent := range results {
+			ev := relayEvent.Event
+			if seen[ev.ID.Hex()] {
+				continue
+			}
+			seen[ev.ID.Hex()] = true
+
+			eventCopy := ev
+			batch = append(batch, &eventCopy)
+			allEvents = append(allEvents, &eventCopy)
+
+			// Collect event IDs for the next level of querying
+			nextIDs = append(nextIDs, ev.ID.Hex())
+		}
+
+		queryIDs = nextIDs
 	}
 
-	ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
-	defer cancel()
-
-	results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
-
-	var events []*nostr.Event
-	for relayEvent := range results {
-		events = append(events, &relayEvent.Event)
-	}
-
-	return events
+	return allEvents
 }
 
 // buildTuiModel builds a treeview.Tree from flat events, then wraps it in a

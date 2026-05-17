@@ -33,17 +33,27 @@ func TestExtractParentID_RootEvent(t *testing.T) {
 }
 
 func TestExtractParentID_RootMarker(t *testing.T) {
-	// Event with "root" marker = root (no parent)
+	// Root marker pointing to different event = direct reply, parent is root tag value
 	event := &nostr.Event{
-		Content: "note with root marker",
+		Content: "direct reply to root",
 		Tags: nostr.Tags{
-			nostr.Tag{"e", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234", "", "root"},
+			nostr.Tag{"e", testRootMarkerID, "", "root"},
 		},
 	}
 	parentID := extractParentID(event)
-	if parentID != "" {
-		t.Errorf("event with root marker should have empty parent ID, got %q", parentID)
+	expectedRootID, _ := nostr.IDFromHex(testRootMarkerID)
+	// For a direct reply, root IS the parent (event's own ID differs from root marker)
+	if event.ID.Hex() != testRootMarkerID {
+		if parentID != testRootMarkerID {
+			t.Errorf("direct reply should have parent = root marker ID %q, got %q", testRootMarkerID, parentID)
+		}
+	} else {
+		// Self-referencing root marker = this IS the root
+		if parentID != "" {
+			t.Errorf("self-root event should have empty parent ID, got %q", parentID)
+		}
 	}
+	_ = expectedRootID
 }
 
 func TestExtractParentID_ReplyMarker(t *testing.T) {
@@ -136,9 +146,9 @@ func TestExtractRootEvent_NoETags(t *testing.T) {
 }
 
 func TestExtractRootEvent_RootMarker(t *testing.T) {
-	// Root marker = event IS the root
+	// Root marker pointing to DIFFERENT event = direct reply, NOT root
 	event := &nostr.Event{
-		Content: "root note with marker",
+		Content: "direct reply with root marker",
 		Tags: nostr.Tags{
 			nostr.Tag{"e", testRootMarkerID, "", "root"},
 		},
@@ -147,11 +157,12 @@ func TestExtractRootEvent_RootMarker(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if !isRoot {
-		t.Errorf("event with root marker should be root")
+	if isRoot {
+		t.Errorf("event with root marker pointing to other ID should NOT be root")
 	}
-	if rootID != event.ID {
-		t.Errorf("root ID should equal event ID")
+	expectedRootID, _ := nostr.IDFromHex(testRootMarkerID)
+	if rootID != expectedRootID {
+		t.Errorf("root ID should be the tagged event, got %v, want %v", rootID, expectedRootID)
 	}
 }
 
@@ -182,7 +193,7 @@ func TestExtractRootEvent_ReplyNoRoot(t *testing.T) {
 	event := &nostr.Event{
 		Content: "reply without root marker",
 		Tags: nostr.Tags{
-			nostr.Tag{"e", "parentID1234parentID1234parentID1234parentID1234parentID1234parent", "", "reply"},
+			nostr.Tag{"e", testParentID, "", "reply"},
 		},
 	}
 	rootID, isRoot, err := extractRootEvent(event)
@@ -194,6 +205,57 @@ func TestExtractRootEvent_ReplyNoRoot(t *testing.T) {
 	}
 	if rootID != event.ID {
 		t.Errorf("root ID should equal event ID")
+	}
+}
+
+func TestExtractRootEvent_SelfRootMarker(t *testing.T) {
+	// Root marker pointing to self = this event IS the root
+	id, _ := nostr.IDFromHex(testSomeID)
+	event := &nostr.Event{
+		ID:      id,
+		Content: "root with self-referencing marker",
+		Tags: nostr.Tags{
+			nostr.Tag{"e", testSomeID, "", "root"},
+		},
+	}
+	rootID, isRoot, err := extractRootEvent(event)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if !isRoot {
+		t.Errorf("self-referencing root marker should be treated as root")
+	}
+	if rootID != event.ID {
+		t.Errorf("root ID should equal event ID")
+	}
+}
+
+func TestExtractParentID_DirectReply(t *testing.T) {
+	// Direct reply: only "root" marker, root IS the parent
+	event := &nostr.Event{
+		Content: "direct reply",
+		Tags: nostr.Tags{
+			nostr.Tag{"e", testRootMarkerID, "wss://relay.example.com", "root"},
+		},
+	}
+	parentID := extractParentID(event)
+	if parentID != testRootMarkerID {
+		t.Errorf("direct reply parent should be root marker ID %q, got %q", testRootMarkerID, parentID)
+	}
+}
+
+func TestExtractParentID_NestedReply(t *testing.T) {
+	// Nested reply: both "root" and "reply" markers — parent is reply tag
+	event := &nostr.Event{
+		Content: "nested reply",
+		Tags: nostr.Tags{
+			nostr.Tag{"e", testRootMarkerID, "", "root"},
+			nostr.Tag{"e", testParentID, "", "reply"},
+		},
+	}
+	parentID := extractParentID(event)
+	if parentID != testParentID {
+		t.Errorf("nested reply parent should be reply marker ID %q, got %q", testParentID, parentID)
 	}
 }
 

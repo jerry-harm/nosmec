@@ -227,47 +227,53 @@ func FindRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err error)
 		return nostr.ID{}, false, errors.New("nil event")
 	}
 
-	// Collect all e tags using FindAll
 	var eTags []nostr.Tag
 	for tag := range event.Tags.FindAll("e") {
 		eTags = append(eTags, tag)
 	}
 
-	// Check if event has "root" marker - if so, event IS the root
-	for _, tag := range eTags {
-		if len(tag) >= 4 && tag[3] == "root" {
-			// Event has root marker, so event IS the root
-			return event.ID, true, nil
-		}
-	}
-
-	// No "root" marker found - check for "reply" marker
-	for _, tag := range eTags {
-		if len(tag) >= 4 && tag[3] == "reply" {
-			// This event is a reply - find the root by following the chain
-			// Look for first e tag with "root" marker
-			for _, t := range eTags {
-				if len(t) >= 4 && t[3] == "root" {
-					id, err := nostr.IDFromHex(t[1])
-					if err != nil {
-						return nostr.ID{}, false, err
-					}
-					return id, false, nil
-				}
-			}
-			// No "root" marker in this event - event IS the root (original note with reply marker is unusual but possible)
-			// Actually, if event has "reply" but no "root", it's a reply to something
-			// We return the first e tag's target as the parent - the caller should fetch it
-			return nostr.ID{}, false, nil
-		}
-	}
-
-	// No e tags at all - this IS the root (original note)
 	if len(eTags) == 0 {
 		return event.ID, true, nil
 	}
 
-	// Has e tags but no markers - treat as root
+	var replyTagValue string
+	var rootTagValue string
+
+	for _, tag := range eTags {
+		if len(tag) < 4 {
+			continue
+		}
+		switch tag[3] {
+		case "reply":
+			replyTagValue = tag[1]
+		case "root":
+			rootTagValue = tag[1]
+		}
+	}
+
+	if replyTagValue != "" {
+		// Nested reply: has "reply" marker → not root
+		if rootTagValue != "" {
+			id, err := nostr.IDFromHex(rootTagValue)
+			if err != nil {
+				return nostr.ID{}, false, err
+			}
+			return id, false, nil
+		}
+		// "reply" but no "root" — treat event as root (legacy)
+		return event.ID, true, nil
+	}
+
+	if rootTagValue != "" && rootTagValue != event.ID.Hex() {
+		// Direct reply: only "root" marker pointing to a different event → NOT root
+		id, err := nostr.IDFromHex(rootTagValue)
+		if err != nil {
+			return nostr.ID{}, false, err
+		}
+		return id, false, nil
+	}
+
+	// Has e tags but no markers, or root points to self → treat as root
 	return event.ID, true, nil
 }
 
