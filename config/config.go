@@ -19,13 +19,15 @@ import (
 	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/nip19"
-	"github.com/jerry-harm/nosmec/hints"
+	sdk_hints "fiatjaf.com/nostr/sdk/hints"
+	"fiatjaf.com/nostr/sdk/hints/bbolth"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/spf13/viper"
 )
 
 var (
 	globalPool      *nostr.Pool
+	globalHints     sdk_hints.HintsDB
 	globalLMDB      StoreInterface
 	globalConfig    Config
 	configDir       string
@@ -175,7 +177,21 @@ func loadConfig() *Config {
 	return &config
 }
 
-func NewPool(h *hints.HintsDB) *nostr.Pool {
+func GlobalHints() sdk_hints.HintsDB {
+	if globalHints != nil {
+		return globalHints
+	}
+	hintsPath := filepath.Join(globalConfig.LocalRelay.DataDir, "hints.db")
+	bh, err := bbolth.NewBoltHints(hintsPath)
+	if err != nil {
+		logger.Error("failed to open hints db", "error", err.Error(), "path", hintsPath)
+		return nil
+	}
+	globalHints = bh
+	return globalHints
+}
+
+func NewPool(h sdk_hints.HintsDB) *nostr.Pool {
 	opts := nostr.PoolOptions{
 		RelayOptions: nostr.RelayOptions{
 			NoticeHandler: func(relay *nostr.Relay, notice string) {
@@ -187,17 +203,19 @@ func NewPool(h *hints.HintsDB) *nostr.Pool {
 		opts.EventMiddleware = func(ie nostr.RelayEvent) {
 			ev := ie.Event
 			if ev.PubKey != [32]byte{} {
-				h.Record(ev.PubKey.Hex(), ie.Relay.URL, hints.HintEventFetched)
+				h.Save(ev.PubKey, ie.Relay.URL, sdk_hints.MostRecentEventFetched, nostr.Now())
 			}
 			for tag := range ev.Tags.FindAll("p") {
 				if len(tag) >= 3 && tag[1] != "" && tag[2] != "" {
-					h.Record(tag[1], tag[2], hints.HintFromTag)
+					if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+						h.Save(pk, tag[2], sdk_hints.LastInHint, nostr.Now())
+					}
 				}
 			}
 			if ev.Kind == nostr.KindRelayListMetadata {
 				for tag := range ev.Tags.FindAll("r") {
 					if len(tag) >= 2 {
-						h.Record(ev.PubKey.Hex(), tag[1], hints.HintInRelayList)
+						h.Save(ev.PubKey, tag[1], sdk_hints.LastInRelayList, nostr.Now())
 					}
 				}
 			}
@@ -210,7 +228,7 @@ func GlobalPool() *nostr.Pool {
 	if globalPool != nil {
 		return globalPool
 	}
-	globalPool = NewPool(hints.GlobalHints())
+	globalPool = NewPool(GlobalHints())
 	return globalPool
 }
 

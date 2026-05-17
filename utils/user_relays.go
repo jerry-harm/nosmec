@@ -141,21 +141,21 @@ func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string {
 	}
 
 	// 2. Outbox relays from e tag author pubkeys via HintsDB
-	// Per NIP-10 (marked): ["e", <id>, <relay>, <marker>, <pubkey>] — pubkey at tag[4]
-	// Per NIP-01 (legacy): ["e", <id>, <relay>, <pubkey>] — pubkey at tag[3]
 	for tag := range event.Tags.FindAll("e") {
-		pubkey := ""
+		pubkeyHex := ""
 		if len(tag) >= 5 && nostr.IsValid32ByteHex(tag[4]) {
-			pubkey = tag[4] // NIP-10 marked
+			pubkeyHex = tag[4] // NIP-10 marked
 		} else if len(tag) >= 4 && nostr.IsValid32ByteHex(tag[3]) {
-			pubkey = tag[3] // NIP-01 legacy
+			pubkeyHex = tag[3] // NIP-01 legacy
 		}
-		if pubkey != "" {
-			outbox := app.Hints().TopN(pubkey, 3)
-			for _, r := range outbox {
-				if _, ok := seen[r]; !ok {
-					seen[r] = struct{}{}
-					result = append(result, r)
+		if pubkeyHex != "" {
+			if pk, err := nostr.PubKeyFromHex(pubkeyHex); err == nil {
+				outbox := app.Hints().TopN(pk, 3)
+				for _, r := range outbox {
+					if _, ok := seen[r]; !ok {
+						seen[r] = struct{}{}
+						result = append(result, r)
+					}
 				}
 			}
 		}

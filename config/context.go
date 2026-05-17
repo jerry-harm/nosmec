@@ -8,7 +8,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"github.com/jerry-harm/nosmec/hints"
+	sdk_hints "fiatjaf.com/nostr/sdk/hints"
 	"github.com/spf13/viper"
 )
 
@@ -19,7 +19,7 @@ type AppContext struct {
 	mu           sync.RWMutex
 	viper        *viper.Viper
 	knownRelays  map[string]struct{}
-	hints        *hints.HintsDB
+	hints        sdk_hints.HintsDB
 }
 
 func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext {
@@ -29,7 +29,7 @@ func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.
 		cfg:         cfg,
 		viper:       v,
 		knownRelays: make(map[string]struct{}),
-		hints:       hints.GlobalHints(),
+		hints:       GlobalHints(),
 	}
 }
 
@@ -37,7 +37,7 @@ func (a *AppContext) Pool() *nostr.Pool {
 	return a.pool
 }
 
-func (a *AppContext) Hints() *hints.HintsDB {
+func (a *AppContext) Hints() sdk_hints.HintsDB {
 	return a.hints
 }
 
