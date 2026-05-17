@@ -283,7 +283,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.saveTagEdit()
 				m.editingIndex = -2
 				m.tagInput.SetValue("")
-				return m, nil
 			}
 			if m.isStandalone {
 				return m, tea.Quit

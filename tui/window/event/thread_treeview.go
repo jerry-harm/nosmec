@@ -147,19 +147,21 @@ type threadTreeView struct {
 	// Current event tracking for highlighting
 	currentEventID string
 
+	// Track search state so esc can cancel search instead of closing thread
+	searching bool
+
 	mu sync.Mutex
 }
 
 // threadKeyMapCustom returns a TuiTreeModel keymap that works inside a bubblon bubble.
 // - Esc is removed from Quit → handled locally as bubblon.Close()
 // - Enter is removed from Toggle/SearchStart → handled locally for event detail
-// - SearchStart uses "/", SearchCancel uses "ctrl+c" (esc closes thread view)
+// - SearchStart uses "/", SearchCancel uses "esc" (tracked via searching bool)
 func threadKeyMapCustom() treeview.KeyMap {
 	km := treeview.DefaultKeyMap()
 	km.Quit = nil
 	km.Toggle = nil
 	km.SearchStart = []string{"/"}
-	km.SearchCancel = []string{"ctrl+c"}
 	return km
 }
 
@@ -406,8 +408,21 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		// Esc always means "close the bubble" (not quit the app)
+		// Track search state: "/" starts search, esc ends it when searching
+		if msg.Text == "/" {
+			m.searching = true
+		}
+
+		// Esc: cancel search if active, otherwise close thread
 		if key.Matches(msg.Key(), m.keys.quit) {
+			if m.searching {
+				m.searching = false
+				// Delegate to treeview to cancel search, then return
+				if m.tuiModel != nil {
+					_, cmd := m.tuiModel.Update(msg)
+					return m, cmd
+				}
+			}
 			return m, func() tea.Msg { return bubblon.Close() }
 		}
 
