@@ -53,7 +53,7 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 		return nil, fmt.Errorf("parent note not found: %s", parentID)
 	}
 
-	tags := BuildReplyTags(parentEvent, "")
+	tags := BuildReplyTags(parentEvent)
 	tags = append(tags, nostr.Tag{"p", parentEvent.PubKey.Hex()})
 
 	event := &nostr.Event{
@@ -82,20 +82,19 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 }
 
 // BuildReplyTags creates NIP-10 marked e tags for a reply to a parent event.
-// relayHint is optional and may be "".
-func BuildReplyTags(parentEvent *nostr.Event, relayHint string) nostr.Tags {
+// Tags follow the full format: ["e", <id>, <relay>, <marker>, <pubkey>]
+func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags {
 	rootID, isRoot, _ := FindRootEvent(parentEvent)
+	rootRelay := config.GetEventRelay(rootID.Hex())
+	parentRelay := config.GetEventRelay(parentEvent.ID.Hex())
 
-	var tags nostr.Tags
 	if isRoot {
-		tags = nostr.Tags{{"e", parentEvent.ID.Hex(), relayHint, "root"}}
-	} else {
-		tags = nostr.Tags{
-			{"e", rootID.Hex(), relayHint, "root"},
-			{"e", parentEvent.ID.Hex(), relayHint, "reply"},
-		}
+		return nostr.Tags{{"e", parentEvent.ID.Hex(), parentRelay, "root", parentEvent.PubKey.Hex()}}
 	}
-	return tags
+	return nostr.Tags{
+		{"e", rootID.Hex(), rootRelay, "root", ""},
+		{"e", parentEvent.ID.Hex(), parentRelay, "reply", parentEvent.PubKey.Hex()},
+	}
 }
 
 func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content string) (*nostr.Event, error) {

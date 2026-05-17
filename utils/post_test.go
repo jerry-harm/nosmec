@@ -22,19 +22,22 @@ func TestQuoteNoteTags(t *testing.T) {
 }
 
 func TestReplyToNoteTags(t *testing.T) {
-	// Root event (no e tags) → reply should have only "root" marker
+	// Root event (no e tags) → reply should have only "root" marker with pubkey
 	rootEvent := &nostr.Event{
 		ID:      [32]byte{1},
 		Content: "root",
 		Kind:    nostr.KindTextNote,
-		Tags:    nostr.Tags{},
 	}
-	tags := BuildReplyTags(rootEvent, "")
+	tags := BuildReplyTags(rootEvent)
 	if len(tags) != 1 {
 		t.Fatalf("len(tags) = %d, want 1", len(tags))
 	}
 	if tags[0][0] != "e" || tags[0][3] != "root" {
-		t.Errorf("direct reply to root: got %v, want [e id '' root]", tags[0])
+		t.Errorf("direct reply to root: got %v, want [e id relay root pubkey]", tags[0])
+	}
+	// pubkey is at position 4
+	if len(tags[0]) < 5 {
+		t.Errorf("tag too short, missing pubkey: %v", tags[0])
 	}
 
 	// Nested reply (parent has root marker) → reply should have "root" + "reply"
@@ -47,7 +50,7 @@ func TestReplyToNoteTags(t *testing.T) {
 			{"e", "some-parent-id", "", "reply"},
 		},
 	}
-	tags = BuildReplyTags(nestedParent, "")
+	tags = BuildReplyTags(nestedParent)
 	if len(tags) != 2 {
 		t.Fatalf("len(tags) = %d, want 2", len(tags))
 	}
@@ -56,6 +59,10 @@ func TestReplyToNoteTags(t *testing.T) {
 	}
 	if tags[1][3] != "reply" || tags[1][1] != nestedParent.ID.Hex() {
 		t.Errorf("reply tag: got %v", tags[1])
+	}
+	// reply tag should have pubkey at position 4
+	if len(tags[1]) < 5 || tags[1][4] != nestedParent.PubKey.Hex() {
+		t.Errorf("reply tag missing pubkey: %v", tags[1])
 	}
 }
 
@@ -104,14 +111,18 @@ func TestBuildReplyTags(t *testing.T) {
 		Tags:    nostr.Tags{},
 	}
 
-	tags := BuildReplyTags(parentEvent, "")
+	tags := BuildReplyTags(parentEvent)
 	tags = append(tags, nostr.Tag{"p", parentPubKeyHex})
 
 	foundRoot := false
 	foundP := false
+	foundPubkey := false
 	for _, tag := range tags {
 		if len(tag) >= 4 && tag[0] == "e" && tag[3] == "root" {
 			foundRoot = true
+			if len(tag) >= 5 && tag[4] == parentEvent.PubKey.Hex() {
+				foundPubkey = true
+			}
 		}
 		if tag[0] == "p" {
 			foundP = true
@@ -122,6 +133,9 @@ func TestBuildReplyTags(t *testing.T) {
 	}
 	if !foundP {
 		t.Error("p tag not found")
+	}
+	if !foundPubkey {
+		t.Error("pubkey not found in root e tag")
 	}
 }
 

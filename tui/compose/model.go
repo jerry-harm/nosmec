@@ -191,7 +191,7 @@ func (m *model) AddReply(parentEvent *nostr.Event) {
 	m.parentEvent = parentEvent
 	m.parentID = parentEvent.ID.Hex()
 
-	tags := utils.BuildReplyTags(parentEvent, "")
+	tags := utils.BuildReplyTags(parentEvent)
 	for _, t := range tags {
 		m.tags = append(m.tags, Tag(t))
 	}
