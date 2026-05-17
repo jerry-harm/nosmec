@@ -15,6 +15,7 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/compose"
+	"github.com/jerry-harm/nosmec/tui/thread"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -259,7 +260,9 @@ func (m *EventView) thread() tea.Cmd {
 	if m.ctrl == nil {
 		return nil
 	}
-	threadView := NewThreadTreeView(m.event, m.app, m.width, m.height, m.ctrl)
+	threadView := thread.New(m.event, m.app, m.width, m.height, m.ctrl, func(ev *nostr.Event) tea.Model {
+		return New(ev, m.app, m.width, m.height, "", m.ctrl)
+	})
 	return bubblon.Open(threadView)
 }
 

@@ -1,4 +1,4 @@
-package event
+package thread
 
 import (
 	"context"
@@ -290,8 +290,8 @@ func TestExtractParentID_NestedReply(t *testing.T) {
 	}
 }
 
-func TestNostrEventProvider_ID(t *testing.T) {
-	p := &NostrEventProvider{}
+func TestEventProvider_ID(t *testing.T) {
+	p := &eventProvider{}
 	event := nostr.Event{
 		ID: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 	}
@@ -302,8 +302,8 @@ func TestNostrEventProvider_ID(t *testing.T) {
 	}
 }
 
-func TestNostrEventProvider_Name(t *testing.T) {
-	p := &NostrEventProvider{}
+func TestEventProvider_Name(t *testing.T) {
+	p := &eventProvider{}
 	event := nostr.Event{
 		Content: "This is a long content that should be truncated to fit the display",
 		PubKey:  [32]byte{1, 2, 3, 4, 5, 6, 7, 8},
@@ -314,8 +314,8 @@ func TestNostrEventProvider_Name(t *testing.T) {
 	}
 }
 
-func TestNostrEventProvider_ParentID_Root(t *testing.T) {
-	p := &NostrEventProvider{}
+func TestEventProvider_ParentID_Root(t *testing.T) {
+	p := &eventProvider{}
 	event := nostr.Event{
 		Content: "root note",
 		Tags:    nostr.Tags{},
@@ -326,8 +326,8 @@ func TestNostrEventProvider_ParentID_Root(t *testing.T) {
 	}
 }
 
-func TestNostrEventProvider_ParentID_Reply(t *testing.T) {
-	p := &NostrEventProvider{}
+func TestEventProvider_ParentID_Reply(t *testing.T) {
+	p := &eventProvider{}
 	event := nostr.Event{
 		Content: "reply note",
 		Tags: nostr.Tags{
@@ -450,10 +450,10 @@ func TestBuildTuiModel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &threadTreeView{
+			m := &Model{
 				currentEventID: tt.currentEventID,
-				provider:       &NostrEventProvider{},
-				styles:         newThreadStyles(),
+				provider:       &eventProvider{},
+				styles:         newStyles(),
 				width:          80,
 				height:         25,
 			}
@@ -502,11 +502,11 @@ func TestBuildInitialTree(t *testing.T) {
 			Kind:    nostr.KindTextNote,
 			Tags:    nostr.Tags{},
 		}
-		m := &threadTreeView{
+		m := &Model{
 			event:          event,
 			currentEventID: id.Hex(),
-			provider:       &NostrEventProvider{},
-			styles:         newThreadStyles(),
+			provider:       &eventProvider{},
+			styles:         newStyles(),
 			width:          80,
 			height:         25,
 		}
@@ -515,7 +515,6 @@ func TestBuildInitialTree(t *testing.T) {
 		if m.tuiModel == nil {
 			t.Fatal("expected non-nil tuiModel")
 		}
-		// fetched remains false until async relay fetch completes
 
 		v := m.View()
 		if !strings.Contains(v.Content, "hello world") {
@@ -534,11 +533,11 @@ func TestBuildInitialTree(t *testing.T) {
 				{"e", testRootMarkerID, "", "root"},
 			},
 		}
-		m := &threadTreeView{
+		m := &Model{
 			event:          event,
 			currentEventID: id.Hex(),
-			provider:       &NostrEventProvider{},
-			styles:         newThreadStyles(),
+			provider:       &eventProvider{},
+			styles:         newStyles(),
 			width:          80,
 			height:         25,
 		}
@@ -576,11 +575,11 @@ func TestBuildInitialTree(t *testing.T) {
 				{"e", testParentID, "", "reply"},
 			},
 		}
-		m := &threadTreeView{
+		m := &Model{
 			event:          event,
 			currentEventID: id.Hex(),
-			provider:       &NostrEventProvider{},
-			styles:         newThreadStyles(),
+			provider:       &eventProvider{},
+			styles:         newStyles(),
 			width:          80,
 			height:         25,
 		}
@@ -611,30 +610,30 @@ func TestBuildInitialTree(t *testing.T) {
 	})
 }
 
-func TestThreadTreeView_Update(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	t.Run("loaded msg triggers rerender", func(t *testing.T) {
-		m := &threadTreeView{
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
+		m := &Model{
+			styles: newStyles(),
+			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
 		}
-		newModel, cmd := m.Update(threadTreeLoadedMsg{err: nil})
+		newModel, cmd := m.Update(loadedMsg{err: nil})
 		if cmd != nil {
 			t.Errorf("expected nil cmd, got %v", cmd)
 		}
-		if _, ok := newModel.(*threadTreeView); !ok {
+		if _, ok := newModel.(*Model); !ok {
 			t.Fatal("unexpected model type")
 		}
 	})
 
 	t.Run("window resize updates dimensions", func(t *testing.T) {
-		m := &threadTreeView{
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
+		m := &Model{
+			styles: newStyles(),
+			keys:   newKeyMap(),
 		}
 		newModel, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-		updated, ok := newModel.(*threadTreeView)
+		updated, ok := newModel.(*Model)
 		if !ok {
 			t.Fatal("unexpected model type")
 		}
@@ -647,9 +646,9 @@ func TestThreadTreeView_Update(t *testing.T) {
 	})
 
 	t.Run("esc key returns bubblon.Close", func(t *testing.T) {
-		m := &threadTreeView{
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
+		m := &Model{
+			styles: newStyles(),
+			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
 		}
@@ -664,9 +663,9 @@ func TestThreadTreeView_Update(t *testing.T) {
 	})
 
 	t.Run("non-esc key without tuiModel is nop", func(t *testing.T) {
-		m := &threadTreeView{
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
+		m := &Model{
+			styles: newStyles(),
+			keys:   newKeyMap(),
 		}
 		newModel, cmd := m.Update(tea.KeyPressMsg{Text: "down"})
 		if cmd != nil {
@@ -680,7 +679,7 @@ func TestThreadTreeView_Update(t *testing.T) {
 	t.Run("key delegates to tuiModel when set", func(t *testing.T) {
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 		event := nostr.Event{ID: id, Content: "test", Kind: nostr.KindTextNote}
-		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &eventProvider{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -689,9 +688,9 @@ func TestThreadTreeView_Update(t *testing.T) {
 			treeview.WithTuiHeight[nostr.Event](20),
 		)
 
-		m := &threadTreeView{
-			styles:   newThreadStyles(),
-			keys:     newThreadKeyMap(),
+		m := &Model{
+			styles:   newStyles(),
+			keys:     newKeyMap(),
 			tuiModel: tuiModel,
 			width:    80,
 			height:   25,
@@ -702,7 +701,7 @@ func TestThreadTreeView_Update(t *testing.T) {
 	t.Run("enter on focused node opens event detail", func(t *testing.T) {
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 		event := nostr.Event{ID: id, Content: "test event", Kind: nostr.KindTextNote}
-		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &eventProvider{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -713,24 +712,29 @@ func TestThreadTreeView_Update(t *testing.T) {
 			treeview.WithTuiHeight[nostr.Event](20),
 		)
 
-		m := &threadTreeView{
-			styles:   newThreadStyles(),
-			keys:     newThreadKeyMap(),
+		called := false
+		m := &Model{
+			styles:   newStyles(),
+			keys:     newKeyMap(),
 			tuiModel: tuiModel,
 			ctrl:     &bubblon.Controller{},
 			width:    80,
 			height:   25,
+			newEventView: func(ev *nostr.Event) tea.Model {
+				called = true
+				return nil
+			},
 		}
 		_, cmd := m.Update(tea.KeyPressMsg{Text: "enter"})
-		if cmd == nil {
-			t.Error("enter on focused node should return open-event-detail cmd")
+		if cmd == nil || !called {
+			t.Error("enter on focused node should call newEventView")
 		}
 	})
 
 	t.Run("enter on placeholder does not open detail", func(t *testing.T) {
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 		placeholder := nostr.Event{ID: id, Content: "[...]", Kind: nostr.KindTextNote}
-		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{placeholder}, &NostrEventProvider{})
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{placeholder}, &eventProvider{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -741,9 +745,9 @@ func TestThreadTreeView_Update(t *testing.T) {
 			treeview.WithTuiHeight[nostr.Event](20),
 		)
 
-		m := &threadTreeView{
-			styles:   newThreadStyles(),
-			keys:     newThreadKeyMap(),
+		m := &Model{
+			styles:   newStyles(),
+			keys:     newKeyMap(),
 			tuiModel: tuiModel,
 			ctrl:     &bubblon.Controller{},
 			width:    80,
@@ -756,11 +760,11 @@ func TestThreadTreeView_Update(t *testing.T) {
 	})
 }
 
-func TestThreadTreeView_View(t *testing.T) {
+func TestView(t *testing.T) {
 	t.Run("no data shows no thread data", func(t *testing.T) {
-		m := &threadTreeView{
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
+		m := &Model{
+			styles: newStyles(),
+			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
 		}
@@ -773,7 +777,7 @@ func TestThreadTreeView_View(t *testing.T) {
 	t.Run("tree renders with help bar", func(t *testing.T) {
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 		event := nostr.Event{ID: id, Content: "test", Kind: nostr.KindTextNote}
-		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &eventProvider{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -782,9 +786,9 @@ func TestThreadTreeView_View(t *testing.T) {
 			treeview.WithTuiHeight[nostr.Event](20),
 		)
 
-		m := &threadTreeView{
-			styles:   newThreadStyles(),
-			keys:     newThreadKeyMap(),
+		m := &Model{
+			styles:   newStyles(),
+			keys:     newKeyMap(),
 			width:    80,
 			height:   25,
 			tuiModel: tuiModel,
@@ -801,7 +805,7 @@ func TestThreadTreeView_View(t *testing.T) {
 	t.Run("unfetched shows fetching indicator in title", func(t *testing.T) {
 		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 		event := nostr.Event{ID: id, Content: "test", Kind: nostr.KindTextNote}
-		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &eventProvider{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -810,9 +814,9 @@ func TestThreadTreeView_View(t *testing.T) {
 			treeview.WithTuiHeight[nostr.Event](20),
 		)
 
-		m := &threadTreeView{
-			styles:   newThreadStyles(),
-			keys:     newThreadKeyMap(),
+		m := &Model{
+			styles:   newStyles(),
+			keys:     newKeyMap(),
 			width:    80,
 			height:   25,
 			tuiModel: tuiModel,
@@ -825,9 +829,9 @@ func TestThreadTreeView_View(t *testing.T) {
 	})
 
 	t.Run("view always includes title", func(t *testing.T) {
-		m := &threadTreeView{
-			styles: newThreadStyles(),
-			keys:   newThreadKeyMap(),
+		m := &Model{
+			styles: newStyles(),
+			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
 		}
@@ -838,12 +842,12 @@ func TestThreadTreeView_View(t *testing.T) {
 	})
 }
 
-func TestNewThreadTreeView(t *testing.T) {
+func TestNew(t *testing.T) {
 	id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 	event := &nostr.Event{ID: id, Content: "test", Kind: nostr.KindTextNote}
 	app := &config.AppContext{}
 
-	m := NewThreadTreeView(event, app, 80, 25, nil)
+	m := New(event, app, 80, 25, nil, nil)
 
 	if m.event != event {
 		t.Error("event not set")
@@ -886,7 +890,6 @@ func TestExtractParentID_PositionalFirstTagIsSelf(t *testing.T) {
 }
 
 func TestExtractRootEvent_PositionalSingleTag(t *testing.T) {
-	// Single positional e tag = reply to that event (not root)
 	id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
 	someID, _ := nostr.IDFromHex(testSomeID)
 	event := &nostr.Event{

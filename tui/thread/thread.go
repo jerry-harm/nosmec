@@ -1,4 +1,4 @@
-package event
+package thread
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/jerry-harm/nosmec/utils"
 )
 
-type threadStyles struct {
+type styles struct {
 	title         lipgloss.Style
 	statusMessage lipgloss.Style
 	helpStyle     lipgloss.Style
@@ -25,8 +25,8 @@ type threadStyles struct {
 	placeholder   lipgloss.Style
 }
 
-func newThreadStyles() threadStyles {
-	return threadStyles{
+func newStyles() styles {
+	return styles{
 		title: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFDF5")).
 			Background(lipgloss.Color("#25A065")).
@@ -42,12 +42,12 @@ func newThreadStyles() threadStyles {
 	}
 }
 
-type threadKeyMap struct {
+type keyMap struct {
 	quit key.Binding
 }
 
-func newThreadKeyMap() threadKeyMap {
-	return threadKeyMap{
+func newKeyMap() keyMap {
+	return keyMap{
 		quit: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	}
 }
@@ -62,7 +62,6 @@ func extractParentID(event *nostr.Event) string {
 		return ""
 	}
 
-	// Phase 1: marked e tags (NIP-10 preferred)
 	hasMarkers := false
 	var rootTagValue string
 	var replyTagValue string
@@ -91,9 +90,6 @@ func extractParentID(event *nostr.Event) string {
 		return ""
 	}
 
-	// Phase 2: positional e tags (deprecated, backward compat)
-	// One e tag: ["e", <id>] → reply to that event
-	// Two or more: first = root, last = reply
 	if len(eTags) == 1 {
 		return eTags[0][1]
 	}
@@ -121,8 +117,6 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 		return nostr.ID{}, false, errors.New("nil event")
 	}
 
-	// Collect all e tags (don't filter by hex validity yet — we need
-	// to report invalid hex as errors rather than silently drop tags)
 	var eTags []nostr.Tag
 	for tag := range event.Tags.FindAll("e") {
 		eTags = append(eTags, tag)
@@ -131,7 +125,6 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 		return event.ID, true, nil
 	}
 
-	// Phase 1: marked e tags (NIP-10 preferred)
 	hasMarkers := false
 	hasReplyMarker := false
 	var rootTagValue string
@@ -171,8 +164,6 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 		return event.ID, true, nil
 	}
 
-	// Phase 2: positional e tags (deprecated, backward compat)
-	// First valid e tag = root, last = reply. If only one, it IS the parent.
 	validTags := collectETags(event.Tags)
 	if len(validTags) >= 2 {
 		rootTagValue = validTags[0][1]
@@ -185,9 +176,6 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 		}
 	}
 	if len(validTags) == 1 {
-		// Single positional e tag = reply to that event. The parent is
-		// the tagged event; we don't know the real root, so use
-		// the parent as provisional root.
 		rootFromTag, err := nostr.IDFromHex(validTags[0][1])
 		if err == nil && rootFromTag != event.ID {
 			return rootFromTag, false, nil
@@ -196,13 +184,13 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 	return event.ID, true, nil
 }
 
-type NostrEventProvider struct{}
+type eventProvider struct{}
 
-func (p *NostrEventProvider) ID(event nostr.Event) string {
+func (p *eventProvider) ID(event nostr.Event) string {
 	return event.ID.Hex()
 }
 
-func (p *NostrEventProvider) Name(event nostr.Event) string {
+func (p *eventProvider) Name(event nostr.Event) string {
 	content := event.Content
 	if len(content) > 50 {
 		content = content[:47] + "..."
@@ -211,18 +199,19 @@ func (p *NostrEventProvider) Name(event nostr.Event) string {
 	return strings.TrimSpace(content) + " (" + pubkey + ")"
 }
 
-func (p *NostrEventProvider) ParentID(event nostr.Event) string {
+func (p *eventProvider) ParentID(event nostr.Event) string {
 	return extractParentID(&event)
 }
 
-type threadTreeView struct {
+// Model is the tree-based thread view.
+type Model struct {
 	event    *nostr.Event
 	root     *nostr.Event
 	app      *config.AppContext
 	tuiModel *treeview.TuiTreeModel[nostr.Event]
-	provider *NostrEventProvider
-	styles   threadStyles
-	keys     threadKeyMap
+	provider *eventProvider
+	styles   styles
+	keys     keyMap
 	ctrl     *bubblon.Controller
 	width    int
 	height   int
@@ -231,33 +220,39 @@ type threadTreeView struct {
 	searching      bool
 	fetched        bool
 
+	newEventView func(*nostr.Event) tea.Model
+
 	mu sync.Mutex
 }
 
-func threadKeyMapCustom() treeview.KeyMap {
+func keyMapCustom() treeview.KeyMap {
 	km := treeview.DefaultKeyMap()
 	km.Quit = nil
 	km.SearchStart = []string{"/"}
 	return km
 }
 
-func newThreadTreeView(event *nostr.Event, app *config.AppContext, width, height int, ctrl *bubblon.Controller) *threadTreeView {
-	m := &threadTreeView{
+// New creates a new thread view for the given event.
+// newEventView is called when the user presses enter on an event node to
+// create a detail view for that event.
+func New(event *nostr.Event, app *config.AppContext, width, height int, ctrl *bubblon.Controller, newEventView func(*nostr.Event) tea.Model) *Model {
+	m := &Model{
 		event:          event,
 		app:            app,
-		styles:         newThreadStyles(),
-		keys:           newThreadKeyMap(),
+		styles:         newStyles(),
+		keys:           newKeyMap(),
 		ctrl:           ctrl,
 		width:          width,
 		height:         height,
 		currentEventID: event.ID.Hex(),
-		provider:       &NostrEventProvider{},
+		provider:       &eventProvider{},
+		newEventView:   newEventView,
 	}
 	m.buildInitialTree()
 	return m
 }
 
-func (m *threadTreeView) buildInitialTree() {
+func (m *Model) buildInitialTree() {
 	events := []*nostr.Event{m.event}
 
 	rootID, isRoot, _ := extractRootEvent(m.event)
@@ -286,11 +281,11 @@ func (m *threadTreeView) buildInitialTree() {
 	m.tuiModel = tuiModel
 }
 
-func (m *threadTreeView) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return m.fetchThread()
 }
 
-func (m *threadTreeView) fetchThread() tea.Cmd {
+func (m *Model) fetchThread() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), m.app.QueryTimeout())
 		defer cancel()
@@ -300,7 +295,7 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 		rootID, isRoot, err := extractRootEvent(m.event)
 		if err != nil {
 			logger.Error("thread: extractRootEvent failed", "error", err)
-			return threadTreeLoadedMsg{err: err}
+			return loadedMsg{err: err}
 		}
 		logger.Debug("thread: fetchThread start", "eventID", m.event.ID.Hex()[:8],
 			"rootID", rootID.Hex()[:8], "isRoot", isRoot,
@@ -325,10 +320,6 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			}
 		}
 
-		// Always fetch replies using rootID from NIP-10 tags, even if the
-		// root event itself couldn't be fetched from any relay. The root
-		// event may be old/pruned, but replies (including the current
-		// event) should still be findable via #e query.
 		replyEvents := m.fetchThreadReplies(ctx, rootID)
 		logger.Debug("thread: fetchThreadReplies result", "count", len(replyEvents))
 		events = append(events, replyEvents...)
@@ -344,11 +335,11 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 		m.mu.Unlock()
 		logger.Debug("thread: fetchThread done", "tuiModel", tuiModel != nil, "err", err)
 
-		return threadTreeLoadedMsg{err: err}
+		return loadedMsg{err: err}
 	}
 }
 
-func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Event, []string) {
+func (m *Model) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Event, []string) {
 	relays := utils.GetQueryRelays(m.event, m.app)
 	logger.Debug("thread: fetchRootEvent", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
@@ -373,7 +364,7 @@ func (m *threadTreeView) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*
 
 const maxThreadDepth = 10
 
-func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
+func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
 	relays := utils.GetQueryRelays(m.event, m.app)
 	logger.Debug("thread: fetchThreadReplies", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
@@ -420,7 +411,7 @@ func (m *threadTreeView) fetchThreadReplies(ctx context.Context, rootID nostr.ID
 	return allEvents
 }
 
-func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTreeModel[nostr.Event], error) {
+func (m *Model) buildTuiModel(events []*nostr.Event) (*treeview.TuiTreeModel[nostr.Event], error) {
 	if len(events) == 0 {
 		return nil, nil
 	}
@@ -467,8 +458,6 @@ func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTree
 		}
 	}
 
-	// Expand all ancestors so the focused node is visible in the tree.
-	// Without this, collapsed ancestors hide the current event.
 	nodeToParent := make(map[string]string)
 	for _, item := range items {
 		nodeToParent[m.provider.ID(item)] = m.provider.ParentID(item)
@@ -486,7 +475,7 @@ func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTree
 	tuiModel := treeview.NewTuiTreeModel(tree,
 		treeview.WithTuiWidth[nostr.Event](m.width),
 		treeview.WithTuiHeight[nostr.Event](m.height-4),
-		treeview.WithTuiKeyMap[nostr.Event](threadKeyMapCustom()),
+		treeview.WithTuiKeyMap[nostr.Event](keyMapCustom()),
 		treeview.WithTuiDisableNavBar[nostr.Event](true),
 		treeview.WithTuiAltScreen[nostr.Event](true),
 	)
@@ -494,13 +483,13 @@ func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTree
 	return tuiModel, nil
 }
 
-type threadTreeLoadedMsg struct {
+type loadedMsg struct {
 	err error
 }
 
-func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case threadTreeLoadedMsg:
+	case loadedMsg:
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -544,8 +533,8 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					eventPtr := focused.Data()
 					if eventPtr != nil {
 						ev := *eventPtr
-						if ev.Content != "[...]" && ev.ID != [32]byte{} {
-							eventView := New(&ev, m.app, m.width, m.height, "", m.ctrl)
+						if ev.Content != "[...]" && ev.ID != [32]byte{} && m.newEventView != nil {
+							eventView := m.newEventView(&ev)
 							return m, bubblon.Open(eventView)
 						}
 					}
@@ -568,7 +557,7 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *threadTreeView) View() tea.View {
+func (m *Model) View() tea.View {
 	var b strings.Builder
 
 	b.WriteString(m.styles.title.Render("Thread"))
@@ -598,8 +587,4 @@ func truncateContent(content string, maxLen int) string {
 		return content[:maxLen-3] + "..."
 	}
 	return content
-}
-
-func NewThreadTreeView(event *nostr.Event, app *config.AppContext, width, height int, ctrl *bubblon.Controller) *threadTreeView {
-	return newThreadTreeView(event, app, width, height, ctrl)
 }
