@@ -306,10 +306,12 @@ func (m *threadTreeView) fetchThread() tea.Cmd {
 			}
 		}
 
-		if m.root != nil {
-			replyEvents := m.fetchThreadReplies(ctx, m.root.ID)
-			events = append(events, replyEvents...)
-		}
+		// Always fetch replies using rootID from NIP-10 tags, even if the
+		// root event itself couldn't be fetched from any relay. The root
+		// event may be old/pruned, but replies (including the current
+		// event) should still be findable via #e query.
+		replyEvents := m.fetchThreadReplies(ctx, rootID)
+		events = append(events, replyEvents...)
 
 		m.mu.Lock()
 		tuiModel, err := m.buildTuiModel(events)
