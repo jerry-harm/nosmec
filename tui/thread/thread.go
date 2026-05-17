@@ -305,6 +305,7 @@ func (m *Model) fetchThread() tea.Cmd {
 
 		events = append(events, m.event)
 
+		var parentChain []*nostr.Event
 		if isRoot {
 			m.mu.Lock()
 			m.root = m.event
@@ -320,6 +321,11 @@ func (m *Model) fetchThread() tea.Cmd {
 			if rootEvent != nil {
 				events = append(events, rootEvent)
 			}
+
+			// Walk up the reply chain fetching each parent by ID.
+			// #e=Root may not find parents that lack the "root" marker.
+			parentChain = m.fetchParentChain(ctx)
+			events = append(events, parentChain...)
 		}
 
 		replyEvents := m.fetchThreadReplies(ctx, rootID)
@@ -342,29 +348,64 @@ func (m *Model) fetchThread() tea.Cmd {
 }
 
 func (m *Model) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Event, []string) {
+	logger.Debug("thread: fetchRootEvent", "rootID", rootID.Hex()[:8])
+	return m.fetchEventByID(ctx, rootID)
+}
+
+func (m *Model) fetchParentChain(ctx context.Context) []*nostr.Event {
+	var chain []*nostr.Event
+	seen := map[string]bool{m.event.ID.Hex(): true}
+	current := m.event
+
+	for depth := 0; depth < maxThreadDepth; depth++ {
+		parentID := extractParentID(current)
+		if parentID == "" || seen[parentID] {
+			break
+		}
+		seen[parentID] = true
+
+		pid, err := nostr.IDFromHex(parentID)
+		if err != nil {
+			break
+		}
+
+		parent, _ := m.fetchEventByID(ctx, pid)
+		if parent == nil {
+			break
+		}
+
+		logger.Debug("thread: fetchParentChain found", "depth", depth,
+			"eventID", parent.ID.Hex()[:8])
+		chain = append(chain, parent)
+		current = parent
+
+		if _, isRoot, _ := extractRootEvent(parent); isRoot {
+			break
+		}
+	}
+
+	return chain
+}
+
+func (m *Model) fetchEventByID(ctx context.Context, id nostr.ID) (*nostr.Event, []string) {
 	relays := utils.GetQueryRelays(m.event, m.app)
-	logger.Debug("thread: fetchRootEvent", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
 		relays = m.app.AllReadableRelays()
-		logger.Debug("thread: fetchRootEvent fallback to AllReadableRelays", "relays", len(relays))
 	}
 	if len(relays) == 0 {
-		logger.Debug("thread: fetchRootEvent no relays available")
 		return nil, nil
 	}
 
-	filter, err := utils.BuildNoteFilter(rootID.Hex())
+	filter, err := utils.BuildNoteFilter(id.Hex())
 	if err != nil {
 		return nil, nil
 	}
 
 	result := m.app.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
 	if result == nil {
-		logger.Debug("thread: fetchRootEvent QuerySingle returned nil")
 		return nil, nil
 	}
 
-	logger.Debug("thread: fetchRootEvent found root event")
 	return &result.Event, relays
 }
 
