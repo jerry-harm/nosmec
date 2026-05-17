@@ -181,6 +181,9 @@ func GlobalHints() sdk_hints.HintsDB {
 	if globalHints != nil {
 		return globalHints
 	}
+	if globalConfig.LocalRelay.DataDir == "" {
+		return nil
+	}
 	hintsPath := filepath.Join(globalConfig.LocalRelay.DataDir, "hints.db")
 	bh, err := bbolth.NewBoltHints(hintsPath)
 	if err != nil {

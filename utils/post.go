@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"fiatjaf.com/nostr"
@@ -118,6 +119,8 @@ func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content st
 }
 
 // DeleteNote sends a deletion request (Kind 5) for a given event ID.
+// Per NIP-09, only the author of an event can delete it.
+// Publishes to writable relays and local relay to keep cache consistent.
 func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*nostr.Event, error) {
 	secretKey, err := app.GetMySecretKey()
 	if err != nil {
@@ -136,14 +139,25 @@ func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*n
 		return nil, err
 	}
 
+	// Publish to local relay first so cache reflects deletion immediately
+	if localURL := config.GetLocalRelayURL(); localURL != "" {
+		go app.Pool().PublishMany(context.Background(), []string{localURL}, *event)
+	}
+
 	writableRelays := app.AllWritableRelays()
-	if len(writableRelays) > 0 {
-		resultChan := app.Pool().PublishMany(ctx, writableRelays, *event)
-		for result := range resultChan {
-			if result.Error != nil {
-				return nil, fmt.Errorf("failed to publish to %s: %w", result.RelayURL, result.Error)
-			}
+	if len(writableRelays) == 0 {
+		return event, nil
+	}
+
+	var failed []string
+	resultChan := app.Pool().PublishMany(ctx, writableRelays, *event)
+	for result := range resultChan {
+		if result.Error != nil {
+			failed = append(failed, result.RelayURL)
 		}
+	}
+	if len(failed) > 0 {
+		return event, fmt.Errorf("partial failure on %d/%d relays: %s", len(failed), len(writableRelays), strings.Join(failed, ", "))
 	}
 
 	return event, nil

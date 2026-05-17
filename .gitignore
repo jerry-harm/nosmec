@@ -122,4 +122,5 @@ $RECYCLE.BIN/
 nosmec
 nosmec.yaml
 nosmec-debug.log
-debug.loghints.db
+debug.log
+hints.db
