@@ -192,15 +192,15 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 	case tea.KeyPressMsg:
 		logger.Debug("handleMsg received key", "key", msg.String())
 
-		// In confirm-delete mode: y=confirm, any other key=cancel
+		// In confirm-delete mode: esc=cancel, any other key=confirm (Y is default)
 		if m.confirmDelete {
 			switch msg.String() {
-			case "y":
-				m.confirmDelete = false
-				return m.deleteAndClose()
-			default:
+			case "esc":
 				m.confirmDelete = false
 				return nil
+			default:
+				m.confirmDelete = false
+				return m.deleteAndClose()
 			}
 		}
 
@@ -270,18 +270,11 @@ func (m *EventView) deleteAndClose() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	return func() tea.Msg {
-		ctx := context.Background()
-		_, err := utils.DeleteNote(ctx, m.app, m.event.ID.Hex())
-		if err != nil {
-			logger.Error("delete note failed", "error", err.Error())
-		}
-		// Close the event detail after deletion (returns to parent view)
-		if m.ctrl != nil {
-			return bubblon.Close()
-		}
-		return tea.Quit()
+	go utils.DeleteNote(context.Background(), m.app, m.event.ID.Hex())
+	if m.ctrl != nil {
+		return func() tea.Msg { return bubblon.Close() }
 	}
+	return tea.Quit
 }
 
 func (m *EventView) follow() tea.Cmd {
@@ -384,7 +377,7 @@ func (m *EventView) View() tea.View {
 
 	var bottom string
 	if m.confirmDelete {
-		bottom = "\n" + m.styles.confirm.Render("[Delete this event? (y/n)]")
+		bottom = "\n" + m.styles.confirm.Render("[Delete this event? (Y/n)]")
 	} else {
 		bottom = "\n" + m.help.View(m.keys)
 	}
