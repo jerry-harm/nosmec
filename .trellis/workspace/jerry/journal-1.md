@@ -1192,3 +1192,36 @@ Corrected NIP-10 reply tag parsing: direct reply with only 'root' marker now cor
 ### Next Steps
 
 - None - task complete
+
+
+## Session 36: unify event detail across all entry points, thread UX fixes
+
+**Date**: 2026-05-17
+**Task**: unify event detail across all entry points, thread UX fixes
+**Branch**: `main`
+
+### Summary
+
+Fixed CLI entry point (nosmec event <id>) by injecting bubblon controller via SetController. Previously ctrl=nil caused reply/quote/thread to silently fail. Thread view UX: full screen (WithTuiAltScreen), Enter on tree node opens EventView, / for search, arrow keys for navigation. Added delete confirmation prompt [Delete this event? (y/n)] — y confirms and publishes Kind 5 deletion event, then closes the view. All 3 entry points (CLI, Timeline, Thread) now share identical EventView with all 8 keybindings working.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `12546e8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

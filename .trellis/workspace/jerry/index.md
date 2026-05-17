@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 35
+- **Total Sessions**: 36
 - **Last Active**: 2026-05-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1194 | Active |
+| `journal-1.md` | ~1227 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 36 | 2026-05-17 | unify event detail across all entry points, thread UX fixes | `12546e8` | `main` |
 | 35 | 2026-05-17 | fix NIP-10 reply parsing, multi-level thread fetch, clarify kind:1111 scope | `dfea33a` | `main` |
 | 34 | 2026-05-16 | test thread buildTuiModel, Update, View; fix placeholder cycle and hex validation | `939e81f` | `main` |
 | 33 | 2026-05-16 | fix gossip npub decode, migrate thread to TuiTreeModel | `b90e209`, `508cedd` | `main` |
