@@ -151,12 +151,14 @@ type threadTreeView struct {
 }
 
 // threadKeyMapCustom returns a TuiTreeModel keymap that works inside a bubblon bubble.
-// Esc is removed from the Quit binding so we can handle it ourselves for Close(),
-// since the default tea.Quit would exit the entire application.
+// - Esc is removed from Quit → handled locally as bubblon.Close()
+// - Enter is removed from Toggle/SearchStart → handled locally for event detail
+// - SearchStart uses "/" instead of Enter
 func threadKeyMapCustom() treeview.KeyMap {
 	km := treeview.DefaultKeyMap()
-	// Remove "esc" from Quit — we handle esc as bubblon.Close() in our Update
 	km.Quit = nil
+	km.Toggle = nil        // don't toggle on enter
+	km.SearchStart = []string{"/"}
 	return km
 }
 
@@ -381,9 +383,10 @@ func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTree
 	// Wrap in TuiTreeModel for keyboard navigation and viewport management
 	tuiModel := treeview.NewTuiTreeModel(tree,
 		treeview.WithTuiWidth[nostr.Event](m.width),
-		treeview.WithTuiHeight[nostr.Event](m.height-4), // leave room for title + help
+		treeview.WithTuiHeight[nostr.Event](m.height-4),
 		treeview.WithTuiKeyMap[nostr.Event](threadKeyMapCustom()),
-		treeview.WithTuiDisableNavBar[nostr.Event](true), // we render our own help bar
+		treeview.WithTuiDisableNavBar[nostr.Event](true),
+		treeview.WithTuiAltScreen[nostr.Event](true),
 	)
 
 	return tuiModel, nil
@@ -419,8 +422,22 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return bubblon.Close() }
 		}
 
-		// Delegate all other keyboard input to the TuiTreeModel for
-		// Up/Down/Left/Right/Enter navigation and search
+		// Enter: open event detail for the focused tree node
+		if msg.Text == "enter" && m.tuiModel != nil {
+			focused := m.tuiModel.GetFocusedNode()
+			if focused != nil {
+				eventPtr := focused.Data()
+				if eventPtr != nil {
+					ev := *eventPtr
+					if ev.Content != "[loading...]" && ev.ID != [32]byte{} {
+						eventView := New(&ev, m.app, m.width, m.height, "", m.ctrl)
+						return m, bubblon.Open(eventView)
+					}
+				}
+			}
+		}
+
+		// Delegate remaining keyboard input to TuiTreeModel
 		if m.tuiModel != nil {
 			_, cmd := m.tuiModel.Update(msg)
 			return m, cmd

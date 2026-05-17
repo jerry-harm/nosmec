@@ -11,6 +11,7 @@ type eventStyles struct {
 	time      lipgloss.Style
 	content   lipgloss.Style
 	tags      lipgloss.Style
+	confirm   lipgloss.Style
 }
 
 func newStyles(darkBG bool) eventStyles {
@@ -45,5 +46,8 @@ func newStyles(darkBG bool) eventStyles {
 			Foreground(lipgloss.Color("#333333")),
 		tags: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#666666")),
+		confirm: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF6B6B")).
+			Bold(true),
 	}
 }

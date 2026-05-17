@@ -52,7 +52,9 @@ type EventView struct {
 	help         help.Model
 	keys         eventKeyMap
 
-	ctrl *bubblon.Controller
+	ctrl           *bubblon.Controller
+	confirmDelete  bool
+	confirmedQuit  bool
 }
 
 type eventKeyMap struct {
@@ -119,6 +121,10 @@ func NewFromID(eventID string, app *config.AppContext, width, height int, ctrl *
 	m.initKeyBindings()
 	m.initToolkit()
 	return m
+}
+
+func (m *EventView) SetController(ctrl *bubblon.Controller) {
+	m.ctrl = ctrl
 }
 
 func (m *EventView) initStyles() {
@@ -209,13 +215,27 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		logger.Debug("handleMsg received key", "key", msg.String())
+
+		// In confirm-delete mode: y=confirm, any other key=cancel
+		if m.confirmDelete {
+			switch msg.String() {
+			case "y":
+				m.confirmDelete = false
+				return m.deleteAndClose()
+			default:
+				m.confirmDelete = false
+				return nil
+			}
+		}
+
 		switch msg.String() {
 		case "r":
 			return m.reply()
 		case "q":
 			return m.quote()
 		case "d":
-			return m.delete()
+			m.confirmDelete = true
+			return nil
 		case "f":
 			return m.follow()
 		case "o":
@@ -227,7 +247,6 @@ func (m *EventView) handleMsg(msg tea.Msg) tea.Cmd {
 		case "t":
 			return m.thread()
 		case "esc":
-			logger.Debug("ESC pressed, sending CloseMsg")
 			return func() tea.Msg { return CloseMsg{} }
 		}
 	}
@@ -269,16 +288,22 @@ func (m *EventView) thread() tea.Cmd {
 	return bubblon.Open(threadView)
 }
 
-func (m *EventView) delete() tea.Cmd {
+func (m *EventView) deleteAndClose() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	ctx := context.Background()
-	_, err := utils.DeleteNote(ctx, m.app, m.event.ID.Hex())
-	if err != nil {
-		logger.Error("delete note failed", "error", err.Error())
+	return func() tea.Msg {
+		ctx := context.Background()
+		_, err := utils.DeleteNote(ctx, m.app, m.event.ID.Hex())
+		if err != nil {
+			logger.Error("delete note failed", "error", err.Error())
+		}
+		// Close the event detail after deletion (returns to parent view)
+		if m.ctrl != nil {
+			return bubblon.Close()
+		}
+		return tea.Quit()
 	}
-	return nil
 }
 
 func (m *EventView) follow() tea.Cmd {
@@ -379,7 +404,14 @@ func (m *EventView) View() tea.View {
 	fullContent := header + "\n\n" + content
 	m.viewport.SetContent(fullContent)
 
-	v := tea.NewView(m.viewport.View() + "\n" + m.help.View(m.keys))
+	var bottom string
+	if m.confirmDelete {
+		bottom = "\n" + m.styles.confirm.Render("[Delete this event? (y/n)]")
+	} else {
+		bottom = "\n" + m.help.View(m.keys)
+	}
+
+	v := tea.NewView(m.viewport.View() + bottom)
 	v.AltScreen = true
 	return v
 }

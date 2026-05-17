@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/tui/bubblon"
 )
 
 var (
@@ -585,7 +586,63 @@ func TestThreadTreeView_Update(t *testing.T) {
 			height:   25,
 		}
 		_, _ = m.Update(tea.KeyPressMsg{Text: "down"})
-		// No crash = pass (keyboard nav is delegated to treeview lib)
+	})
+
+	t.Run("enter on focused node opens event detail", func(t *testing.T) {
+		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+		event := nostr.Event{ID: id, Content: "test event", Kind: nostr.KindTextNote}
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{event}, &NostrEventProvider{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Focus the node so GetFocusedNode returns it
+		tree.SetFocusedID(context.Background(), id.Hex())
+
+		tuiModel := treeview.NewTuiTreeModel(tree,
+			treeview.WithTuiWidth[nostr.Event](80),
+			treeview.WithTuiHeight[nostr.Event](20),
+		)
+
+		m := &threadTreeView{
+			styles:   newThreadStyles(),
+			keys:     newThreadKeyMap(),
+			tuiModel: tuiModel,
+			ctrl:     &bubblon.Controller{},
+			width:    80,
+			height:   25,
+		}
+		_, cmd := m.Update(tea.KeyPressMsg{Text: "enter"})
+		if cmd == nil {
+			t.Error("enter on focused node should return open-event-detail cmd")
+		}
+	})
+
+	t.Run("enter on placeholder does not open detail", func(t *testing.T) {
+		id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+		placeholder := nostr.Event{ID: id, Content: "[loading...]", Kind: nostr.KindTextNote}
+		tree, err := treeview.NewTreeFromFlatData(context.Background(), []nostr.Event{placeholder}, &NostrEventProvider{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		tree.SetFocusedID(context.Background(), id.Hex())
+
+		tuiModel := treeview.NewTuiTreeModel(tree,
+			treeview.WithTuiWidth[nostr.Event](80),
+			treeview.WithTuiHeight[nostr.Event](20),
+		)
+
+		m := &threadTreeView{
+			styles:   newThreadStyles(),
+			keys:     newThreadKeyMap(),
+			tuiModel: tuiModel,
+			ctrl:     &bubblon.Controller{},
+			width:    80,
+			height:   25,
+		}
+		_, cmd := m.Update(tea.KeyPressMsg{Text: "enter"})
+		if cmd != nil {
+			t.Error("enter on placeholder should not open event detail")
+		}
 	})
 }
 

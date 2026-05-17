@@ -58,6 +58,7 @@ func RunEventDetail(app *config.AppContext, eventID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create bubblon controller: %w", err)
 	}
+	m.SetController(&ctrl)
 	_, err = tea.NewProgram(ctrl).Run()
 	return err
 }
