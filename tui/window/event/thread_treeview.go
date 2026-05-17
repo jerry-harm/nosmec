@@ -429,13 +429,13 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Enter while searching = accept search, not open event detail
-		if m.searching && msg.Text == "enter" {
+		if m.searching && msg.String() == "enter" {
 			m.searching = false
 			return m, tuiCmd
 		}
 
 		// Enter: open event detail for the focused tree node (not in search mode)
-		if msg.Text == "enter" && m.tuiModel != nil {
+		if msg.String() == "enter" && m.tuiModel != nil {
 			focused := m.tuiModel.GetFocusedNode()
 			if focused != nil {
 				eventPtr := focused.Data()
