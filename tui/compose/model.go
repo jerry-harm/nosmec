@@ -18,7 +18,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/tui/window"
 )
 
 const ComposeWindowID = "compose"
@@ -640,16 +639,4 @@ func parseTagListInput(s string) (Tag, error) {
 		return nil, err
 	}
 	return tag, nil
-}
-
-func PrepareReply(w window.Window, event *nostr.Event) {
-	if wm, ok := w.(*model); ok {
-		wm.AddReply(event)
-	}
-}
-
-func PrepareQuote(w window.Window, event *nostr.Event) {
-	if wm, ok := w.(*model); ok {
-		wm.AddQuote(event)
-	}
 }

@@ -202,6 +202,8 @@ func NewPool(h sdk_hints.HintsDB) *nostr.Pool {
 	if h != nil {
 		opts.EventMiddleware = func(ie nostr.RelayEvent) {
 			ev := ie.Event
+
+			// HintsDB: learn relay→pubkey associations
 			if ev.PubKey != [32]byte{} {
 				h.Save(ev.PubKey, ie.Relay.URL, sdk_hints.MostRecentEventFetched, nostr.Now())
 			}
@@ -219,9 +221,47 @@ func NewPool(h sdk_hints.HintsDB) *nostr.Pool {
 					}
 				}
 			}
+
+			// Local relay cache: persist events for offline/fallback
+			cacheEvent(ie)
 		}
 	}
 	return nostr.NewPool(opts)
+}
+
+// cacheEvent publishes an event to the local relay for offline/fallback caching.
+// Called from the pool EventMiddleware so every incoming event gets cached.
+func cacheEvent(ie nostr.RelayEvent) {
+	if localRelayURL == "" {
+		return
+	}
+	ev := ie.Event
+	if ev.ID == [32]byte{} {
+		return
+	}
+	// Only cache events matching configured CacheFilters
+	if !shouldCacheEvent(ev.Kind) {
+		return
+	}
+	go func() {
+		if p := GlobalPool(); p != nil {
+			p.PublishMany(context.Background(), []string{localRelayURL}, ev)
+		}
+	}()
+}
+
+func shouldCacheEvent(kind nostr.Kind) bool {
+	if globalConfig.CacheFilters == nil {
+		return false
+	}
+	for _, f := range globalConfig.CacheFilters {
+		for _, k := range f.Kinds {
+			if nostr.Kind(k) == kind {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func GlobalPool() *nostr.Pool {

@@ -15,13 +15,11 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/compose"
-	"github.com/jerry-harm/nosmec/tui/toolkit"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
 const (
-	WindowID   = "event"
-	helpLines  = 3
+	helpLines = 3
 )
 
 type CloseMsg struct{}
@@ -43,7 +41,6 @@ type EventView struct {
 	height       int
 	darkBG       bool
 	styles       eventStyles
-	tk           *toolkit.ToolKit
 	authorName   string
 	fetchedName  bool
 	showRawJSON  bool
@@ -87,7 +84,6 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 		width:         width,
 		height:        height,
 		darkBG:        false,
-		tk:            toolkit.New(),
 		authorName:    authorName,
 		fetchedName:   authorName != "",
 		fetchedEvent:  true,
@@ -98,7 +94,6 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, authorNa
 	m.initStyles()
 	m.initViewport(width, height)
 	m.initKeyBindings()
-	m.initToolkit()
 	return m
 }
 
@@ -109,7 +104,6 @@ func NewFromID(eventID string, app *config.AppContext, width, height int, ctrl *
 		width:         width,
 		height:        height,
 		darkBG:        false,
-		tk:            toolkit.New(),
 		fetchedName:   false,
 		fetchedEvent:  false,
 		loading:       true,
@@ -119,7 +113,6 @@ func NewFromID(eventID string, app *config.AppContext, width, height int, ctrl *
 	m.initStyles()
 	m.initViewport(width, height)
 	m.initKeyBindings()
-	m.initToolkit()
 	return m
 }
 
@@ -159,24 +152,6 @@ func (m *EventView) initKeyBindings() {
 	}
 	m.help = help.New()
 	m.help.ShowAll = false
-}
-
-func (m *EventView) initToolkit() {
-	m.tk.KeymapAdd("reply", "reply", "r")
-	m.tk.KeymapAdd("quote", "quote", "q")
-	m.tk.KeymapAdd("delete", "delete", "d")
-	m.tk.KeymapAdd("follow", "follow", "f")
-	m.tk.KeymapAdd("open", "open in browser", "o")
-	m.tk.KeymapAdd("rawjson", "raw json", "j")
-	m.tk.KeymapAdd("thread", "thread view", "t")
-	m.tk.KeymapAdd("quit", "close", "esc")
-
-	m.tk.SetMsgHandling(WindowID, m.handleMsg)
-	m.tk.Focus(WindowID)
-}
-
-func (m *EventView) ID() string {
-	return WindowID
 }
 
 func (m *EventView) Init() tea.Cmd {
@@ -383,7 +358,7 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.styles = newStyles(m.darkBG)
 
 	case tea.KeyPressMsg:
-		cmd = m.tk.HandleMsg(WindowID, msg)
+		cmd = m.handleMsg(msg)
 	}
 
 	var viewportCmd tea.Cmd
