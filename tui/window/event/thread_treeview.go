@@ -147,7 +147,7 @@ type threadTreeView struct {
 	// Current event tracking for highlighting
 	currentEventID string
 
-	// Track search state so esc can cancel search instead of closing thread
+	// Track treeview search mode so esc can cancel search vs close thread
 	searching bool
 
 	mu sync.Mutex
@@ -156,7 +156,7 @@ type threadTreeView struct {
 // threadKeyMapCustom returns a TuiTreeModel keymap that works inside a bubblon bubble.
 // - Esc is removed from Quit → handled locally as bubblon.Close()
 // - Enter is removed from Toggle/SearchStart → handled locally for event detail
-// - SearchStart uses "/", SearchCancel uses "esc" (tracked via searching bool)
+// - SearchStart uses "/", SearchCancel uses "esc" (default, no conflict)
 func threadKeyMapCustom() treeview.KeyMap {
 	km := treeview.DefaultKeyMap()
 	km.Quit = nil
@@ -408,25 +408,33 @@ func (m *threadTreeView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		// Track search state: "/" starts search, esc ends it when searching
+		// Track search mode: "/" enters search, esc/enter exit it
 		if msg.Text == "/" {
 			m.searching = true
+		}
+
+		// Delegate to TuiTreeModel first (handles search, nav, expand/collapse)
+		var tuiCmd tea.Cmd
+		if m.tuiModel != nil {
+			_, tuiCmd = m.tuiModel.Update(msg)
 		}
 
 		// Esc: cancel search if active, otherwise close thread
 		if key.Matches(msg.Key(), m.keys.quit) {
 			if m.searching {
 				m.searching = false
-				// Delegate to treeview to cancel search, then return
-				if m.tuiModel != nil {
-					_, cmd := m.tuiModel.Update(msg)
-					return m, cmd
-				}
+				return m, tuiCmd
 			}
 			return m, func() tea.Msg { return bubblon.Close() }
 		}
 
-		// Enter: open event detail for the focused tree node
+		// Enter while searching = accept search, not open event detail
+		if m.searching && msg.Text == "enter" {
+			m.searching = false
+			return m, tuiCmd
+		}
+
+		// Enter: open event detail for the focused tree node (not in search mode)
 		if msg.Text == "enter" && m.tuiModel != nil {
 			focused := m.tuiModel.GetFocusedNode()
 			if focused != nil {
