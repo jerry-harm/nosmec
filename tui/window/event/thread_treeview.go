@@ -189,7 +189,6 @@ type threadTreeView struct {
 func threadKeyMapCustom() treeview.KeyMap {
 	km := treeview.DefaultKeyMap()
 	km.Quit = nil
-	km.Toggle = nil
 	km.SearchStart = []string{"/"}
 	return km
 }
@@ -391,6 +390,22 @@ func (m *threadTreeView) buildTuiModel(events []*nostr.Event) (*treeview.TuiTree
 		if m.root != nil {
 			tree.SetFocusedID(context.Background(), m.root.ID.Hex())
 		}
+	}
+
+	// Expand all ancestors so the focused node is visible in the tree.
+	// Without this, collapsed ancestors hide the current event.
+	nodeToParent := make(map[string]string)
+	for _, item := range items {
+		nodeToParent[m.provider.ID(item)] = m.provider.ParentID(item)
+	}
+	id := m.currentEventID
+	for {
+		pid, ok := nodeToParent[id]
+		if !ok || pid == "" {
+			break
+		}
+		tree.SetExpanded(context.Background(), pid, true)
+		id = pid
 	}
 
 	tuiModel := treeview.NewTuiTreeModel(tree,
