@@ -384,8 +384,8 @@ func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nost
 		}
 
 		ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
+		defer cancel()
 		results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
-		cancel()
 
 		var batchCount int
 		var nextIDs []string
