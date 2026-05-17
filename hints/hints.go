@@ -1,4 +1,4 @@
-package config
+package hints
 
 import (
 	"math"
@@ -126,4 +126,13 @@ func (h *HintsDB) Size() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.data)
+}
+
+var globalHints *HintsDB
+
+func GlobalHints() *HintsDB {
+	if globalHints == nil {
+		globalHints = NewHintsDB()
+	}
+	return globalHints
 }

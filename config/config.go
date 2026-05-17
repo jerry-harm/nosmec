@@ -19,6 +19,7 @@ import (
 	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/khatru"
 	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/hints"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/spf13/viper"
 )
@@ -174,7 +175,7 @@ func loadConfig() *Config {
 	return &config
 }
 
-func NewPool(hints *HintsDB) *nostr.Pool {
+func NewPool(h *hints.HintsDB) *nostr.Pool {
 	opts := nostr.PoolOptions{
 		RelayOptions: nostr.RelayOptions{
 			NoticeHandler: func(relay *nostr.Relay, notice string) {
@@ -182,24 +183,21 @@ func NewPool(hints *HintsDB) *nostr.Pool {
 			},
 		},
 	}
-	if hints != nil {
+	if h != nil {
 		opts.EventMiddleware = func(ie nostr.RelayEvent) {
 			ev := ie.Event
 			if ev.PubKey != [32]byte{} {
-				hints.Record(ev.PubKey.Hex(), ie.Relay.URL, HintEventFetched)
+				h.Record(ev.PubKey.Hex(), ie.Relay.URL, hints.HintEventFetched)
 			}
-			// Record relay hints from p tags
-			_ = ev.Tags.FindAll("p")
 			for tag := range ev.Tags.FindAll("p") {
 				if len(tag) >= 3 && tag[1] != "" && tag[2] != "" {
-					hints.Record(tag[1], tag[2], HintFromTag)
+					h.Record(tag[1], tag[2], hints.HintFromTag)
 				}
 			}
-			// Record relay list hints from kind 10002
 			if ev.Kind == nostr.KindRelayListMetadata {
 				for tag := range ev.Tags.FindAll("r") {
 					if len(tag) >= 2 {
-						hints.Record(ev.PubKey.Hex(), tag[1], HintInRelayList)
+						h.Record(ev.PubKey.Hex(), tag[1], hints.HintInRelayList)
 					}
 				}
 			}
@@ -208,20 +206,11 @@ func NewPool(hints *HintsDB) *nostr.Pool {
 	return nostr.NewPool(opts)
 }
 
-var globalHints *HintsDB
-
-func GlobalHints() *HintsDB {
-	if globalHints == nil {
-		globalHints = NewHintsDB()
-	}
-	return globalHints
-}
-
 func GlobalPool() *nostr.Pool {
 	if globalPool != nil {
 		return globalPool
 	}
-	globalPool = NewPool(GlobalHints())
+	globalPool = NewPool(hints.GlobalHints())
 	return globalPool
 }
 
