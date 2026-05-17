@@ -176,6 +176,7 @@ func newThreadTreeView(event *nostr.Event, app *config.AppContext, width, height
 		height:         height,
 		currentEventID: event.ID.Hex(),
 		provider:       &NostrEventProvider{},
+		loading:        true,
 	}
 }
 
