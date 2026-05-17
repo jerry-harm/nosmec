@@ -7,6 +7,7 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/tui/community/discover"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
@@ -247,12 +248,25 @@ func registerCommunityCommands() {
 	communityTimelineCmd.Flags().IntP("limit", "n", 10, "Number of posts")
 	communityTimelineCmd.RegisterFlagCompletionFunc("limit", completion.LimitCompletionFunc)
 
+	communityDiscoverCmd := &cobra.Command{
+		Use:   "discover",
+		Short: "Discover communities from relays (kind 34550)",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			app := getApp()
+			if err := discover.RunCommunityDiscover(app); err != nil {
+				handleError(err)
+			}
+		},
+	}
+
 	communityCmd.AddCommand(communityCreateCmd)
 	communityCmd.AddCommand(communityPostCmd)
 	communityCmd.AddCommand(communityReplyCmd)
 	communityCmd.AddCommand(communityListCmd)
 	communityCmd.AddCommand(communityInfoCmd)
 	communityCmd.AddCommand(communityTimelineCmd)
+	communityCmd.AddCommand(communityDiscoverCmd)
 
 	RegisterCommandGroup("Community", "Community operations (NIP-72)", communityCmd)
 }

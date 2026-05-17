@@ -20,6 +20,74 @@ type CommunityDefinition struct {
 	ID          string
 }
 
+// FetchCommunityEvents fetches all kind 34550 community definition events from readable relays.
+// Returns parsed CommunityDefinition structs with name, description, image, moderators.
+func FetchCommunityEvents(ctx context.Context, app *config.AppContext) ([]CommunityDefinition, error) {
+	relays := app.AllReadableRelays()
+	if len(relays) == 0 {
+		relays = app.Config().KnownRelays
+	}
+	if len(relays) == 0 {
+		return nil, fmt.Errorf("no relays available")
+	}
+
+	filter := nostr.Filter{
+		Kinds: []nostr.Kind{nostr.KindCommunityDefinition},
+	}
+
+	ctxQuery, cancel := context.WithTimeout(ctx, app.QueryTimeout())
+	defer cancel()
+
+	results := app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
+
+	seen := map[string]bool{}
+	var communities []CommunityDefinition
+	for relayEvent := range results {
+		ev := relayEvent.Event
+		addr := fmt.Sprintf("%d:%s:%s", ev.Kind, ev.PubKey.Hex(), ev.Tags.GetD())
+		if seen[addr] {
+			continue
+		}
+		seen[addr] = true
+
+		def := CommunityDefinition{
+			ID:     ev.Tags.GetD(),
+			Relays: map[string]string{},
+		}
+		for _, tag := range ev.Tags {
+			switch tag[0] {
+			case "d":
+				def.ID = tag[1]
+			case "name":
+				if len(tag) > 1 {
+					def.Name = tag[1]
+				}
+			case "description":
+				if len(tag) > 1 {
+					def.Description = tag[1]
+				}
+			case "image":
+				if len(tag) > 1 {
+					def.ImageURL = tag[1]
+				}
+			case "p":
+				if len(tag) > 1 {
+					if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
+						def.Moderators = append(def.Moderators, pk)
+					}
+				}
+			case "relay":
+				if len(tag) > 1 {
+					def.Relays[tag[1]] = tag[1]
+				}
+			}
+		}
+		communities = append(communities, def)
+	}
+
+	return communities, nil
+}
+
 func CreateCommunity(ctx context.Context, app *config.AppContext, def CommunityDefinition) (*nostr.Event, error) {
 	secretKey, err := app.GetMySecretKey()
 	if err != nil {
