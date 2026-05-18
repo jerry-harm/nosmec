@@ -8,53 +8,33 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	sdk "fiatjaf.com/nostr/sdk"
 	sdk_hints "fiatjaf.com/nostr/sdk/hints"
-	"github.com/jerry-harm/nosmec/access"
 	"github.com/spf13/viper"
 )
 
 type AppContext struct {
 	pool         *nostr.Pool
-	store        StoreInterface
 	cfg          Config
 	mu           sync.RWMutex
 	viper        *viper.Viper
 	knownRelays  map[string]struct{}
 	hints        sdk_hints.HintsDB
-	sys          *access.System
+	sys          *sdk.System
 }
 
-func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext {
-	sys := access.GlobalSystem
+func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
+	sys := GlobalSystem
 	if sys == nil {
-		// System wasn't created early (e.g. tests without GlobalPool).
-		// Create a minimal System for event→relay tracking.
-		localRelayURL := buildLocalRelayURL(cfg)
-		readRelays := GetReadableRelaysFromList(cfg.RelayList)
-		writeRelays := GetWritableRelaysFromList(cfg.RelayList)
-		sys = access.NewSystem(
-			pool,
-			GlobalHints(),
-			nil, // no KVStore for minimal system
-			readRelays,
-			writeRelays,
-			cfg.DMRelays,
-			cfg.SearchRelays,
-			cfg.KnownRelays,
-			localRelayURL,
-		)
-		access.GlobalSystem = sys
+		sys = sdk.NewSystem()
+		GlobalSystem = sys
 	}
-	// Ensure System references are consistent with the live pool
 	if sys.Pool == nil {
 		sys.Pool = pool
 	}
-	// Migrate any in-memory fallback entries to System
-	MigrateEventRelaysToSystem()
 
 	return &AppContext{
 		pool:        pool,
-		store:       store,
 		cfg:         cfg,
 		viper:       v,
 		knownRelays: make(map[string]struct{}),
@@ -63,18 +43,8 @@ func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.
 	}
 }
 
-func buildLocalRelayURL(cfg Config) string {
-	if !cfg.LocalRelay.Enabled {
-		return ""
-	}
-	port := cfg.LocalRelay.Port
-	if port == "" {
-		port = "8989"
-	}
-	return fmt.Sprintf("ws://localhost:%s", port)
-}
 
-func (a *AppContext) System() *access.System {
+func (a *AppContext) System() *sdk.System {
 	return a.sys
 }
 
@@ -84,10 +54,6 @@ func (a *AppContext) Pool() *nostr.Pool {
 
 func (a *AppContext) Hints() sdk_hints.HintsDB {
 	return a.hints
-}
-
-func (a *AppContext) Store() StoreInterface {
-	return a.store
 }
 
 func (a *AppContext) Config() Config {
@@ -141,15 +107,7 @@ func (a *AppContext) AllWritableRelays() []string {
 }
 
 func (a *AppContext) AllReadableRelays() []string {
-	relays := a.ReadableRelays()
-	if localURL := a.localRelayURL(); localURL != "" {
-		relays = append([]string{localURL}, relays...)
-	}
-	return relays
-}
-
-func (a *AppContext) localRelayURL() string {
-	return buildLocalRelayURL(a.cfg)
+	return a.ReadableRelays()
 }
 
 func (a *AppContext) QueryTimeout() time.Duration {
@@ -161,10 +119,13 @@ func (a *AppContext) QueryTimeout() time.Duration {
 	return time.Duration(a.cfg.Query.Timeout) * time.Second
 }
 
-func (a *AppContext) LocalRelayEnabled() bool {
+func (a *AppContext) QueryTimeoutms() int {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.cfg.LocalRelay.Enabled
+	if a.cfg.Query.Timeout <= 0 {
+		return 5000
+	}
+	return a.cfg.Query.Timeout * 1000
 }
 
 func (a *AppContext) GetMyPubKey() (nostr.PubKey, error) {
@@ -458,10 +419,6 @@ func (a *AppContext) Close() error {
 
 	var errs []error
 
-	if a.store != nil {
-		a.store.Close()
-	}
-
 	relays := make([]string, 0, len(a.knownRelays))
 	for r := range a.knownRelays {
 		relays = append(relays, r)
@@ -487,8 +444,8 @@ func (a *AppContext) Close() error {
 	}
 
 	// Close System last (KVStore must flush after all writes)
-	if a.sys != nil && a.sys.Store != nil {
-		if err := a.sys.Store.Close(); err != nil {
+	if a.sys != nil && a.sys.KVStore != nil {
+		if err := a.sys.KVStore.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

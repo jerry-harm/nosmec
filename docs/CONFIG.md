@@ -162,23 +162,17 @@ type Relay struct {
 ```go
 type Config struct {
     ConfigDir      string
+    ConfigDir      string
+    DataDir        string
     RelayList      []Relay
     DMRelays       []string
     SearchRelays   []string
     PrivateKey     string
     KnownRelays    []string
-    LocalRelay     LocalRelayConfig
     Proxy          ProxyConfig
     Alias          map[string]string
     Subscriptions  []Subscription
     Profile        ProfileConfig
-    CacheFilters   []CacheFilter
-}
-
-type LocalRelayConfig struct {
-    Enabled bool
-    Port    string
-    DataDir string
 }
 ```
 

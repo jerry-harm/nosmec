@@ -30,6 +30,8 @@ var rootCmd = &cobra.Command{
 
 var app *config.AppContext
 
+type cmdContextKey struct{}
+
 func Execute() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -64,10 +66,21 @@ func initApp() {
 		I2PSocks: cfg.Proxy.I2PSocks,
 	})
 	pool := config.GlobalPool()
-	store := config.GlobalLMDB()
-	app = config.NewAppContext(pool, store, cfg, config.GetViper())
+	app = config.NewAppContext(pool, cfg, config.GetViper())
 
 	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
+	SetCmdApp(app)
+}
+
+func SetCmdApp(a *config.AppContext) {
+	rootCmd.SetContext(context.WithValue(context.Background(), cmdContextKey{}, a))
+}
+
+func GetCmdApp() *config.AppContext {
+	if appPtr := rootCmd.Context().Value(cmdContextKey{}); appPtr != nil {
+		return appPtr.(*config.AppContext)
+	}
+	return app
 }
 
 func setupHTTPTransport() {
@@ -98,8 +111,7 @@ func reloadApp() {
 		I2PSocks: cfg.Proxy.I2PSocks,
 	})
 	pool := config.GlobalPool()
-	store := config.GlobalLMDB()
-	app = config.NewAppContext(pool, store, cfg, config.GetViper())
+	app = config.NewAppContext(pool, cfg, config.GetViper())
 
 	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
 }

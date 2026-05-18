@@ -3,10 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/community/discover"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
@@ -99,7 +101,39 @@ func registerCommunityCommands() {
 			content := args[1]
 
 			ctx := context.Background()
-			event, err := utils.ReplyToCommunity(ctx, getApp(), postID, content)
+			app := getApp()
+
+			// Parse postID to hex event ID (supports nevent, note, or raw hex)
+			eventIDStr := postID
+			if _, decoded, err := nip19.Decode(postID); err == nil {
+				switch v := decoded.(type) {
+				case nostr.EventPointer:
+					eventIDStr = v.ID.Hex()
+				case nostr.ID:
+					eventIDStr = v.Hex()
+				}
+			}
+
+			// Fetch parent post
+			wrapper := sdkplus.Wrap(app.System())
+			parentEvent := wrapper.FetchNote(ctx, eventIDStr, app.QueryTimeoutms())
+			if parentEvent == nil {
+				handleError(newError("parent post not found", nil))
+			}
+
+			// Extract community addr from parent tags (a tag with "34550:" prefix)
+			var communityAddr string
+			for _, tag := range parentEvent.Tags {
+				if tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
+					communityAddr = tag[1]
+					break
+				}
+			}
+			if communityAddr == "" {
+				handleError(newError("parent post is not associated with a community", nil))
+			}
+
+			event, err := utils.PostToCommunity(ctx, app, communityAddr, content, parentEvent.ID.Hex())
 			if err != nil {
 				handleError(newError("failed to reply", err))
 			}
@@ -120,28 +154,59 @@ func registerCommunityCommands() {
 			fmt.Println("=== My Communities ===")
 			fmt.Println()
 
-			fmt.Println("[Following] (Kind 10004)")
-			followed, err := utils.GetFollowedCommunities(ctx, app)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-			} else if len(followed) == 0 {
-				fmt.Println("  (none)")
-			} else {
-				for _, addr := range followed {
-					fmt.Printf("  - %s\n", addr)
-				}
+			// Get relay list for queries
+			relays := app.AllReadableRelays()
+			if len(relays) == 0 {
+				relays = app.Config().KnownRelays
 			}
-			fmt.Println()
+			timeoutMs := app.QueryTimeoutms()
 
-			fmt.Println("[Created] (Kind 34550)")
+			// --- Following (Kind 10004) ---
+			fmt.Println("[Following] (Kind 10004)")
 			myPubKey, err := app.GetMyPubKey()
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 			} else {
-				createdEvents := utils.GetMyCreatedCommunities(ctx, app, myPubKey)
+				followedFilter := nostr.Filter{
+					Kinds:   []nostr.Kind{10004},
+					Authors: []nostr.PubKey{myPubKey},
+					Limit:   1,
+				}
+				followedEvent := sdkplus.Wrap(app.System()).FetchEventByFilter(ctx, followedFilter, timeoutMs)
+				if followedEvent != nil {
+					var followed []string
+					for _, tag := range followedEvent.Tags {
+						if tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
+							followed = append(followed, tag[1])
+						}
+					}
+					if len(followed) == 0 {
+						fmt.Println("  (none)")
+					} else {
+						for _, addr := range followed {
+							fmt.Printf("  - %s\n", addr)
+						}
+					}
+				} else {
+					fmt.Println("  (none)")
+				}
+			}
+			fmt.Println()
+
+			// --- Created (Kind 34550) ---
+			fmt.Println("[Created] (Kind 34550)")
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+			} else {
+				createdFilter := nostr.Filter{
+					Kinds:   []nostr.Kind{nostr.KindCommunityDefinition},
+					Authors: []nostr.PubKey{myPubKey},
+				}
+				ctxQuery, cancel := context.WithTimeout(ctx, app.QueryTimeout())
+				defer cancel()
 				var events []nostr.Event
-				for e := range createdEvents {
-					events = append(events, *e)
+				for ie := range app.Pool().FetchMany(ctxQuery, relays, createdFilter, nostr.SubscriptionOptions{}) {
+					events = append(events, ie.Event)
 				}
 				if len(events) == 0 {
 					fmt.Println("  (none)")
@@ -162,11 +227,21 @@ func registerCommunityCommands() {
 			}
 			fmt.Println()
 
+			// --- Posted (Kind 1111) ---
 			fmt.Println("[Posted] (Kind 1111)")
-			ch := utils.GetPostedCommunities(ctx, app, myPubKey)
+			postedFilter := nostr.Filter{
+				Kinds:   []nostr.Kind{nostr.KindComment},
+				Authors: []nostr.PubKey{myPubKey},
+			}
+			ctxQuery2, cancel2 := context.WithTimeout(ctx, app.QueryTimeout())
+			defer cancel2()
 			var postedAddrs []string
-			for addr := range ch {
-				postedAddrs = append(postedAddrs, addr)
+			for ie := range app.Pool().FetchMany(ctxQuery2, relays, postedFilter, nostr.SubscriptionOptions{}) {
+				for _, tag := range ie.Event.Tags {
+					if tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
+						postedAddrs = append(postedAddrs, tag[1])
+					}
+				}
 			}
 			if len(postedAddrs) == 0 {
 				fmt.Println("  (none)")
@@ -197,9 +272,14 @@ func registerCommunityCommands() {
 			}
 
 			ctx := context.Background()
-			event, err := utils.GetCommunity(ctx, app, authorPubKey, communityID)
-			if err != nil {
-				handleError(newError("failed to get community", err))
+			filter := nostr.Filter{
+				Kinds:   []nostr.Kind{nostr.KindCommunityDefinition},
+				Authors: []nostr.PubKey{authorPubKey},
+				Tags:    nostr.TagMap{"d": []string{communityID}},
+			}
+			event := sdkplus.Wrap(app.System()).FetchEventByFilter(ctx, filter, app.QueryTimeoutms())
+			if event == nil {
+				handleError(newError("community not found", nil))
 			}
 
 			fmt.Printf("Community Information:\n")

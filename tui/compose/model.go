@@ -18,7 +18,9 @@ import (
 	"charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip10"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -188,11 +190,19 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 }
 
 func (m *model) AddReply(ctx context.Context, app *config.AppContext, parentEvent *nostr.Event) {
-	rootID, isRoot, _ := utils.FindRootEvent(parentEvent)
+	ptr := nip10.GetThreadRoot(parentEvent.Tags)
+	rootID := parentEvent.ID
+	isRoot := true
+	if ptr != nil {
+		if ep, ok := ptr.(nostr.EventPointer); ok {
+			rootID = ep.ID
+			isRoot = false
+		}
+	}
 	var rootPubKey string
 	if !isRoot && rootID != parentEvent.ID {
-		opts := &utils.GetOptions{App: app}
-		if rootEvent := utils.GetNote(ctx, rootID.Hex(), opts); rootEvent != nil {
+		ext := sdkplus.Wrap(app.System())
+		if rootEvent := ext.FetchNote(ctx, rootID.Hex(), app.QueryTimeoutms()); rootEvent != nil {
 			rootPubKey = rootEvent.PubKey.Hex()
 		}
 	}

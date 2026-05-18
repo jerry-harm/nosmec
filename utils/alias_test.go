@@ -52,7 +52,7 @@ func TestResolveAliasToPubKey_Hex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.Config{}
-			app := config.NewAppContext(nil, nil, cfg, nil)
+			app := config.NewAppContext(nil, cfg, nil)
 			gotPk, err := ResolveAliasToPubKey(app, tt.identifier)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ResolveAliasToPubKey() error = %v, wantErr %v", err, tt.wantErr)
@@ -91,7 +91,7 @@ func TestResolveAliasToPubKey_InvalidInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.Config{}
-			app := config.NewAppContext(nil, nil, cfg, nil)
+			app := config.NewAppContext(nil, cfg, nil)
 			_, err := ResolveAliasToPubKey(app, tt.identifier)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ResolveAliasToPubKey() error = %v, wantErr %v", err, tt.wantErr)
@@ -140,7 +140,7 @@ func TestResolveAliasToPubKey_ViaAlias(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.Config{Alias: tt.aliasMap}
-			app := config.NewAppContext(nil, nil, cfg, nil)
+			app := config.NewAppContext(nil, cfg, nil)
 			gotPk, err := ResolveAliasToPubKey(app, tt.identifier)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ResolveAliasToPubKey() error = %v, wantErr %v", err, tt.wantErr)
@@ -227,7 +227,7 @@ func TestListAliases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.Config{Alias: tt.aliasMap}
-			app := config.NewAppContext(nil, nil, cfg, nil)
+			app := config.NewAppContext(nil, cfg, nil)
 			got := ListAliases(app)
 			if len(got) != tt.wantLen {
 				t.Errorf("ListAliases() len = %v, want %v", len(got), tt.wantLen)

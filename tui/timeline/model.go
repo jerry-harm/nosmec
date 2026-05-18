@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -15,12 +14,20 @@ import (
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/event"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 	"github.com/jerry-harm/nosmec/utils"
 )
+
+type TimelineEvent struct {
+	Event       nostr.Event
+	CommunityID string
+	IsCommunity bool
+}
 
 type eventKind int
 
@@ -33,7 +40,7 @@ const (
 )
 
 type item struct {
-	event      utils.TimelineEvent
+	event      TimelineEvent
 	authorName string
 	kind       eventKind
 }
@@ -169,7 +176,7 @@ func newListKeyMap() *listKeyMap {
 }
 
 type fetchMsg struct {
-	events []utils.TimelineEvent
+	events []TimelineEvent
 }
 
 type errorMsg struct {
@@ -181,7 +188,7 @@ type namesMsg struct {
 }
 
 type loadMoreMsg struct {
-	events []utils.TimelineEvent
+	events []TimelineEvent
 	isNew  bool // true if loading newer (prepend), false if loading older (append)
 }
 
@@ -191,7 +198,7 @@ type loadMoreErrorMsg struct {
 }
 
 type newEventMsg struct {
-	event utils.TimelineEvent
+	event TimelineEvent
 }
 
 func NewModel(app *config.AppContext, filter string, hashtags []string, limit int, communityAddr string) *model {
@@ -248,7 +255,6 @@ func (m *model) updateListProperties() {
 
 func (m *model) fetchTimeline() tea.Cmd {
 	return func() tea.Msg {
-		// Rate limit: skip if last refresh was within 2 seconds
 		if time.Since(m.lastRefresh) < 2*time.Second {
 			return nil
 		}
@@ -257,53 +263,118 @@ func (m *model) fetchTimeline() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		opts := &utils.GetOptions{App: m.app}
+		ext := sdkplus.Wrap(m.app.System())
+		var rawEvents []nostr.Event
+		var err error
 
-		var ch chan *nostr.Event
 		switch m.filter {
 		case "global":
-			ch = utils.GetGlobalTimeline(ctx, m.limit, 0, opts)
+			rawEvents, err = ext.FetchGlobalTimelinePage(ctx, m.limit, 0)
 		case "mine":
-			ch = utils.GetMyTimeline(ctx, m.limit, 0, opts)
+			pubKey, pkErr := m.app.GetMyPubKey()
+			if pkErr != nil {
+				return errorMsg{err: pkErr}
+			}
+			rawEvents, err = ext.FetchMyTimelinePage(ctx, pubKey, m.limit, 0)
 		case "community":
-			authorPubKey, communityID, err := utils.ParseCommunityAddr(m.communityAddr)
-			if err != nil {
+			if _, _, parseErr := utils.ParseCommunityAddr(m.communityAddr); parseErr != nil {
 				return fetchMsg{events: nil}
 			}
-			ch = utils.GetCommunityPosts(ctx, m.app, authorPubKey, communityID, m.limit)
+
+			rawEvents, err = ext.FetchFollowedTimelinePage(ctx, nil, []string{m.communityAddr}, m.limit, 0)
 		default:
-			ch = utils.GetFollowedTimeline(ctx, m.limit, 0, m.hashtags, opts)
+			subs := m.app.ListSubscriptions("")
+			var authors []nostr.PubKey
+			var communityAddrs []string
+			for _, sub := range subs {
+				switch sub.Type {
+				case "user":
+					pk, aliasErr := utils.ResolveAliasToPubKey(m.app, sub.ID)
+					if aliasErr == nil {
+						authors = append(authors, pk)
+					}
+				case "community":
+					communityAddrs = append(communityAddrs, sub.ID)
+				case "hashtag":
+					m.hashtags = append(m.hashtags, sub.ID)
+				}
+			}
+			rawEvents, err = ext.FetchFollowedTimelinePage(ctx, authors, communityAddrs, m.limit*3, 0)
+			if err == nil && len(rawEvents) > 0 {
+				seen := make(map[nostr.ID]bool)
+				filtered := rawEvents[:0]
+				for _, ev := range rawEvents {
+					if seen[ev.ID] {
+						continue
+					}
+					seen[ev.ID] = true
+					if len(m.hashtags) > 0 {
+						hasMatch := false
+						for _, tag := range ev.Tags {
+							if len(tag) >= 2 && tag[0] == "t" {
+								for _, h := range m.hashtags {
+									if tag[1] == h {
+										hasMatch = true
+										break
+									}
+								}
+							}
+							if hasMatch {
+								break
+							}
+						}
+						if !hasMatch {
+							continue
+						}
+					}
+					filtered = append(filtered, ev)
+				}
+				rawEvents = filtered
+			}
+		}
+		if err != nil {
+			return errorMsg{err: err}
 		}
 
-		var events []utils.TimelineEvent
-		for e := range ch {
-			events = append(events, utils.TimelineEvent{Event: *e})
+		events := make([]TimelineEvent, 0, len(rawEvents))
+		for i := range rawEvents {
+			events = append(events, TimelineEvent{Event: rawEvents[i]})
 		}
-
 		return fetchMsg{events: events}
 	}
 }
 
 func (m *model) fetchProfileNames(pubkeys []string) tea.Cmd {
 	return func() tea.Msg {
-		names := make(map[string]string)
-		var wg sync.WaitGroup
-
-		for _, pk := range pubkeys {
-			wg.Add(1)
-			go func(pubkeyStr string) {
-				defer wg.Done()
-				var pubKey nostr.PubKey
-				if err := pubKey.UnmarshalJSON([]byte("\"" + pubkeyStr + "\"")); err == nil {
-					if name := utils.GetProfileName(context.Background(), pubKey, &utils.GetOptions{App: m.app}); name != "" {
-						names[pubkeyStr] = name
-					}
-				}
-			}(pk)
+		if len(pubkeys) == 0 {
+			return namesMsg{names: nil}
 		}
 
-		wg.Wait()
-		return namesMsg{names: names}
+		var pubKeys []nostr.PubKey
+		pkToStr := make(map[string]nostr.PubKey)
+		for _, pk := range pubkeys {
+			var pubKey nostr.PubKey
+			if err := pubKey.UnmarshalJSON([]byte("\"" + pk + "\"")); err == nil {
+				pubKeys = append(pubKeys, pubKey)
+				pkToStr[pk] = pubKey
+			}
+		}
+
+		if len(pubKeys) == 0 {
+			return namesMsg{names: nil}
+		}
+
+		ext := sdkplus.Wrap(m.app.System())
+		profiles := ext.FetchProfilesBatch(context.Background(), pubKeys)
+		result := make(map[string]string)
+		for pkStr, pk := range pkToStr {
+			if evt, ok := profiles[pk]; ok {
+				if meta, err := sdk.ParseMetadata(*evt); err == nil && meta.Name != "" {
+					result[pkStr] = meta.Name
+				}
+			}
+		}
+		return namesMsg{names: result}
 	}
 }
 
@@ -316,8 +387,6 @@ func (m *model) fetchMoreOld() tea.Cmd {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-
-		opts := &utils.GetOptions{App: m.app}
 
 		items := m.list.Items()
 		if len(items) == 0 {
@@ -335,35 +404,92 @@ func (m *model) fetchMoreOld() tea.Cmd {
 
 		until := oldestEvent.CreatedAt - 1
 
-		var ch chan *nostr.Event
+		ext := sdkplus.Wrap(m.app.System())
+		var rawEvents []nostr.Event
+		var err error
+
 		switch m.filter {
 		case "global":
-			ch = utils.GetGlobalTimeline(ctx, m.limit, until, opts)
+			rawEvents, err = ext.FetchGlobalTimelinePage(ctx, m.limit, until)
 		case "mine":
-			ch = utils.GetMyTimeline(ctx, m.limit, until, opts)
-		case "community":
-			authorPubKey, communityID, err := utils.ParseCommunityAddr(m.communityAddr)
-			if err != nil {
+			pubKey, pkErr := m.app.GetMyPubKey()
+			if pkErr != nil {
 				m.isLoadingMore = false
-				return loadMoreErrorMsg{err: err, isNew: false}
+				return loadMoreErrorMsg{err: pkErr, isNew: false}
 			}
-			ch = utils.GetCommunityPosts(ctx, m.app, authorPubKey, communityID, m.limit)
+			rawEvents, err = ext.FetchMyTimelinePage(ctx, pubKey, m.limit, until)
+		case "community":
+			if _, _, parseErr := utils.ParseCommunityAddr(m.communityAddr); parseErr != nil {
+				m.isLoadingMore = false
+				return loadMoreErrorMsg{err: parseErr, isNew: false}
+			}
+			rawEvents, err = ext.FetchFollowedTimelinePage(ctx, nil, []string{m.communityAddr}, m.limit, until)
 		default:
-			ch = utils.GetFollowedTimeline(ctx, m.limit, until, m.hashtags, opts)
+			subs := m.app.ListSubscriptions("")
+			var authors []nostr.PubKey
+			var communityAddrs []string
+			for _, sub := range subs {
+				switch sub.Type {
+				case "user":
+					pk, aliasErr := utils.ResolveAliasToPubKey(m.app, sub.ID)
+					if aliasErr == nil {
+						authors = append(authors, pk)
+					}
+				case "community":
+					communityAddrs = append(communityAddrs, sub.ID)
+				case "hashtag":
+					m.hashtags = append(m.hashtags, sub.ID)
+				}
+			}
+			rawEvents, err = ext.FetchFollowedTimelinePage(ctx, authors, communityAddrs, m.limit*3, until)
+			if err == nil && len(rawEvents) > 0 {
+				seen := make(map[nostr.ID]bool)
+				filtered := rawEvents[:0]
+				for _, ev := range rawEvents {
+					if seen[ev.ID] {
+						continue
+					}
+					seen[ev.ID] = true
+					if len(m.hashtags) > 0 {
+						hasMatch := false
+						for _, tag := range ev.Tags {
+							if len(tag) >= 2 && tag[0] == "t" {
+								for _, h := range m.hashtags {
+									if tag[1] == h {
+										hasMatch = true
+										break
+									}
+								}
+							}
+							if hasMatch {
+								break
+							}
+						}
+						if !hasMatch {
+							continue
+						}
+					}
+					filtered = append(filtered, ev)
+				}
+				rawEvents = filtered
+			}
 		}
-
-		var events []utils.TimelineEvent
-		for e := range ch {
-			events = append(events, utils.TimelineEvent{Event: *e})
+		if err != nil {
+			m.isLoadingMore = false
+			return loadMoreErrorMsg{err: err, isNew: false}
 		}
 
 		m.isLoadingMore = false
 
-		if len(events) == 0 {
+		if len(rawEvents) == 0 {
 			m.hasMoreOld = false
 			return loadMoreErrorMsg{err: fmt.Errorf("no more events"), isNew: false}
 		}
 
+		events := make([]TimelineEvent, 0, len(rawEvents))
+		for i := range rawEvents {
+			events = append(events, TimelineEvent{Event: rawEvents[i]})
+		}
 		return loadMoreMsg{events: events, isNew: false}
 	}
 }
@@ -448,7 +574,7 @@ func (m *model) startSubscription(since nostr.Timestamp) tea.Cmd {
 			}
 		}
 
-		m.subCh = utils.SubscribeWithCache(ctx, m.app.Pool(), relays, filter, nostr.SubscriptionOptions{Label: "timeline"}, m.app)
+		m.subCh = m.app.Pool().SubscribeMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "timeline"})
 		m.subStarted = true
 
 		// Return nil - subscription channel will be processed in Update via pollSubscription
@@ -483,7 +609,7 @@ func (m *model) pollSubscription() tea.Cmd {
 			}
 			m.seenEventIDs[event.ID] = true
 
-			return newEventMsg{event: utils.TimelineEvent{Event: event}}
+			return newEventMsg{event: TimelineEvent{Event: event}}
 		default:
 			// No event ready, continue polling via timer
 			return tea.Tick(time.Millisecond*100, func(time.Time) tea.Msg {
@@ -779,7 +905,7 @@ func (m *model) View() tea.View {
 	return v
 }
 
-func detectEventKind(e utils.TimelineEvent) eventKind {
+func detectEventKind(e TimelineEvent) eventKind {
 	ev := e.Event
 	if ev.Kind == 6 || ev.Kind == 16 {
 		return kindRepost

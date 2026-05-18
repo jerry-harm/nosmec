@@ -123,11 +123,6 @@ func buildSearchRelayList(app *config.AppContext) []string {
 		relaySet[url] = struct{}{}
 	}
 
-	// Add local relay if enabled
-	if localURL := config.GetLocalRelayURL(); localURL != "" {
-		relaySet[localURL] = struct{}{}
-	}
-
 	relays := make([]string, 0, len(relaySet))
 	for r := range relaySet {
 		relays = append(relays, r)

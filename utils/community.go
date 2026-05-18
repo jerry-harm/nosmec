@@ -20,8 +20,6 @@ type CommunityDefinition struct {
 	ID          string
 }
 
-// FetchCommunityEvents fetches all kind 34550 community definition events from readable relays.
-// Returns parsed CommunityDefinition structs with name, description, image, moderators.
 func FetchCommunityEvents(ctx context.Context, app *config.AppContext) ([]CommunityDefinition, error) {
 	relays := app.AllReadableRelays()
 	if len(relays) == 0 {
@@ -142,8 +140,6 @@ func CreateCommunity(ctx context.Context, app *config.AppContext, def CommunityD
 		}
 	}
 
-	CacheEvent(event, app)
-
 	return event, nil
 }
 
@@ -211,8 +207,6 @@ func PostToCommunity(ctx context.Context, app *config.AppContext, communityAddr 
 		}
 	}
 
-	CacheEvent(event, app)
-
 	return event, nil
 }
 
@@ -249,205 +243,4 @@ func ApproveCommunityPost(ctx context.Context, app *config.AppContext, community
 	}
 
 	return event, nil
-}
-
-func GetCommunity(ctx context.Context, app *config.AppContext, communityAuthor nostr.PubKey, communityID string) (*nostr.Event, error) {
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindCommunityDefinition},
-		Authors: []nostr.PubKey{communityAuthor},
-		Tags:    nostr.TagMap{"d": []string{communityID}},
-		Limit:   1,
-	}
-	opts := &GetOptions{App: app}
-	event := GetEvent(ctx, filter, opts)
-	if event == nil {
-		return nil, fmt.Errorf("community not found: %s by %s", communityID, communityAuthor.Hex())
-	}
-
-	relayHints := ExtractRelayHints(event)
-	if len(relayHints) > 0 {
-		EnsureRelays(app, relayHints)
-	}
-
-	return event, nil
-}
-
-func GetCommunityRelays(event *nostr.Event) []string {
-	if event == nil {
-		return nil
-	}
-
-	var relays []string
-	for _, tag := range event.Tags {
-		if len(tag) >= 2 && tag[0] == "relay" {
-			relays = append(relays, tag[1])
-		}
-	}
-	return relays
-}
-
-func GetCommunityPosts(ctx context.Context, app *config.AppContext, communityAuthor nostr.PubKey, communityID string, limit int) chan *nostr.Event {
-	communityAddr := fmt.Sprintf("%d:%s:%s", nostr.KindCommunityDefinition, communityAuthor.Hex(), communityID)
-
-	relays := app.Config().KnownRelays
-	if len(relays) == 0 {
-		relays = app.AllReadableRelays()
-	}
-
-	if communityDef, err := GetCommunity(ctx, app, communityAuthor, communityID); err == nil {
-		if hints := GetCommunityRelays(communityDef); len(hints) > 0 {
-			relays = hints
-		}
-	}
-
-	filter := nostr.Filter{
-		Kinds: []nostr.Kind{nostr.KindComment},
-		Tags:  nostr.TagMap{"a": []string{communityAddr}},
-		Limit: limit,
-	}
-
-	out := make(chan *nostr.Event)
-	go func() {
-		ch := app.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
-		for relayEvent := range ch {
-			CacheEvent(&relayEvent.Event, app)
-			out <- &relayEvent.Event
-		}
-		close(out)
-	}()
-	return out
-}
-
-func GetFollowedCommunities(ctx context.Context, app *config.AppContext) ([]string, error) {
-	pubKey, err := app.GetMyPubKey()
-	if err != nil {
-		return nil, err
-	}
-
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{10004},
-		Authors: []nostr.PubKey{pubKey},
-		Limit:   1,
-	}
-
-	opts := &GetOptions{App: app}
-	event := GetEvent(ctx, filter, opts)
-	if event == nil {
-		return []string{}, nil
-	}
-
-	var communities []string
-	for _, tag := range event.Tags {
-		if len(tag) >= 2 && tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
-			communities = append(communities, tag[1])
-		}
-	}
-
-	return communities, nil
-}
-
-func GetPost(ctx context.Context, app *config.AppContext, postID string) (*nostr.Event, error) {
-	var id nostr.ID
-	if len(postID) == 64 {
-		copy(id[:], postID)
-	} else {
-		return nil, fmt.Errorf("invalid post ID length")
-	}
-
-	filter := nostr.Filter{
-		IDs: []nostr.ID{id},
-		Limit: 1,
-	}
-
-	opts := &GetOptions{App: app}
-	event := GetEvent(ctx, filter, opts)
-	return event, nil
-}
-
-func GetParentPostInfo(ctx context.Context, app *config.AppContext, parentPostID string) (communityAddr string, authorPubKey nostr.PubKey, err error) {
-	parentEvent, err := GetPost(ctx, app, parentPostID)
-	if err != nil || parentEvent == nil {
-		return "", nostr.PubKey{}, fmt.Errorf("parent post not found")
-	}
-
-	for _, tag := range parentEvent.Tags {
-		if len(tag) >= 2 && tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
-			communityAddr = tag[1]
-		}
-		if len(tag) >= 2 && tag[0] == "p" {
-			copy(authorPubKey[:], tag[1])
-		}
-	}
-
-	if communityAddr == "" {
-		return "", nostr.PubKey{}, fmt.Errorf("community address not found in parent post")
-	}
-
-	return communityAddr, authorPubKey, nil
-}
-
-func ReplyToCommunity(ctx context.Context, app *config.AppContext, parentPostID string, content string) (*nostr.Event, error) {
-	communityAddr, _, err := GetParentPostInfo(ctx, app, parentPostID)
-	if err != nil {
-		return nil, err
-	}
-
-	return PostToCommunity(ctx, app, communityAddr, content, parentPostID)
-}
-
-func GetMyCreatedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) chan *nostr.Event {
-	relays := app.Config().KnownRelays
-	if len(relays) == 0 {
-		relays = app.AllReadableRelays()
-	}
-
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindCommunityDefinition},
-		Authors: []nostr.PubKey{pubKey},
-		Limit:   100,
-	}
-
-	out := make(chan *nostr.Event)
-	go func() {
-		ch := app.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
-		for relayEvent := range ch {
-			CacheEvent(&relayEvent.Event, app)
-			out <- &relayEvent.Event
-		}
-		close(out)
-	}()
-	return out
-}
-
-func GetPostedCommunities(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) chan string {
-	relays := app.Config().KnownRelays
-	if len(relays) == 0 {
-		relays = app.AllReadableRelays()
-	}
-
-	filter := nostr.Filter{
-		Kinds:   []nostr.Kind{nostr.KindComment},
-		Authors: []nostr.PubKey{pubKey},
-		Limit:   500,
-	}
-
-	out := make(chan string)
-	go func() {
-		seen := make(map[nostr.ID]bool)
-		ch := app.Pool().FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{})
-		for relayEvent := range ch {
-			if seen[relayEvent.Event.ID] {
-				continue
-			}
-			seen[relayEvent.Event.ID] = true
-			CacheEvent(&relayEvent.Event, app)
-			for _, tag := range relayEvent.Event.Tags {
-				if len(tag) >= 2 && tag[0] == "a" && strings.HasPrefix(tag[1], "34550:") {
-					out <- tag[1]
-				}
-			}
-		}
-		close(out)
-	}()
-	return out
 }

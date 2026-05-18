@@ -5,7 +5,6 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/utils"
 )
 
 func newItemDelegate(keys *delegateKeyMap, styles *styles) list.DefaultDelegate {
@@ -70,7 +69,7 @@ func newDelegateKeyMap() *delegateKeyMap {
 }
 
 type showDetailMsg struct {
-	event      utils.TimelineEvent
+	event      TimelineEvent
 	authorName string
 }
 

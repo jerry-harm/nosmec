@@ -15,7 +15,7 @@ This directory contains guidelines for backend development. Each file covers a s
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | Module organization, file naming | ✅ Complete |
-| [Database Guidelines](./database-guidelines.md) | BoltDB store, CacheEvent, Close() | ✅ Complete |
+| [Database Guidelines](./database-guidelines.md) | BoltDB+Bleve store, KVStore, Close() | ✅ Complete |
 | [Error Handling](./error-handling.md) | Error types, handleError, TUI errors | ✅ Complete |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | ⚠️ Template |
 | [NIP Conventions](./nip-conventions.md) | NIP-19/10/65/17 output/input rules | ✅ Complete |

@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
-	"fiatjaf.com/nostr/nip19"
 )
 
 func registerConfigCommands() {
@@ -111,7 +113,7 @@ func registerConfigCommands() {
 
 			fmt.Println("=== nosmec Configuration ===")
 
-				fmt.Printf("Data Directory: %s\n", cfg.LocalRelay.DataDir)
+				fmt.Printf("Data Directory: %s\n", cfg.DataDir)
 			fmt.Printf("Config Directory: %s\n", cfg.ConfigDir)
 			fmt.Printf("Private Key: %s\n", maskString(cfg.PrivateKey, 8))
 
@@ -727,10 +729,23 @@ configDMRelayAddCmd := &cobra.Command{
 			defer cancel()
 
 			app := getApp()
-			ch := utils.GetFollowedTimeline(ctx, limit, 0, hashtags, &utils.GetOptions{App: app})
-			var events []utils.TimelineEvent
-			for e := range ch {
-				events = append(events, utils.TimelineEvent{Event: *e})
+
+			// Collect followed pubkeys and community addresses
+			var pubkeys []nostr.PubKey
+			var communityAddrs []string
+			for _, s := range app.ListSubscriptions("user") {
+				if pk, err := utils.ResolveAliasToPubKey(app, s.ID); err == nil {
+					pubkeys = append(pubkeys, pk)
+				}
+			}
+			for _, s := range app.ListSubscriptions("community") {
+				communityAddrs = append(communityAddrs, s.ID)
+			}
+
+			events, err := sdkplus.Wrap(app.System()).FetchFollowedTimelinePage(ctx, pubkeys, communityAddrs, limit, 0)
+			if err != nil {
+				handleError(newError("failed to fetch timeline", err))
+				return
 			}
 
 			if len(events) == 0 {
@@ -738,7 +753,43 @@ configDMRelayAddCmd := &cobra.Command{
 				return
 			}
 
-			printTimeline(events)
+			// Filter by hashtags if specified
+			if len(hashtags) > 0 {
+				filtered := make([]nostr.Event, 0)
+			eventLoop:
+				for _, ev := range events {
+					for _, tag := range ev.Tags {
+						if len(tag) >= 2 && tag[0] == "t" {
+							for _, ht := range hashtags {
+								if strings.EqualFold(tag[1], ht) {
+									filtered = append(filtered, ev)
+									continue eventLoop
+								}
+							}
+						}
+					}
+				}
+				events = filtered
+			}
+
+			if len(events) == 0 {
+				fmt.Println("No events found.")
+				return
+			}
+
+			var timelineEvents []timelineEvent
+			for _, ev := range events {
+				te := timelineEvent{Event: ev}
+				if aTag := ev.Tags.Find("a"); len(aTag) > 1 {
+					if strings.HasPrefix(aTag[1], "34550:") {
+						te.IsCommunity = true
+						te.CommunityID = aTag[1]
+					}
+				}
+				timelineEvents = append(timelineEvents, te)
+			}
+
+			printTimeline(timelineEvents)
 		},
 	}
 	configSubscribeTimelineCmd.Flags().IntP("limit", "n", 10, "Number of events")

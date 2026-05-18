@@ -12,8 +12,10 @@ import (
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/thread"
 	"github.com/jerry-harm/nosmec/utils"
@@ -174,7 +176,8 @@ func (m *EventView) Init() tea.Cmd {
 func (m *EventView) fetchEventAsync() tea.Cmd {
 	return func() tea.Msg {
 		logger.Debug("fetchEventAsync starting", "eventID", m.eventID)
-		event := utils.GetNoteAsync(context.Background(), m.eventID, &utils.GetOptions{App: m.app})
+		ext := sdkplus.Wrap(m.app.System())
+		event := ext.FetchNote(context.Background(), m.eventID, m.app.QueryTimeoutms())
 		logger.Debug("fetchEventAsync done", "event", event)
 		return EventLoadedMsg{Event: event}
 	}
@@ -183,7 +186,13 @@ func (m *EventView) fetchEventAsync() tea.Cmd {
 func (m *EventView) fetchProfileNameAsync() tea.Cmd {
 	return func() tea.Msg {
 		logger.Debug("fetchProfileNameAsync starting")
-		name := utils.GetProfileNameAsync(context.Background(), m.event.PubKey, &utils.GetOptions{App: m.app})
+		pm := m.app.System().FetchProfileMetadata(context.Background(), m.event.PubKey)
+		name := ""
+		if pm.Event != nil {
+			if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+				name = meta.Name
+			}
+		}
 		logger.Debug("fetchProfileNameAsync done", "name", name)
 		return ProfileLoadedMsg{Name: name}
 	}

@@ -1,16 +1,18 @@
 # Database Guidelines
 
-> BoltDB storage patterns and conventions.
+> BoltDB/Bleve storage patterns and conventions.
 
 ---
 
 ## Overview
 
-**BoltDB** (`go.etcd.io/bbolt`) for local event storage via `fiatjaf.com/nostr/eventstore/boltdb`.
+**BoltDB** (`go.etcd.io/bbolt`) and **Bleve** for local event storage, via `fiatjaf.com/nostr/eventstore`.
 
-- **Path**: `~/.cache/nosmec/nosmec.db`
+- **BoltDB path**: `~/.cache/nosmec/nosmec_events.db`
+- **Bleve index path**: `~/.cache/nosmec/search_index/`
 - **Lock**: `~/.cache/nosmec/nosmec.lock` (PID file, prevents secondary instances)
-- **Backend**: `&boltdb.BoltBackend{Path: dbPath}` initialized via `boltStore.Init()`
+- **Backend**: `&boltdb.BoltBackend{Path: boltPath}` initialized via `boltStore.Init()`
+- **KVStore path**: `~/.cache/nosmec/kvstore.db` (via `fiatjaf.com/nostr/sdk/kvstore/bbolt`)
 
 Store interface: `eventstore.Store` (type alias `StoreInterface` in `config/interfaces.go`).
 
@@ -18,15 +20,47 @@ Store interface: `eventstore.Store` (type alias `StoreInterface` in `config/inte
 
 ## Store Initialization
 
+`GlobalPool()` in `config/config.go` initializes the store stack:
+
 ```go
-// config/config.go:NewLMDB
-dbPath := filepath.Join(dataDir, "nosmec.db")
-boltStore := &boltdb.BoltBackend{Path: dbPath}
+// config/config.go:GlobalPool
+boltPath := filepath.Join(dataDir, "nosmec_events.db")
+boltStore := &boltdb.BoltBackend{Path: boltPath}
 if err := boltStore.Init(); err != nil {
-    return nil, fmt.Errorf("failed to initialize BoltDB: %w", err)
+    logger.Warn("failed to create BoltDB event store, local cache disabled", "error", err.Error())
+} else {
+    searchIndexPath := filepath.Join(dataDir, "search_index")
+    bleveStore := &bleve.BleveBackend{Path: searchIndexPath, RawEventStore: boltStore}
+    if err := bleveStore.Init(); err != nil {
+        logger.Warn("failed to create Bleve search index, search disabled", "error", err.Error())
+        GlobalSystem.Store = boltStore
+    } else {
+        GlobalSystem.Store = bleveStore
+    }
 }
-return boltStore, nil
 ```
+
+Layered store:
+- **Bleve** on top for full-text search (kind 0, 1 events)
+- **BoltDB** underneath for raw event persistence
+- `sdk.System.Store` is set to the topmost available layer
+
+---
+
+## sdk.System KVStore
+
+The `sdk.System.KVStore` (`fiatjaf.com/nostr/sdk/kvstore/bbolt`) stores:
+
+- **Event→relay mappings** — which relay an event was first fetched from (for NIP-10 e-tag relay hints)
+- **Profile fetch timestamps** — last time we refreshed a profile from network (7-day debounce)
+
+```go
+// Key format
+"evrel:{eventID}" → relay URL bytes
+"prof:{kind}:{pubkeyHex}" → Unix timestamp (last network fetch)
+```
+
+KVStore is accessed via `GlobalSystem.KVStore.Get/Set/Update`.
 
 ---
 
@@ -38,42 +72,30 @@ The `DiscoverUserRelays` function queries the network on-demand; there's no `use
 
 ---
 
-## BoltDB as Nostr Event Store
+## Profile Caching (sdk.System.MetadataCache)
 
-The `eventstore.Store` interface (`fiatjaf.com/nostr/eventstore`) handles:
-- Storing and retrieving nostr events by ID/kind/author
-- Subscriptions over local event set
+Profile metadata (Kind 0) is cached in `sdk.System.MetadataCache` (in-memory LRU, 8000 entry cap, 6h TTL).
 
-**Local relay** (`StartLocalRelay` in `config/config.go`) uses this store as its backend — events published to the local relay are persisted here and served to subsequent queries.
+`FetchProfileMetadata` handles the full cache → store → network fetch pipeline automatically:
 
----
-
-## CacheEvent — Local Relay Publishing
-
-```go
-func CacheEvent(event *nostr.Event, app *config.AppContext) {
-    if !shouldCache(event, app) { return }
-    go func() {
-        app.Pool().PublishMany(context.Background(), []string{localRelayURL}, *event)
-    }()
-}
-```
-
-Triggered by `shouldCache()` which matches against `Config.CacheFilters`. Only publishes to local relay (`ws://localhost:PORT`).
+1. Check MetadataCache (in-memory)
+2. If miss, query Store (BoltDB/Bleve persisted events)
+3. If stale (>7 days) or miss, fetch from network via replaceable event loaders
+4. Save to MetadataCache and Store
 
 ---
 
 ## Close() Error Handling
 
-When closing the store, errors must be accumulated and returned:
+When closing, errors must be accumulated and returned:
 
 ```go
 func (a *AppContext) Close() error {
     a.mu.Lock()
     defer a.mu.Unlock()
     var errs []error
-    if a.store != nil {
-        if err := a.store.Close(); err != nil {
+    if a.sys != nil && a.sys.KVStore != nil {
+        if err := a.sys.KVStore.Close(); err != nil {
             errs = append(errs, err)
         }
     }

@@ -1,18 +1,15 @@
 package utils
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"fiatjaf.com/nostr/sdk"
 	"github.com/fatih/color"
 )
 
-// PrintEvent prints a Nostr event
 func PrintEvent(ev *nostr.Event, j bool) {
 	if j {
 		json.NewEncoder(os.Stdout).Encode(ev)
@@ -26,23 +23,11 @@ func PrintEvent(ev *nostr.Event, j bool) {
 
 	fmt.Print(ev.CreatedAt.Time().Format("2006-01-02T15:04:05") + "\n")
 
-	ctx := context.Background()
-	profile := GetProfile(ctx, ev.PubKey, nil)
-	if profile != nil {
-		pm, err := sdk.ParseMetadata(*profile)
-		if err == nil && pm.Name != "" {
-			color.Set(color.FgHiRed)
-			fmt.Print(pm.Name + " ")
-			color.Set(color.Reset)
-		}
-	}
-
 	color.Set(color.FgRed)
 	npub := nip19.EncodeNpub(ev.PubKey)
 	fmt.Println(npub)
 	color.Set(color.Reset)
 
-	// Print content
 	fmt.Println(ev.Content)
 	fmt.Println()
 }

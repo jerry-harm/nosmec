@@ -11,8 +11,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip10"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 	"github.com/jerry-harm/nosmec/utils"
@@ -59,50 +62,11 @@ func extractParentID(event *nostr.Event) string {
 	if event == nil {
 		return ""
 	}
-
-	eTags := collectETags(event.Tags)
-	if len(eTags) == 0 {
+	ptr := nip10.GetImmediateParent(event.Tags)
+	if ptr == nil {
 		return ""
 	}
-
-	hasMarkers := false
-	var rootTagValue string
-	var replyTagValue string
-
-	for _, tag := range eTags {
-		if len(tag) < 4 || tag[3] == "" {
-			continue
-		}
-		switch tag[3] {
-		case "reply":
-			hasMarkers = true
-			replyTagValue = tag[1]
-		case "root":
-			hasMarkers = true
-			rootTagValue = tag[1]
-		}
-	}
-
-	if hasMarkers {
-		if replyTagValue != "" {
-			return replyTagValue
-		}
-		if rootTagValue != "" && rootTagValue != event.ID.Hex() {
-			return rootTagValue
-		}
-		return ""
-	}
-
-	if len(eTags) == 1 {
-		return eTags[0][1]
-	}
-	if len(eTags) >= 2 {
-		last := eTags[len(eTags)-1]
-		if last[1] != event.ID.Hex() {
-			return last[1]
-		}
-	}
-	return ""
+	return ptr.AsTagReference()
 }
 
 func collectETags(tags nostr.Tags) []nostr.Tag {
@@ -119,72 +83,15 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 	if event == nil {
 		return nostr.ID{}, false, errors.New("nil event")
 	}
-
-	var eTags []nostr.Tag
-	for tag := range event.Tags.FindAll("e") {
-		eTags = append(eTags, tag)
-	}
-	if len(eTags) == 0 {
+	ptr := nip10.GetThreadRoot(event.Tags)
+	if ptr == nil {
 		return event.ID, true, nil
 	}
-
-	hasMarkers := false
-	hasReplyMarker := false
-	var rootTagValue string
-
-	for _, tag := range eTags {
-		if len(tag) < 4 || tag[3] == "" {
-			continue
-		}
-		switch tag[3] {
-		case "reply":
-			hasMarkers = true
-			hasReplyMarker = true
-		case "root":
-			hasMarkers = true
-			rootTagValue = tag[1]
-		}
+	id, err := nostr.IDFromHex(ptr.AsTagReference())
+	if err != nil {
+		return nostr.ID{}, false, err
 	}
-
-	if hasMarkers {
-		if hasReplyMarker {
-			if rootTagValue != "" {
-				rootFromTag, err := nostr.IDFromHex(rootTagValue)
-				if err != nil {
-					return nostr.ID{}, false, err
-				}
-				return rootFromTag, false, nil
-			}
-			return event.ID, true, nil
-		}
-		if rootTagValue != "" && rootTagValue != event.ID.Hex() {
-			rootFromTag, err := nostr.IDFromHex(rootTagValue)
-			if err != nil {
-				return nostr.ID{}, false, err
-			}
-			return rootFromTag, false, nil
-		}
-		return event.ID, true, nil
-	}
-
-	validTags := collectETags(event.Tags)
-	if len(validTags) >= 2 {
-		rootTagValue = validTags[0][1]
-		if rootTagValue != "" && rootTagValue != event.ID.Hex() {
-			rootFromTag, err := nostr.IDFromHex(rootTagValue)
-			if err != nil {
-				return nostr.ID{}, false, err
-			}
-			return rootFromTag, false, nil
-		}
-	}
-	if len(validTags) == 1 {
-		rootFromTag, err := nostr.IDFromHex(validTags[0][1])
-		if err == nil && rootFromTag != event.ID {
-			return rootFromTag, false, nil
-		}
-	}
-	return event.ID, true, nil
+	return id, id == event.ID, nil
 }
 
 var globalNameCache = make(map[string]string)
@@ -587,29 +494,39 @@ func (m *Model) fetchProfileNames(items []nostr.Event) {
 	}
 
 	go func() {
-		names := make(map[string]string)
-		var wg sync.WaitGroup
+		var pubKeys []nostr.PubKey
+		pkToHex := make(map[nostr.PubKey]string)
 		for _, pk := range pubkeys {
-			wg.Add(1)
-			go func(pubkeyStr string) {
-				defer wg.Done()
-				var pubKey nostr.PubKey
-				if err := pubKey.UnmarshalJSON([]byte("\"" + pubkeyStr + "\"")); err == nil {
-					if name := utils.GetProfileName(context.Background(), pubKey, &utils.GetOptions{App: m.app}); name != "" {
-						names[pubkeyStr] = name
-					}
-				}
-			}(pk)
+			var pubKey nostr.PubKey
+			if err := pubKey.UnmarshalJSON([]byte("\"" + pk + "\"")); err == nil {
+				pubKeys = append(pubKeys, pubKey)
+				pkToHex[pubKey] = pk
+			}
 		}
-		wg.Wait()
+
+		if len(pubKeys) == 0 {
+			return
+		}
+
+		ext := sdkplus.Wrap(m.app.System())
+		profiles := ext.FetchProfilesBatch(context.Background(), pubKeys)
+		names := make(map[nostr.PubKey]string)
+		for pk, event := range profiles {
+			if meta, err := sdk.ParseMetadata(*event); err == nil && meta.Name != "" {
+				names[pk] = meta.Name
+			}
+		}
+
 		m.mu.Lock()
 		for pk, name := range names {
-			m.nameCache[pk] = name
+			hex := pkToHex[pk]
+			m.nameCache[hex] = name
 		}
 		m.mu.Unlock()
 		globalNameCacheMu.Lock()
 		for pk, name := range names {
-			globalNameCache[pk] = name
+			hex := pkToHex[pk]
+			globalNameCache[hex] = name
 		}
 		globalNameCacheMu.Unlock()
 	}()

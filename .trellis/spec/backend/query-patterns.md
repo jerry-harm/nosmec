@@ -86,7 +86,7 @@ When `GetOptions` has no explicit relay list, `GetQueryRelays` determines the re
 
 1. **tag[2] relay hints** — `ExtractRelayHints(event)` from e/p/a/q tags
 2. **HintsDB outbox** — `app.Hints().TopN(pubkey, 3)` from e tag author pubkeys (checks tag[4] first for NIP-10 5-field, falls back to tag[3])
-3. **AllReadableRelays()** — configured relays + local relay
+3. **AllReadableRelays()** — configured relays only
 4. **KnownRelays** — NIP-65 discovered + gossip fallback
 
 ```go
@@ -102,35 +102,15 @@ Implemented in `utils/user_relays.go`.
 `Pool.EventMiddleware` runs on every incoming event:
 
 - **HintsDB**: learns relay→pubkey associations (scoring: HintEventFetched 700pts, HintInRelayList 350pts, HintFromTag 20pts)
-- **TrackEventRelay**: records event→relay mapping for NIP-10 relay hints (first-write-wins, local relay skipped)
-
-```go
-// config/config.go EventMiddleware
-opts.EventMiddleware = func(ie nostr.RelayEvent) {
-    ev := ie.Event
-    if ev.PubKey != [32]byte{} {
-        h.Save(ev.PubKey, ie.Relay.URL, sdk_hints.MostRecentEventFetched, nostr.Now())
-    }
-    if ev.ID != [32]byte{} && ie.Relay.URL != localRelayURL {
-        TrackEventRelay(ev.ID.Hex(), ie.Relay.URL)
-    }
-    // ...
-}
-```
+- **TrackEventRelay**: records event→relay mapping for NIP-10 relay hints (first-write-wins via KVStore)
 
 ---
 
-## CacheEvent
+## Profile Fetching
 
-`CacheEvent()` publishes events to local relay asynchronously (fire-and-forget):
+Profile metadata (Kind 0) is fetched via `sdk.System.FetchProfileMetadata(ctx, pubkey)` which handles:
 
-```go
-func CacheEvent(event *nostr.Event, app *config.AppContext) {
-    if !shouldCache(event, app) { return }
-    go func() {
-        app.Pool().PublishMany(context.Background(), []string{localRelayURL}, *event)
-    }()
-}
-```
-
-Triggered by `shouldCache()` which checks `Config.CacheFilters`. Only publishes to local relay (`ws://localhost:PORT`).
+1. In-memory cache check (MetadataCache LRU, 8000 entries, 6h TTL)
+2. BoltDB/Bleve store query (persisted events)
+3. Network fetch with 7-day debounce (replaces if newer)
+4. Cache + store update

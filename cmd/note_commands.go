@@ -7,11 +7,18 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
+
+type timelineEvent struct {
+	Event       nostr.Event
+	IsCommunity bool
+	CommunityID string
+}
 
 func registerNoteCommands() {
 	noteCmd := &cobra.Command{
@@ -101,8 +108,7 @@ func registerNoteCommands() {
 			ctx := context.Background()
 			app := getApp()
 
-			opts := &utils.GetOptions{App: app}
-			parentEvent := utils.GetNote(ctx, eventIDStr, opts)
+			parentEvent := sdkplus.Wrap(app.System()).FetchNote(ctx, eventIDStr, 5000)
 			if parentEvent == nil {
 				handleError(newError("note not found", nil))
 				return
@@ -134,13 +140,16 @@ func registerNoteCommands() {
 	RegisterCommandGroup("Notes", "Note operations", noteCmd)
 }
 
-func printTimeline(events []utils.TimelineEvent) {
+func printTimeline(events []timelineEvent) {
 	for i, te := range events {
 		e := te.Event
 		name := nip19.EncodeNpub(e.PubKey)[:16] + "..."
 
-		if profile := utils.GetProfileName(context.Background(), e.PubKey, &utils.GetOptions{App: getApp()}); profile != "" {
-			name = profile
+		pm := getApp().System().FetchProfileMetadata(context.Background(), e.PubKey)
+		if pm.Name != "" {
+			name = pm.Name
+		} else if pm.DisplayName != "" {
+			name = pm.DisplayName
 		}
 
 		fmt.Printf("[%s] @%s\n", formatTime(e.CreatedAt), name)

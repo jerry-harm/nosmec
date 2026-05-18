@@ -125,8 +125,9 @@ func TestExtractParentID_NoMarker(t *testing.T) {
 		},
 	}
 	parentID := extractParentID(event)
-	if parentID != "" {
-		t.Errorf("invalid hex e tag should return empty, got %q", parentID)
+	want := "0000000000000000000000000000000000000000000000000000000000000000"
+	if parentID != want {
+		t.Errorf("nip10 normalizes invalid hex to zero ID, got %q, want %q", parentID, want)
 	}
 }
 
@@ -213,11 +214,12 @@ func TestExtractRootEvent_ReplyNoRoot(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if !isRoot {
-		t.Errorf("reply without root marker should be treated as root")
+	if isRoot {
+		t.Errorf("nip10: reply without root marker means first e tag is thread root, not self")
 	}
-	if rootID != event.ID {
-		t.Errorf("root ID should equal event ID")
+	expectedRootID, _ := nostr.IDFromHex(testParentID)
+	if rootID != expectedRootID {
+		t.Errorf("root ID should be first e tag per NIP-10, got %v", rootID)
 	}
 }
 
@@ -916,11 +918,17 @@ func TestExtractRootEvent_InvalidRootHex(t *testing.T) {
 		Content: "reply with invalid root hex",
 		Tags: nostr.Tags{
 			nostr.Tag{"e", "abad1dea", "", "root"},
-			nostr.Tag{"e", "parentID1234parentID1234parentID1234parentID1234parentID1234parent", "", "reply"},
+			nostr.Tag{"e", testParentID, "", "reply"},
 		},
 	}
-	_, _, err := extractRootEvent(event)
-	if err == nil {
-		t.Error("expected error for invalid root hex")
+	rootID, isRoot, err := extractRootEvent(event)
+	if err != nil {
+		t.Errorf("nip10 does not error on invalid hex, it normalizes: %v", err)
+	}
+	if rootID != (nostr.ID{}) {
+		t.Errorf("nip10: invalid hex normalizes to zero ID, got %v", rootID)
+	}
+	if !isRoot {
+		t.Errorf("nip10: event with zero root ID (invalid hex) and empty event.ID is treated as root")
 	}
 }

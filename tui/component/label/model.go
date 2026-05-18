@@ -7,8 +7,8 @@ import (
 	"charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/utils"
 )
 
 type Config struct {
@@ -67,7 +67,13 @@ func (m *Model) fetchProfile() tea.Msg {
 		return nameResolvedMsg{name: ""}
 	}
 
-	name := utils.GetProfileName(ctx, pubKey, &utils.GetOptions{App: m.app})
+	pm := m.app.System().FetchProfileMetadata(ctx, pubKey)
+	name := ""
+	if pm.Event != nil {
+		if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+			name = meta.Name
+		}
+	}
 	return nameResolvedMsg{name: name}
 }
 

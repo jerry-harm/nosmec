@@ -37,25 +37,25 @@ func registerProfileCommands() {
 
 			full, _ := cmd.Flags().GetBool("full")
 
-			if full {
-				fp, err := utils.GetFullProfile(ctx, pubKey, &utils.GetOptions{App: app})
-				if err != nil {
-					handleError(newError("failed to get full profile", err))
-				}
-
-				data, err := utils.SerializeProfile(fp)
-				if err != nil {
-					handleError(newError("failed to serialize profile", err))
-				}
-				os.Stdout.Write(data)
-				os.Stdout.Write([]byte("\n"))
-			} else {
-				event := utils.GetProfile(ctx, pubKey, &utils.GetOptions{App: app})
-				if event == nil {
-					handleError(newError("profile not found", nil))
-				}
-				utils.PrintEvent(event, false)
+		if full {
+			fp, err := utils.GetFullProfile(ctx, pubKey, app)
+			if err != nil {
+				handleError(newError("failed to get full profile", err))
 			}
+
+			data, err := utils.SerializeProfile(fp)
+			if err != nil {
+				handleError(newError("failed to serialize profile", err))
+			}
+			os.Stdout.Write(data)
+			os.Stdout.Write([]byte("\n"))
+		} else {
+			pm := app.System().FetchProfileMetadata(ctx, pubKey)
+			if pm.Event == nil {
+				handleError(newError("profile not found", nil))
+			}
+			utils.PrintEvent(pm.Event, false)
+		}
 		},
 	}
 

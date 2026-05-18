@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
-	"github.com/jerry-harm/nosmec/utils"
 )
 
 func TestFetchMoreOld_EmptyListReturnsError(t *testing.T) {
@@ -36,7 +35,7 @@ func TestFetchMoreOld_WithItemsDoesNotPanic(t *testing.T) {
 	delegate := list.NewDefaultDelegate()
 	l := list.New(nil, delegate, 0, 0)
 	l.SetItems([]list.Item{
-		item{event: utils.TimelineEvent{Event: nostr.Event{CreatedAt: 1234567890}}},
+		item{event: TimelineEvent{Event: nostr.Event{CreatedAt: 1234567890}}},
 	})
 
 	m := &model{

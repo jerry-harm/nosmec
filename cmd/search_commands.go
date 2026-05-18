@@ -6,10 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jerry-harm/nosmec/utils"
-	"github.com/spf13/cobra"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk"
+	"github.com/jerry-harm/nosmec/utils"
+	"github.com/spf13/cobra"
 )
 
 func registerSearchCommands() {
@@ -88,8 +89,11 @@ func printSearchResult(r utils.SearchResult, index int) {
 	authorName := nip19.EncodeNpub(e.PubKey)[:16] + "..."
 
 	// Try to get profile name
-	if profile := utils.GetProfileName(context.Background(), e.PubKey, &utils.GetOptions{App: getApp()}); profile != "" {
-		authorName = profile
+	pm := getApp().System().FetchProfileMetadata(context.Background(), e.PubKey)
+	if pm.Event != nil {
+		if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+			authorName = meta.Name
+		}
 	}
 
 	fmt.Printf("[%d] %s @%s\n", index+1, formatSearchTime(e.CreatedAt), authorName)

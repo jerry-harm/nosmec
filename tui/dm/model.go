@@ -15,6 +15,7 @@ import (
 	"fiatjaf.com/nostr/keyer"
 	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/nip59"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/utils"
 )
@@ -119,7 +120,6 @@ func (m *model) Init() tea.Cmd {
 	m.viewport.SetHeight(20)
 	return tea.Batch(
 		tea.RequestBackgroundColor,
-		m.fetchHistory(),
 		m.startSubscription(),
 		m.fetchRecipientProfileNameAsync(),
 	)
@@ -127,55 +127,14 @@ func (m *model) Init() tea.Cmd {
 
 func (m *model) fetchRecipientProfileNameAsync() tea.Cmd {
 	return func() tea.Msg {
-		name := utils.GetProfileNameAsync(context.Background(), m.recipientPubKey, &utils.GetOptions{App: m.app})
+		pm := m.app.System().FetchProfileMetadata(context.Background(), m.recipientPubKey)
+		name := ""
+		if pm.Event != nil {
+			if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+				name = meta.Name
+			}
+		}
 		return profileNameMsg{name: name}
-	}
-}
-
-func (m *model) fetchHistory() tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), m.app.QueryTimeout())
-		defer cancel()
-
-		msgs, err := utils.QueryDMHistory(ctx, m.app, m.recipientPubKey, 100)
-		if err != nil {
-			return sendErrorMsg{err: "failed to fetch history: " + err.Error()}
-		}
-
-		ourPubKey, _ := m.app.GetMyPubKey()
-		npub := nip19.EncodeNpub(ourPubKey)
-
-		var newMsgs []message
-		for _, msg := range msgs {
-			var msgNpub string
-			var fromMe bool
-			if msg.FromMe {
-				msgNpub = npub[:16] + "..."
-				fromMe = true
-			} else {
-				msgNpub = m.recipientNpub[:16] + "..."
-				fromMe = false
-			}
-
-			newMsgs = append(newMsgs, message{
-				content:   msg.Content,
-				fromMe:    fromMe,
-				timestamp: msg.Timestamp.Time(),
-				npub:      msgNpub,
-			})
-		}
-
-		for _, msg := range newMsgs {
-			cmd := newMessageMsg{
-				content:   msg.content,
-				fromMe:    msg.fromMe,
-				timestamp: msg.timestamp,
-				npub:      msg.npub,
-			}
-			_ = m.handleMessage(cmd)
-		}
-
-		return nil
 	}
 }
 
@@ -207,10 +166,10 @@ func (m *model) startSubscription() tea.Cmd {
 		filter := nostr.Filter{
 			Kinds: []nostr.Kind{nostr.KindGiftWrap},
 			Tags:  nostr.TagMap{"p": []string{ourPubKey.Hex(), m.recipientPubKey.Hex()}},
-			Limit: 50,
+			Limit: 300,
 		}
 
-		subCh := utils.SubscribeWithCache(ctx, m.app.Pool(), relays, filter, nostr.SubscriptionOptions{Label: "dm-tui"}, m.app)
+		subCh := m.app.Pool().SubscribeMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "dm-tui"})
 		m.subCh = make(chan nostr.Event, 100)
 
 		go func() {

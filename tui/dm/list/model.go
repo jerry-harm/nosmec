@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/utils"
 )
@@ -142,7 +143,12 @@ func (m *model) loadConversations() tea.Cmd {
 			}
 
 			if pk, err := nostr.PubKeyFromHex(conv.PubKey); err == nil {
-				item.name = utils.GetProfileName(ctx, pk, &utils.GetOptions{App: m.app})
+				pm := m.app.System().FetchProfileMetadata(ctx, pk)
+				if pm.Event != nil {
+					if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+						item.name = meta.Name
+					}
+				}
 				if item.name == "" {
 					item.name = nip19.EncodeNpub(pk)[:16] + "..."
 				}

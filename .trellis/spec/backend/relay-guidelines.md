@@ -103,30 +103,17 @@ func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags
 
 ## Event→Relay Tracking for NIP-10 e Tags
 
-When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via `access.System` backed by BoltDB `KVStore` (persists across restarts).
+When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via `sdk.System` backed by BoltDB `KVStore` (persists across restarts).
 
-### API (access.System)
+### API (config package — delegates to sdk.System)
 
 ```go
 // TrackEventRelay records which remote relay an event was fetched from.
 // First write wins — uses KVStore.Update() for atomicity.
-// Returns error on KVStore failure.
-func (sys *System) TrackEventRelay(eventID, relayURL string) error
+func TrackEventRelay(eventID, relayURL string)
 
 // GetEventRelay returns the relay URL an event was fetched from.
 // Returns "" if never tracked.
-func (sys *System) GetEventRelay(eventID string) string
-```
-
-### API (config package — backward compatible delegates)
-
-```go
-// config.TrackEventRelay delegates to access.GlobalSystem.TrackEventRelay()
-// with in-memory fallback before System exists.
-func TrackEventRelay(eventID, relayURL string)
-
-// config.GetEventRelay delegates to access.GlobalSystem.GetEventRelay()
-// with in-memory fallback for the window before System exists.
 func GetEventRelay(eventID string) string
 ```
 
@@ -135,34 +122,18 @@ func GetEventRelay(eventID string) string
 Called inside `Pool.EventMiddleware` (config/config.go) for every incoming event:
 
 ```go
-if ev.ID != [32]byte{} && ie.Relay.URL != localRelayURL {
-    if err := sys.TrackEventRelay(ev.ID.Hex(), ie.Relay.URL); err != nil {
-        logger.Warn("failed to track event relay", "error", err.Error())
-    }
+if ev.ID != [32]byte{} {
+    TrackEventRelay(ev.ID.Hex(), ie.Relay.URL)
 }
 ```
 
 ### Storage: KVStore (BoltDB)
 
-Event→relay mappings are stored in `access.System.KvStore` backed by BoltDB (`fiatjaf.com/nostr/sdk/kvstore/bbolt`). The KVStore file lives at `{dataDir}/kvstore.db`.
+Event→relay mappings are stored in `sdk.System.KVStore` backed by BoltDB (`fiatjaf.com/nostr/sdk/kvstore/bbolt`). The KVStore file lives at `{dataDir}/kvstore.db`.
 
-Keys: `evrel:{eventID}` → relay URL (as bytes)
+Keys: raw bytes of `eventID` → relay URL bytes
 
 `TrackEventRelay` uses `kvstore.Update()` for atomic first-write-wins: the update callback checks if current value is non-nil, and only writes if the key is empty.
-
-### Design Decision: KVStore Persistence + First-Write-Wins
-
-**Context**: The old in-memory `eventRelays` map was lost on restart, causing NIP-10 e tags to lose relay hints after app restart.
-
-**Options considered**:
-1. In-memory map (old) — fast but lost on restart
-2. KVStore (BoltDB) — persistent across restarts, atomic first-write-wins via `Update()`
-
-**Decision**: Approach 2 — KVStore (BoltDB):
-1. `access.System` holds a `kvstore.KVStore` field opened at `{dataDir}/kvstore.db`
-2. `TrackEventRelay` uses `kvstore.Update()` — the callback checks existing value, skips write if already set
-3. `GetEventRelay` uses `kvstore.Get()` — returns value or "" on miss
-4. Local relay filtering still happens in EventMiddleware (same as before)
 
 ### Thread Safety
 
@@ -270,7 +241,7 @@ if len(relays) == 0 {
 
 1. **tag[2] relay hints** — `ExtractRelayHints(event)` from e/p/a/q tags
 2. **HintsDB outbox** — `app.Hints().TopN(pubkey, 3)` from e tag[3] author pubkeys
-3. **AllReadableRelays()** — configured relays + local relay
+3. **AllReadableRelays()** — configured relays only (no local relay)
 4. **KnownRelays** — NIP-65 discovered + gossip fallback
 
 **HintsDB** (`config/hints.go`): learns relay→pubkey from every incoming event via Pool.EventMiddleware.
@@ -279,38 +250,26 @@ if len(relays) == 0 {
 - HintFromTag (20pts): p-tag relay hint
 - Scoring: `basePoints * 1e10 / (age + 86400)^1.3` (same formula as nostr SDK)
 
-**Why**: `AllReadableRelays()` includes the local relay (cache) first, which provides resilience when configured relays fail. `KnownRelays` is a last-resort pool of relays discovered from NIP-65.
+**Why**: `AllReadableRelays()` provides configured relays; `sdk.System.Store` (BoltDB/Bleve) handles local caching of fetched events. `KnownRelays` is a last-resort pool of relays discovered from NIP-65.
 
 **Functions following this pattern**: `GetEvent`, `GetEventAsync`, `GetMyTimeline`, `GetGlobalTimeline`, `GetFollowedTimeline`
 
 **Functions with special handling**:
 - `GetNote`/`GetNoteAsync`: Cannot discover author relays without fetching event first — the event contains the author pubkey
-- `GetProfile`: See below
+- `GetProfile`: Uses `sdk.System.FetchProfileMetadata` which handles cache → store → network automatically
 
 ---
 
-## Profile Fetch Strategy (Parallel Discovery)
+## Profile Fetch Strategy
 
-**Goal**: Reduce profile fetch latency by querying all relays in parallel and discovering user's NIP-65 relay list concurrently.
+`GetProfile` delegates to `sdk.System.FetchProfileMetadata(ctx, pubkey)`:
 
-**Current (slow) pattern**:
-```
-GetProfile
-  └─ DiscoverUserRelays (sync, queries all relays)
-       └─ FetchManyReplaceable(kind 10002) → blocks until ALL relays respond
-  └─ GetEvent(kind 0, combined relays) (sync, queries all relays again)
-       └─ FetchManyReplaceable(kind 0) → blocks until ALL relays respond
-```
+1. Check `MetadataCache` (in-memory LRU, 6h TTL)
+2. Query `Store` (BoltDB/Bleve) for persisted kind 0 event
+3. If stale (>7 days) or miss, fetch from network via replaceable event loader
+4. Save to `MetadataCache` and `Store`
 
-**New (fast) pattern**:
-```
-GetProfile
-  ├─ Query ALL relays in parallel for kind 0 (profile metadata)
-  │    └─ Returns as soon as ANY relay responds
-  │
-  └─ Goroutine: DiscoverUserRelays (async, parallel)
-       └─ Fetches kind 10002, updates KnownRelays for future use
-       └─ Results cached/discovered for next time
+The `DiscoverUserRelays` goroutine runs async to update `KnownRelays` for future use.
 ```
 
 **Implementation**:
@@ -341,24 +300,17 @@ GetUserTimeline(pubKey)
 
 ---
 
-## Local Relay Role
+## Event Persistence and Query
 
-| Direction | Local Relay Included? | Rationale |
-|-----------|---------------------|-----------|
-| Read path | ✅ Yes (prepended first) | Local relay is cache — serves hits without network round-trip |
-| Write path | ❌ No | Local relay is backup/cache only — never the primary write target |
+Events are persisted via `sdk.System.Store` (BoltDB/Bleve) and queried through the normal relay network. There is no local relay — the store is only for caching events we've already fetched from relays.
 
 ```go
 func (a *AppContext) AllReadableRelays() []string {
-    relays := a.ReadableRelays()
-    if localURL := a.localRelayURL(); localURL != "" {
-        relays = append([]string{localURL}, relays...)
-    }
-    return relays
+    return a.ReadableRelays()
 }
 
 func (a *AppContext) AllWritableRelays() []string {
-    return a.WritableRelays()  // local relay EXCLUDED
+    return a.WritableRelays()
 }
 ```
 

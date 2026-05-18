@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/nip10"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/sdkplus"
 )
 
 func PostNote(ctx context.Context, app *config.AppContext, content string) (*nostr.Event, error) {
@@ -47,16 +49,16 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 		return nil, err
 	}
 
-	opts := &GetOptions{App: app}
-	parentEvent := GetNote(ctx, parentID, opts)
+	ext := sdkplus.Wrap(app.System())
+	parentEvent := ext.FetchNote(ctx, parentID, app.QueryTimeoutms())
 	if parentEvent == nil {
 		return nil, fmt.Errorf("parent note not found: %s", parentID)
 	}
 
-	rootID, isRoot, _ := FindRootEvent(parentEvent)
+	rootID, isRoot := findRootEvent(parentEvent)
 	var rootPubKey string
 	if !isRoot && rootID != parentEvent.ID {
-		if rootEvent := GetNote(ctx, rootID.Hex(), opts); rootEvent != nil {
+		if rootEvent := ext.FetchNote(ctx, rootID.Hex(), app.QueryTimeoutms()); rootEvent != nil {
 			rootPubKey = rootEvent.PubKey.Hex()
 		}
 	}
@@ -94,18 +96,12 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 	return event, nil
 }
 
-// BuildReplyTags is a convenience wrapper for BuildReplyTagsWithRoot.
-// rootPubKey defaults to "" — use BuildReplyTagsWithRoot when root pubkey is available.
-// Used by TUI compose display (which only needs e tag structure, not full NIP-10).
 func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags {
 	return BuildReplyTagsWithRoot(parentEvent, "")
 }
 
-// BuildReplyTagsWithRoot creates NIP-10 marked e tags for a reply to a parent event.
-// rootPubKey is the hex pubkey of the root event author (required for nested replies).
-// Tags follow the full format: ["e", <id>, <relay>, <marker>, <pubkey>]
 func BuildReplyTagsWithRoot(parentEvent *nostr.Event, rootPubKey string) nostr.Tags {
-	rootID, isRoot, _ := FindRootEvent(parentEvent)
+	rootID, isRoot := findRootEvent(parentEvent)
 	rootRelay := config.GetEventRelay(rootID.Hex())
 	parentRelay := config.GetEventRelay(parentEvent.ID.Hex())
 
@@ -153,9 +149,6 @@ func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content st
 	return event, nil
 }
 
-// DeleteNote sends a deletion request (Kind 5) for a given event ID.
-// Per NIP-09, only the author of an event can delete it.
-// Publishes to writable relays and local relay to keep cache consistent.
 func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*nostr.Event, error) {
 	secretKey, err := app.GetMySecretKey()
 	if err != nil {
@@ -172,11 +165,6 @@ func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*n
 
 	if err := event.Sign(secretKey); err != nil {
 		return nil, err
-	}
-
-	// Publish to local relay first so cache reflects deletion immediately
-	if localURL := config.GetLocalRelayURL(); localURL != "" {
-		go app.Pool().PublishMany(context.Background(), []string{localURL}, *event)
 	}
 
 	writableRelays := app.AllWritableRelays()
@@ -196,4 +184,15 @@ func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*n
 	}
 
 	return event, nil
+}
+
+func findRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool) {
+	ptr := nip10.GetThreadRoot(event.Tags)
+	if ptr == nil {
+		return event.ID, true
+	}
+	if ep, ok := ptr.(nostr.EventPointer); ok {
+		return ep.ID, false
+	}
+	return event.ID, true
 }

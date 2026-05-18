@@ -132,11 +132,21 @@ func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string {
 	var result []string
 
 	// 1. Relay hints from tags (tag[2])
-	hints := ExtractRelayHints(event)
-	for _, r := range hints {
-		if _, ok := seen[r]; !ok {
-			seen[r] = struct{}{}
-			result = append(result, r)
+	if event != nil {
+		seenHints := make(map[string]bool)
+		for _, tag := range event.Tags {
+			if len(tag) >= 3 {
+				switch tag[0] {
+				case "e", "p", "a", "q":
+					if relay := tag[2]; relay != "" && !seenHints[relay] {
+						seenHints[relay] = true
+						if _, ok := seen[relay]; !ok {
+							seen[relay] = struct{}{}
+							result = append(result, relay)
+						}
+					}
+				}
+			}
 		}
 	}
 

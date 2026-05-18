@@ -9,17 +9,17 @@
 ```go
 type AppContext struct {
     pool        *nostr.Pool      // Nostr connection pool (lazy relay connections)
-    store       StoreInterface    // BoltDB event store (fiatjaf.com/nostr/eventstore/boltdb)
-    cfg         Config            // Config snapshot (read-only via Config(), mutable via setters)
-    mu          sync.RWMutex      // Protects cfg writes
-    viper       *viper.Viper      // Config persistence (WriteConfig on mutations)
+    store       StoreInterface   // BoltDB event store (fiatjaf.com/nostr/eventstore/boltdb) — now unused, kept for compat
+    cfg         Config           // Config snapshot (read-only via Config(), mutable via setters)
+    mu          sync.RWMutex     // Protects cfg writes
+    viper       *viper.Viper     // Config persistence (WriteConfig on mutations)
     knownRelays map[string]struct{} // Discovered relays, persisted on Close()
     hints       sdk_hints.HintsDB // Relay→pubkey scoring from every incoming event
-    sys         *access.System    // Access layer (Pool, Hints, KVStore, RelayStreams)
+    sys         *sdk.System      // sdk.System (Pool, Hints, KVStore, RelayStreams, Store)
 }
 ```
 
-**StoreInterface** is `eventstore.Store` from `fiatjaf.com/nostr/eventstore/boltdb`.
+**StoreInterface** was `eventstore.Store` from `fiatjaf.com/nostr/eventstore/boltdb` — now superseded by `sdk.System.Store` which stacks BoltDB + Bleve.
 
 ---
 
@@ -29,7 +29,7 @@ type AppContext struct {
 func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext
 ```
 
-Created in `config/config.go` during app init. Pool and store are injected; hints is initialized via `GlobalHints()`.
+Created in `config/config.go` during app init. Pool injected; hints initialized via `GlobalHints()`; system via `GlobalSystem` (sdk.NewSystem with BoltDB+Bleve Store).
 
 ---
 
@@ -39,9 +39,9 @@ Created in `config/config.go` during app init. Pool and store are injected; hint
 
 ```go
 func (a *AppContext) Pool() *nostr.Pool   // Returns the nostr connection pool
-func (a *AppContext) Store() StoreInterface // Returns the BoltDB store
+func (a *AppContext) Store() StoreInterface // Returns the BoltDB store (legacy, returns nil)
 func (a *AppContext) Hints() sdk_hints.HintsDB // Returns relay→pubkey scoring DB
-func (a *AppContext) System() *access.System  // Returns the access layer
+func (a *AppContext) System() *sdk.System // Returns the sdk.System
 ```
 
 ### Identity
@@ -57,10 +57,10 @@ Secret key is stored in config as NIP-19 `nsec1...` format, decoded on first acc
 ### Relays
 
 ```go
-func (a *AppContext) ReadableRelays() []string  // Configured read relays (no local)
-func (a *AppContext) WritableRelays() []string  // Configured write relays (no local)
-func (a *AppContext) AllReadableRelays() []string // Prepends local relay (ws://localhost:PORT)
-func (a *AppContext) AllWritableRelays() []string // Same as WritableRelays (local excluded from write)
+func (a *AppContext) ReadableRelays() []string  // Configured read relays
+func (a *AppContext) WritableRelays() []string  // Configured write relays
+func (a *AppContext) AllReadableRelays() []string // Same as ReadableRelays (no local relay)
+func (a *AppContext) AllWritableRelays() []string // Same as WritableRelays
 
 func (a *AppContext) ListRelays() []Relay       // Full Relay list from config
 func (a *AppContext) AddRelay(url string, read, write bool) error
@@ -79,7 +79,6 @@ func (a *AppContext) AddSearchRelay(url string) error
 func (a *AppContext) RemoveSearchRelay(url string) error
 
 func (a *AppContext) QueryTimeout() time.Duration  // Configurable timeout (default 5s)
-func (a *AppContext) LocalRelayEnabled() bool
 ```
 
 ### Profile
@@ -118,7 +117,6 @@ func (a *AppContext) Close() error                 // Persists knownRelays to co
 Every mutation method calls `a.viper.WriteConfig()` to persist changes immediately.
 
 ```go
-// Pattern for all config setters
 func (a *AppContext) AddRelay(url string, read, write bool) error {
     a.mu.Lock()
     defer a.mu.Unlock()
@@ -130,18 +128,17 @@ func (a *AppContext) AddRelay(url string, read, write bool) error {
 
 ---
 
-## Local Relay
+## sdk.System Integration
 
-```go
-func (a *AppContext) localRelayURL() string {
-    if !a.LocalRelayEnabled() { return "" }
-    port := a.cfg.LocalRelay.Port  // default "8989"
-    return fmt.Sprintf("ws://localhost:%s", port)
-}
-```
+`AppContext.sys` is a `*sdk.System` (from `fiatjaf.com/nostr/sdk`):
 
-**Read path**: Local relay prepended to relay list for cache hits.
-**Write path**: Local relay NOT included — never the primary write target.
+- **`sys.Store`** — BoltDB (+ Bleve) event store, handles persistence
+- **`sys.KVStore`** — BoltDB-backed KVStore for event→relay hints and profile fetch timestamps
+- **`sys.Hints`** — HintsDB (bbolth) for relay→pubkey scoring
+- **`sys.MetadataCache`** — In-memory LRU cache for profile metadata (6h TTL)
+- **`sys.Pool`** — Points to the same `*nostr.Pool` as `AppContext.pool`
+
+Created via `sdk.NewSystem()` in `GlobalPool()` (config/config.go).
 
 ---
 
@@ -149,18 +146,19 @@ func (a *AppContext) localRelayURL() string {
 
 `AppContext.Close()` is called on app shutdown:
 
-1. Closes the BoltDB store
-2. Closes the KVStore (via `sys.Close()`)
-3. Merges `knownRelays` into `cfg.KnownRelays`
-4. Persists merged list via `viper.WriteConfig()`
+1. Closes the `sdk.System` (KVStore + Pool)
+2. Merges `knownRelays` into `cfg.KnownRelays`
+3. Persists merged list via `viper.WriteConfig()`
 
 ```go
 func (a *AppContext) Close() error {
     a.mu.Lock()
     defer a.mu.Unlock()
     var errs []error
-    if a.store != nil {
-        a.store.Close()
+    if a.sys != nil {
+        if err := a.sys.Close(); err != nil {
+            errs = append(errs, err)
+        }
     }
     // ... relay persistence ...
     if len(errs) > 0 {

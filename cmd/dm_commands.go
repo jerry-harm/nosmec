@@ -7,6 +7,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/tui/dm"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
@@ -85,12 +86,15 @@ func registerDMCommands() {
 				if conv.LatestDM.FromMe {
 					prefix = "→"
 				}
-				name := conv.PubKey[:16] + "..."
-				if otherPK, err := nostr.PubKeyFromHex(conv.PubKey); err == nil {
-					if profileName := utils.GetProfileName(ctx, otherPK, &utils.GetOptions{App: getApp()}); profileName != "" {
-						name = profileName
+			name := conv.PubKey[:16] + "..."
+			if otherPK, err := nostr.PubKeyFromHex(conv.PubKey); err == nil {
+				pm := getApp().System().FetchProfileMetadata(ctx, otherPK)
+				if pm.Event != nil {
+					if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+						name = meta.Name
 					}
 				}
+			}
 				fmt.Printf("[%s] %s\n", conv.LatestDM.Timestamp.Time().Format("2006-01-02 15:04"), name)
 				fmt.Printf("  %s %s\n", prefix, conv.LatestDM.Content)
 				fmt.Println()
@@ -131,10 +135,13 @@ func registerDMCommands() {
 				return
 			}
 
-			recipientName := nip19.EncodeNpub(recipientPubKey)[:32] + "..."
-			if profileName := utils.GetProfileName(ctx, recipientPubKey, &utils.GetOptions{App: getApp()}); profileName != "" {
-				recipientName = profileName
+		recipientName := nip19.EncodeNpub(recipientPubKey)[:32] + "..."
+		pm := getApp().System().FetchProfileMetadata(ctx, recipientPubKey)
+		if pm.Event != nil {
+			if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+				recipientName = meta.Name
 			}
+		}
 
 			fmt.Printf("=== DM History with %s ===\n", recipientName)
 			fmt.Println()

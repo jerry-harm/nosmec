@@ -8,10 +8,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type appContextKey struct{}
+type cmdContextKey struct{}
 
 func GetApp(cmd *cobra.Command) *config.AppContext {
-	if appPtr := cmd.Root().Context().Value(appContextKey{}); appPtr != nil {
+	if appPtr := cmd.Root().Context().Value(cmdContextKey{}); appPtr != nil {
 		return appPtr.(*config.AppContext)
 	}
 	return nil
