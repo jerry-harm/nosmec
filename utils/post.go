@@ -53,7 +53,20 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 		return nil, fmt.Errorf("parent note not found: %s", parentID)
 	}
 
-	tags := BuildReplyTags(parentEvent)
+	rootID, isRoot, _ := FindRootEvent(parentEvent)
+	var rootPubKey string
+	if !isRoot && rootID != parentEvent.ID {
+		if rootEvent := GetNote(ctx, rootID.Hex(), opts); rootEvent != nil {
+			rootPubKey = rootEvent.PubKey.Hex()
+		}
+	}
+
+	tags := BuildReplyTagsWithRoot(parentEvent, rootPubKey)
+	for _, p := range parentEvent.Tags {
+		if len(p) >= 2 && p[0] == "p" {
+			tags = append(tags, p)
+		}
+	}
 	tags = append(tags, nostr.Tag{"p", parentEvent.PubKey.Hex()})
 
 	event := &nostr.Event{
@@ -81,9 +94,17 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 	return event, nil
 }
 
-// BuildReplyTags creates NIP-10 marked e tags for a reply to a parent event.
-// Tags follow the full format: ["e", <id>, <relay>, <marker>, <pubkey>]
+// BuildReplyTags is a convenience wrapper for BuildReplyTagsWithRoot.
+// rootPubKey defaults to "" — use BuildReplyTagsWithRoot when root pubkey is available.
+// Used by TUI compose display (which only needs e tag structure, not full NIP-10).
 func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags {
+	return BuildReplyTagsWithRoot(parentEvent, "")
+}
+
+// BuildReplyTagsWithRoot creates NIP-10 marked e tags for a reply to a parent event.
+// rootPubKey is the hex pubkey of the root event author (required for nested replies).
+// Tags follow the full format: ["e", <id>, <relay>, <marker>, <pubkey>]
+func BuildReplyTagsWithRoot(parentEvent *nostr.Event, rootPubKey string) nostr.Tags {
 	rootID, isRoot, _ := FindRootEvent(parentEvent)
 	rootRelay := config.GetEventRelay(rootID.Hex())
 	parentRelay := config.GetEventRelay(parentEvent.ID.Hex())
@@ -92,7 +113,7 @@ func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags {
 		return nostr.Tags{{"e", parentEvent.ID.Hex(), parentRelay, "root", parentEvent.PubKey.Hex()}}
 	}
 	return nostr.Tags{
-		{"e", rootID.Hex(), rootRelay, "root", ""},
+		{"e", rootID.Hex(), rootRelay, "root", rootPubKey},
 		{"e", parentEvent.ID.Hex(), parentRelay, "reply", parentEvent.PubKey.Hex()},
 	}
 }
