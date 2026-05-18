@@ -64,30 +64,88 @@ func GetEventWithHint(ctx context.Context, eventID string, hintRelay string, opt
 
 ---
 
-## NIP-10 Reply Tag Parsing (Corrected)
+## NIP-10 Reply Tag Generation (Full 5-Field)
 
-Per [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md), marked e tags (PREFERRED format):
+Per [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md), marked e tags use the full format:
 
 ```
-["e", <id>, <relay>, <marker>, <pubkey>]
+["e", <event-id>, <relay-url>, <marker>, <pubkey>]
 ```
 
-| Scenario | e tags | Parent ID | Root ID | Is Root |
-|----------|--------|-----------|---------|---------|
-| Root event | (none) | — | self | true |
-| Direct reply | `["e", root, relay, "root"]` | **root ID** | root ID | **false** |
-| Nested reply | `["e", root, relay, "root"]` + `["e", parent, relay, "reply"]` | reply tag value | root tag value | false |
-| Self-root | `["e", self, relay, "root"]` (ID points to self) | — | self | true |
-| No markers | `["e", id]` (positional, deprecated) | — | self | true |
+- `<relay-url>` — **SHOULD** be the relay where the referenced event was found
+- `<pubkey>` — **OPTIONAL**; SHOULD be the hexagonal pubkey of the referenced event's author
+- Backward compatible: parsers read tag[1] (ID) and tag[3] (marker); tag[2] and tag[4] are additive
 
-**Critical rule from NIP-10**: "For top level replies (those replying directly to the root event), only the `'root'` marker should be used." A single `"root"` marker pointing to a different event means this is a DIRECT REPLY, not the root.
+> **Warning — tag length safety**: Always check `len(tag) >= N` before accessing `tag[N]`. The 5-field format means tags can be longer than 4 fields. Existing parsers in `extractParentID` (tui/thread/thread.go) and `FindRootEvent` (utils/get.go) only read tag[1] and tag[3], so tag[4] addition does not break parsing.
 
-**Implementation**: `extractParentID` (thread_treeview.go) and `FindRootEvent` (utils/get.go) both follow this table.
+### BuildReplyTags — Contract
 
-**Thread fetch strategy**: Recursive level-by-level via `fetchThreadReplies()`:
-1. Query `#e = rootID` → level 1 replies
-2. Collect level 1 event IDs, query `#e = {IDs}` → level 2
-3. Repeat until no new events or max depth (10)
+```go
+// Located in utils/post.go
+
+// BuildReplyTags creates NIP-10 marked e tags for a reply to a parent event.
+// Relay URLs are looked up from the event→relay tracking map (see below).
+// Pubkey is taken from parentEvent.PubKey.Hex().
+func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags
+```
+
+| Scenario | Returns |
+|----------|---------|
+| Direct reply (parent IS root) | 1 tag: `["e", rootID, relay, "root", pubkey]` |
+| Nested reply (parent HAS root marker) | 2 tags: `["e", rootID, relay, "root"]` + `["e", parentID, relay, "reply", pubkey]` |
+| Empty parent event | Empty tags |
+
+**Root event pubkey**: For nested replies, the root event object is not available (only its ID from the parent's tags), so the root tag's `<pubkey>` field is left empty. If the root event is needed, fetch it with `FetchSpecificEvent`.
+
+**Callers**: `ReplyToNote` (utils/post.go), `compose.AddReply` (tui/compose/model.go).
+
+---
+
+## Event→Relay Tracking for NIP-10 e Tags
+
+When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via a package-level map in `config/config.go`.
+
+### API
+
+```go
+// TrackEventRelay records which remote relay an event was fetched from.
+// First write wins — subsequent calls for the same eventID are ignored.
+// Local relay events are filtered in EventMiddleware, never tracked.
+func TrackEventRelay(eventID, relayURL string)
+
+// GetEventRelay returns the relay URL an event was fetched from.
+// Returns "" if never tracked.
+func GetEventRelay(eventID string) string
+```
+
+### Population
+
+`TrackEventRelay` is called inside `Pool.EventMiddleware` (config/config.go:214-216) for every incoming event:
+
+```go
+// Track event→relay for NIP-10 e tag relay hints (skip local relay)
+if ev.ID != [32]byte{} && ie.Relay.URL != localRelayURL {
+    TrackEventRelay(ev.ID.Hex(), ie.Relay.URL)
+}
+```
+
+### Design Decision: First-Write-Wins + Local Relay Filter
+
+**Context**: Events are first fetched from remote relays, then cached to local relay. Later reads from local cache would cause the EventMiddleware to fire again with `ws://localhost:PORT` — overwriting the real remote relay URL.
+
+**Options considered**:
+1. Let local relay overwrite → NIP-10 tags get `ws://localhost:PORT` as relay hint (wrong)
+2. Track only remote relay + never overwrite → first (remote) relay wins
+
+**Decision**: Approach 2 — two-layer protection:
+1. EventMiddleware checks `ie.Relay.URL != localRelayURL` before tracking
+2. `TrackEventRelay` checks `eventRelays[id]` exists before writing (first-write-wins)
+
+**Result**: Even after events are cached and retrieved from local relay, `GetEventRelay` returns the original remote relay URL.
+
+### Thread Safety
+
+The map uses `sync.RWMutex` (`eventRelayMu`). `TrackEventRelay` takes write lock, `GetEventRelay` takes read lock. Called from multiple goroutine contexts (Pool callbacks).
 
 ---
 
