@@ -9,6 +9,7 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	sdk_hints "fiatjaf.com/nostr/sdk/hints"
+	"github.com/jerry-harm/nosmec/access"
 	"github.com/spf13/viper"
 )
 
@@ -20,9 +21,37 @@ type AppContext struct {
 	viper        *viper.Viper
 	knownRelays  map[string]struct{}
 	hints        sdk_hints.HintsDB
+	sys          *access.System
 }
 
 func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext {
+	sys := access.GlobalSystem
+	if sys == nil {
+		// System wasn't created early (e.g. tests without GlobalPool).
+		// Create a minimal System for event→relay tracking.
+		localRelayURL := buildLocalRelayURL(cfg)
+		readRelays := GetReadableRelaysFromList(cfg.RelayList)
+		writeRelays := GetWritableRelaysFromList(cfg.RelayList)
+		sys = access.NewSystem(
+			pool,
+			GlobalHints(),
+			nil, // no KVStore for minimal system
+			readRelays,
+			writeRelays,
+			cfg.DMRelays,
+			cfg.SearchRelays,
+			cfg.KnownRelays,
+			localRelayURL,
+		)
+		access.GlobalSystem = sys
+	}
+	// Ensure System references are consistent with the live pool
+	if sys.Pool == nil {
+		sys.Pool = pool
+	}
+	// Migrate any in-memory fallback entries to System
+	MigrateEventRelaysToSystem()
+
 	return &AppContext{
 		pool:        pool,
 		store:       store,
@@ -30,7 +59,23 @@ func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.
 		viper:       v,
 		knownRelays: make(map[string]struct{}),
 		hints:       GlobalHints(),
+		sys:         sys,
 	}
+}
+
+func buildLocalRelayURL(cfg Config) string {
+	if !cfg.LocalRelay.Enabled {
+		return ""
+	}
+	port := cfg.LocalRelay.Port
+	if port == "" {
+		port = "8989"
+	}
+	return fmt.Sprintf("ws://localhost:%s", port)
+}
+
+func (a *AppContext) System() *access.System {
+	return a.sys
 }
 
 func (a *AppContext) Pool() *nostr.Pool {
@@ -104,14 +149,7 @@ func (a *AppContext) AllReadableRelays() []string {
 }
 
 func (a *AppContext) localRelayURL() string {
-	if !a.LocalRelayEnabled() {
-		return ""
-	}
-	port := a.cfg.LocalRelay.Port
-	if port == "" {
-		port = "8989"
-	}
-	return fmt.Sprintf("ws://localhost:%s", port)
+	return buildLocalRelayURL(a.cfg)
 }
 
 func (a *AppContext) QueryTimeout() time.Duration {
@@ -444,6 +482,13 @@ func (a *AppContext) Close() error {
 		a.cfg.KnownRelays = merged
 		a.viper.Set("known_relays", merged)
 		if err := a.viper.WriteConfig(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	// Close System last (KVStore must flush after all writes)
+	if a.sys != nil && a.sys.Store != nil {
+		if err := a.sys.Store.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

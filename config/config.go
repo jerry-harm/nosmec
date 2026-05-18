@@ -21,6 +21,7 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	sdk_hints "fiatjaf.com/nostr/sdk/hints"
 	"fiatjaf.com/nostr/sdk/hints/bbolth"
+	"github.com/jerry-harm/nosmec/access"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/spf13/viper"
 )
@@ -275,7 +276,36 @@ func GlobalPool() *nostr.Pool {
 	if globalPool != nil {
 		return globalPool
 	}
+	// Create the access System early so event→relay tracking works
+	// from the very first incoming event through the EventMiddleware.
+	if access.GlobalSystem == nil {
+		hints := GlobalHints()
+		dataDir := globalConfig.LocalRelay.DataDir
+		kvStore, err := access.NewKVStore(dataDir)
+		if err != nil {
+			logger.Warn("failed to create event-relay KVStore, event→relay tracking disabled", "error", err.Error())
+			kvStore = nil
+		}
+		relayList := globalConfig.RelayList
+		readRelays := GetReadableRelaysFromList(relayList)
+		writeRelays := GetWritableRelaysFromList(relayList)
+		access.GlobalSystem = access.NewSystem(
+			nil, // pool not yet created — set below after NewPool
+			hints,
+			kvStore,
+			readRelays,
+			writeRelays,
+			globalConfig.DMRelays,
+			globalConfig.SearchRelays,
+			globalConfig.KnownRelays,
+			localRelayURL,
+		)
+	}
 	globalPool = NewPool(GlobalHints())
+	// Back-link the pool to System now that it exists
+	if access.GlobalSystem != nil {
+		access.GlobalSystem.Pool = globalPool
+	}
 	return globalPool
 }
 
@@ -467,24 +497,66 @@ func DataDir() string {
 	return globalConfig.LocalRelay.DataDir
 }
 
-var (
-	eventRelayMu sync.RWMutex
-	eventRelays  = make(map[string]string)
-)
-
 // TrackEventRelay records which relay an event was fetched from.
-// Does not overwrite existing entries — the first (remote) relay wins.
+// Delegates to access.GlobalSystem for persistent storage.
+// Falls back to in-memory buffer if System is not yet initialized.
 func TrackEventRelay(eventID, relayURL string) {
-	eventRelayMu.Lock()
-	defer eventRelayMu.Unlock()
-	if _, ok := eventRelays[eventID]; !ok {
-		eventRelays[eventID] = relayURL
+	sys := access.GlobalSystem
+	if sys != nil && sys.Store != nil {
+		if err := sys.TrackEventRelay(eventID, relayURL); err != nil {
+			logger.Warn("failed to persist event→relay mapping", "error", err.Error(), "event", eventID, "relay", relayURL)
+		}
+		return
 	}
+	fallbackTrackEventRelay(eventID, relayURL)
 }
 
 // GetEventRelay returns the relay URL an event was fetched from.
+// Delegates to access.GlobalSystem for persistent storage.
 func GetEventRelay(eventID string) string {
-	eventRelayMu.RLock()
-	defer eventRelayMu.RUnlock()
-	return eventRelays[eventID]
+	sys := access.GlobalSystem
+	if sys != nil && sys.Store != nil {
+		return sys.GetEventRelay(eventID)
+	}
+	return fallbackGetEventRelay(eventID)
+}
+
+// Fallback in-memory storage used before the System is created.
+var (
+	fallbackEventRelayMu sync.RWMutex
+	fallbackEventRelays  = make(map[string]string)
+)
+
+func fallbackTrackEventRelay(eventID, relayURL string) {
+	fallbackEventRelayMu.Lock()
+	defer fallbackEventRelayMu.Unlock()
+	if fallbackEventRelays == nil {
+		fallbackEventRelays = make(map[string]string)
+	}
+	if _, ok := fallbackEventRelays[eventID]; !ok {
+		fallbackEventRelays[eventID] = relayURL
+	}
+}
+
+func fallbackGetEventRelay(eventID string) string {
+	fallbackEventRelayMu.RLock()
+	defer fallbackEventRelayMu.RUnlock()
+	return fallbackEventRelays[eventID]
+}
+
+// MigrateEventRelaysToSystem transfers fallback in-memory entries to the
+// System's KVStore. Called once after System is fully initialized.
+func MigrateEventRelaysToSystem() {
+	sys := access.GlobalSystem
+	if sys == nil || sys.Store == nil {
+		return
+	}
+	fallbackEventRelayMu.Lock()
+	defer fallbackEventRelayMu.Unlock()
+	for id, relay := range fallbackEventRelays {
+		if err := sys.TrackEventRelay(id, relay); err != nil {
+			logger.Warn("failed to migrate event→relay mapping", "error", err.Error(), "event", id, "relay", relay)
+		}
+	}
+	fallbackEventRelays = nil // release
 }
