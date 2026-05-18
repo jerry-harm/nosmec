@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality rules for review"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns for review"}
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Verify relay-related changes"}
+{"file": ".trellis/spec/backend/app-context.md", "reason": "Verify AppContext integration"}

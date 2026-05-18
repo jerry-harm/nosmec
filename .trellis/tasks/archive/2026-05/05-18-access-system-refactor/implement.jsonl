@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/app-context.md", "reason": "AppContext structure and methods - core reference for embedding access.System"}
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Relay selection, event→relay tracking patterns"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "BoltDB store patterns for KVStore"}
+{"file": ".trellis/spec/backend/nostr-sdk-usage.md", "reason": "SDK API reference and patterns"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Code quality rules and anti-patterns"}
+{"file": ".trellis/spec/backend/nip-conventions.md", "reason": "NIP conventions for relay/protocol rules"}
