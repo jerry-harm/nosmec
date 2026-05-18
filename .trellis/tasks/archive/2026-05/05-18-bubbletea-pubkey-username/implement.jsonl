@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/tui/index.md", "reason": "TUI component patterns, focus management, state machine for navigation"}
+{"file": ".trellis/tasks/05-18-bubbletea-pubkey-username/research/existing-components.md", "reason": "Full component architecture, profile resolution flow, lipgloss usage, existing view patterns"}
+{"file": "utils/get.go", "reason": "GetProfileNameAsync and extractProfileName for async profile fetch"}
+{"file": "tui/thread/thread.go", "reason": "globalNameCache pattern and eventProvider.Name() for label integration point"}
+{"file": "tui/timeline/model.go", "reason": "fetchProfileNames pattern and timeline integration point"}
+{"file": "tui/event/event.go", "reason": "EventView and profile fetch pattern for event detail integration"}

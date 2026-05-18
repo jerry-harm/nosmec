@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/tui/index.md", "reason": "Verify focus management and state machine patterns are followed"}
+{"file": ".trellis/tasks/05-18-bubbletea-pubkey-username/research/existing-components.md", "reason": "Verify lipgloss styling, tea.Model interface, message patterns match existing code"}
+{"file": "tui/thread/thread.go", "reason": "Verify label integration maintains globalNameCache consistency"}
+{"file": "tui/timeline/model.go", "reason": "Verify label integration maintains namesMsg update flow"}
+{"file": "tui/event/event.go", "reason": "Verify label integration maintains existing event fetch flow"}
