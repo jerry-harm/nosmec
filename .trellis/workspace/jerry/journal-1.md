@@ -1259,3 +1259,37 @@ Designed and implemented HintsDB (config/hints.go): learned relay→pubkey assoc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 38: 重构访问系统 - 参考 nostr/sdk System 模块
+
+**Date**: 2026-05-18
+**Task**: 重构访问系统 - 参考 nostr/sdk System 模块
+**Branch**: `main`
+
+### Summary
+
+新建 access 包，包含 RelayStream 轮选、KVStore 持久化 event→relay 映射，嵌入 AppContext。RelayStream 实现线程安全的 round-robin URL 轮转；KVStore 基于 BoltDB 实现 first-write-wins 持久化。保留现有本地 relay 代码不变。Spec 同步更新了 app-context.md 和 relay-guidelines.md。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3578ccd` | (see git log) |
+| `3159849` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
