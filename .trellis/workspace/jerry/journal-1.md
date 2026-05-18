@@ -1327,3 +1327,36 @@ Designed and implemented HintsDB (config/hints.go): learned relay→pubkey assoc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 40: 清理 utils 过度封装，sdkplus wrapper 全部移除
+
+**Date**: 2026-05-18
+**Task**: 清理 utils 过度封装，sdkplus wrapper 全部移除
+**Branch**: `main`
+
+### Summary
+
+删除了 utils/get.go，重写了 utils/community.go（只保留真正有逻辑价值的函数），将 ExtractRelayHints/FindRootEvent/GetNote/GetProfileName 等薄封装函数 inline 到所有调用方。TimelineEvent struct 从 utils 移到 tui/timeline/model.go。18 个文件全部改完，编译和 vet 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fa45ecd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
