@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"fiatjaf.com/nostr/nip19"
-	"github.com/jerry-harm/nosmec/tui/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/event"

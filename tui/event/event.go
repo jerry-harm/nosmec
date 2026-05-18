@@ -9,7 +9,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	"charm.land/lipgloss/v2"
-	"github.com/jerry-harm/nosmec/tui/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
@@ -252,8 +252,9 @@ func (m *EventView) reply() tea.Cmd {
 	if m.ctrl == nil {
 		return nil
 	}
+
 	composeModel := compose.NewModel(m.app)
-	composeModel.AddReply(m.event)
+	composeModel.AddReply(context.Background(), m.app, m.event)
 	return bubblon.Open(composeModel)
 }
 

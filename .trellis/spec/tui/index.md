@@ -10,11 +10,31 @@ This directory contains guidelines for TUI component development, specifically f
 
 ---
 
-## Guidelines Index
+## TUI Directory Structure
+
+```
+tui/
+├── component/          # Reusable UI components (tea.Model implementations)
+│   ├── bubblon/        # Stack-based navigation controller
+│   └── label/          # Pubkey/username chip (clickable, async profile fetch)
+├── cmd/                # TUI entry point / command wrappers
+├── community/          # Community discovery view
+├── compose/            # Note/reply/quote composer
+├── dm/                 # Direct messages
+├── event/              # Single event detail view
+├── thread/             # Thread tree view
+└── timeline/           # Main timeline (list-based)
+```
+
+**Principles:**
+- `component/` — self-contained `tea.Model` with Init/Update/View, no parent dependencies
+- Views — application-level screens that compose components and manage global state
+- Components emit custom `tea.Msg` types; parents handle navigation/navigation
 
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Tag Input UX](./tag-input-ux.md) | Compose window tag input patterns | Complete |
+| [Label Component](./label-component.md) | Pubkey/username chip with async profile fetch | Complete |
 
 ---
 

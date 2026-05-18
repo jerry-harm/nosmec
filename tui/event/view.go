@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/tui/component/label"
 )
 
 func (m *EventView) renderHeader() string {
@@ -24,13 +25,14 @@ func (m *EventView) renderHeader() string {
 
 	// Line 2: @username | time | kind
 	var namePart string
+	pubkeyHex := e.PubKey.Hex()
 	if m.authorName != "" {
-		namePart = "@" + m.authorName
+		namePart = label.RenderLabel(pubkeyHex, m.authorName, label.StateResolved)
 	} else {
-		namePart = "@" + npub[:12] + "..."
+		namePart = label.RenderLabel(pubkeyHex, "", label.StateLoading)
 	}
 	line2 := fmt.Sprintf("%s | %s | %s",
-		m.styles.author.Render(namePart),
+		namePart,
 		m.styles.time.Render(timeStr),
 		kindStr)
 

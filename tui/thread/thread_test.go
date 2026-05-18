@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/tui/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 )
 
 var (

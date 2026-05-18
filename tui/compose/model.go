@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
-	"github.com/jerry-harm/nosmec/tui/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
@@ -186,12 +187,25 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 	return m
 }
 
-func (m *model) AddReply(parentEvent *nostr.Event) {
+func (m *model) AddReply(ctx context.Context, app *config.AppContext, parentEvent *nostr.Event) {
+	rootID, isRoot, _ := utils.FindRootEvent(parentEvent)
+	var rootPubKey string
+	if !isRoot && rootID != parentEvent.ID {
+		opts := &utils.GetOptions{App: app}
+		if rootEvent := utils.GetNote(ctx, rootID.Hex(), opts); rootEvent != nil {
+			rootPubKey = rootEvent.PubKey.Hex()
+		}
+	}
+	m.AddReplyWithRoot(parentEvent, rootPubKey)
+	m.kindInput.SetValue(strconv.Itoa(int(parentEvent.Kind)))
+}
+
+func (m *model) AddReplyWithRoot(parentEvent *nostr.Event, rootPubKey string) {
 	m.composeKind = KindReply
 	m.parentEvent = parentEvent
 	m.parentID = parentEvent.ID.Hex()
 
-	tags := utils.BuildReplyTags(parentEvent)
+	tags := utils.BuildReplyTagsWithRoot(parentEvent, rootPubKey)
 	for _, t := range tags {
 		m.tags = append(m.tags, Tag(t))
 	}

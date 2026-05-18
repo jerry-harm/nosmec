@@ -77,23 +77,40 @@ func registerNoteCommands() {
 	}
 
 	noteReplyCmd := &cobra.Command{
-		Use:   "reply <note-id> <content>",
-		Short: "Reply to a note",
-		Args:  cobra.ExactArgs(2),
+		Use:   "reply <note-id>",
+		Short: "Reply to a note via TUI compose",
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			noteID := args[0]
-			content := args[1]
+
+			_, decoded, err := nip19.Decode(noteID)
+			if err != nil {
+				handleError(newError("invalid note ID", err))
+				return
+			}
+
+			eventIDStr := ""
+			switch v := decoded.(type) {
+			case nostr.EventPointer:
+				eventIDStr = v.ID.Hex()
+			default:
+				handleError(newError("expected nevent or note ID", nil))
+				return
+			}
 
 			ctx := context.Background()
 			app := getApp()
 
-			event, err := utils.ReplyToNote(ctx, app, noteID, content)
-			if err != nil {
-				handleError(err)
+			opts := &utils.GetOptions{App: app}
+			parentEvent := utils.GetNote(ctx, eventIDStr, opts)
+			if parentEvent == nil {
+				handleError(newError("note not found", nil))
+				return
 			}
 
-			fmt.Printf("Replied successfully!\n")
-			fmt.Printf("Reply ID: %s\n", nip19.EncodeNevent(event.ID, nil, event.PubKey))
+			if err := compose.RunReplyCompose(app, parentEvent); err != nil {
+				handleError(err)
+			}
 		},
 	}
 

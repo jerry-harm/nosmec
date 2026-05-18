@@ -13,7 +13,8 @@ import (
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/tui/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/label"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -186,6 +187,9 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 	return event.ID, true, nil
 }
 
+var globalNameCache = make(map[string]string)
+var globalNameCacheMu sync.RWMutex
+
 type eventProvider struct{}
 
 func (p *eventProvider) ID(event nostr.Event) string {
@@ -197,8 +201,16 @@ func (p *eventProvider) Name(event nostr.Event) string {
 	if len(content) > 50 {
 		content = content[:47] + "..."
 	}
-	pubkey := event.PubKey.Hex()[:8]
-	return strings.TrimSpace(content) + " (" + pubkey + ")"
+	pubkey := event.PubKey.Hex()
+	globalNameCacheMu.RLock()
+	name, ok := globalNameCache[pubkey]
+	globalNameCacheMu.RUnlock()
+	if ok && name != "" {
+		labelStr := label.RenderLabel(pubkey, name, label.StateResolved)
+		return strings.TrimSpace(content) + " (" + labelStr + ")"
+	}
+	labelStr := label.RenderLabel(pubkey, "", label.StateLoading)
+	return strings.TrimSpace(content) + " (" + labelStr + ")"
 }
 
 func (p *eventProvider) ParentID(event nostr.Event) string {
@@ -221,6 +233,8 @@ type Model struct {
 	currentEventID string
 	searching      bool
 	fetched        bool
+
+	nameCache map[string]string
 
 	newEventView func(*nostr.Event) tea.Model
 
@@ -505,6 +519,11 @@ func (m *Model) buildTuiModel(events []*nostr.Event) (*treeview.TuiTreeModel[nos
 		}
 	}
 
+	if m.nameCache == nil {
+		m.nameCache = make(map[string]string)
+	}
+	m.fetchProfileNames(items)
+
 	tree, err := treeview.NewTreeFromFlatData(
 		context.Background(),
 		items,
@@ -534,6 +553,8 @@ func (m *Model) buildTuiModel(events []*nostr.Event) (*treeview.TuiTreeModel[nos
 		id = pid
 	}
 
+	tree.SetExpanded(context.Background(), m.currentEventID, true)
+
 	tuiModel := treeview.NewTuiTreeModel(tree,
 		treeview.WithTuiWidth[nostr.Event](m.width),
 		treeview.WithTuiHeight[nostr.Event](m.height-4),
@@ -549,9 +570,62 @@ type loadedMsg struct {
 	err error
 }
 
+type namesMsg struct {
+	names map[string]string
+}
+
+func (m *Model) fetchProfileNames(items []nostr.Event) {
+	var pubkeys []string
+	for _, e := range items {
+		pk := e.PubKey.Hex()
+		if _, ok := m.nameCache[pk]; !ok {
+			pubkeys = append(pubkeys, pk)
+		}
+	}
+	if len(pubkeys) == 0 {
+		return
+	}
+
+	go func() {
+		names := make(map[string]string)
+		var wg sync.WaitGroup
+		for _, pk := range pubkeys {
+			wg.Add(1)
+			go func(pubkeyStr string) {
+				defer wg.Done()
+				var pubKey nostr.PubKey
+				if err := pubKey.UnmarshalJSON([]byte("\"" + pubkeyStr + "\"")); err == nil {
+					if name := utils.GetProfileName(context.Background(), pubKey, &utils.GetOptions{App: m.app}); name != "" {
+						names[pubkeyStr] = name
+					}
+				}
+			}(pk)
+		}
+		wg.Wait()
+		m.mu.Lock()
+		for pk, name := range names {
+			m.nameCache[pk] = name
+		}
+		m.mu.Unlock()
+		globalNameCacheMu.Lock()
+		for pk, name := range names {
+			globalNameCache[pk] = name
+		}
+		globalNameCacheMu.Unlock()
+	}()
+}
+
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case loadedMsg:
+		return m, nil
+
+	case namesMsg:
+		m.mu.Lock()
+		for pk, name := range msg.names {
+			m.nameCache[pk] = name
+		}
+		m.mu.Unlock()
 		return m, nil
 
 	case tea.WindowSizeMsg:

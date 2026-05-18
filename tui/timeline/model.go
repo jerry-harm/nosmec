@@ -12,12 +12,13 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/jerry-harm/nosmec/tui/bubblon"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/tui/event"
+	"github.com/jerry-harm/nosmec/tui/component/label"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -788,11 +789,11 @@ func detectEventKind(e utils.TimelineEvent) eventKind {
 	}
 	if ev.Kind == 1 {
 		for _, tag := range ev.Tags {
-			if len(tag) >= 4 && tag[0] == "e" && tag[3] == "reply" {
-				return kindReply
-			}
-			if len(tag) >= 2 && tag[0] == "q" {
+			if tag[0] == "q" && len(tag) >= 2 {
 				return kindQuote
+			}
+			if tag[0] == "e" && len(tag) >= 2 {
+				return kindReply
 			}
 		}
 	}
@@ -800,12 +801,15 @@ func detectEventKind(e utils.TimelineEvent) eventKind {
 }
 
 func formatItemTitle(i item) string {
+	pubkey := i.event.Event.PubKey.Hex()
 	author := i.authorName
-	if author == "" {
-		author = nip19.EncodeNpub(i.event.Event.PubKey)[:16]
-	}
 
-	prefix := "@" + author
+	var prefix string
+	if author == "" {
+		prefix = label.RenderLabel(pubkey, "", label.StateLoading)
+	} else {
+		prefix = label.RenderLabel(pubkey, author, label.StateResolved)
+	}
 
 	switch i.kind {
 	case kindReply:
