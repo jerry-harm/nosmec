@@ -394,17 +394,40 @@ Kind 10002 (Relay List Metadata):
 - `write`: Can send events
 - No marker: Equivalent to read + write
 
-## NIP-10 Reply Convention
+## NIP-10 Reply Convention (Full 5-Field Format)
+
+Per [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md), the preferred e tag format includes relay hint and pubkey:
 
 ```json
 {
   "kind": 1,
   "tags": [
-    ["e", "<parent-id>", "<relay>", "reply"],
-    ["p", "<author-pubkey>"]
+    ["e", "<event-id>", "<relay-url>", "reply", "<author-pubkey>"],
+    ["p", "<author-pubkey>", "<relay>"]
   ]
 }
 ```
+
+| Position | Field | Description |
+|----------|-------|-------------|
+| tag[0] | `"e"` | Tag type |
+| tag[1] | `<event-id>` | Referenced event ID (hex) |
+| tag[2] | `<relay-url>` | Recommended relay to fetch the event from |
+| tag[3] | `<marker>` | `"root"` (direct reply to thread root) or `"reply"` (reply to parent) |
+| tag[4] | `<author-pubkey>` | Hex pubkey of the referenced event's author |
+
+**Marker rules**:
+- `"root"` — marks the thread root event (use for direct replies to the root)
+- `"reply"` — marks the immediate parent event (use for nested replies)
+- A reply with only `"root"` marker pointing to a different event = direct reply (not self-root)
+
+**For nested replies** (reply chain depth > 1): include both `"root"` and `"reply"` tags:
+```json
+["e", "<root-id>", "<relay>", "root"],
+["e", "<parent-id>", "<relay>", "reply", "<parent-author-pubkey>"]
+```
+
+**Note**: `len(tag)` may exceed 4 when parsing; always check bounds before accessing tag[4].
 
 ## NIP-02 Follow List
 

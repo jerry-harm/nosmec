@@ -6,41 +6,103 @@
 
 ## Overview
 
-<!--
-Document your project's error handling conventions here.
-
-Questions to answer:
-- What error types do you define?
-- How are errors propagated?
-- How are errors logged?
-- How are errors returned to clients?
--->
-
-(To be filled by the team)
+| Layer | Pattern |
+|-------|---------|
+| **Utils functions** | Return `error` as last value; no log on expected failures |
+| **CLI commands** | Use `handleError()` which prints to stderr and exits 1 |
+| **TUI** | Return error via `bubblon.Fail(err)` or as `error` return from commands |
+| **Initialization** | Use `logger.Fatal`/`logger.Error` + appropriate exit |
 
 ---
 
-## Error Types
+## Utils Functions
 
-<!-- Custom error classes/types -->
+```go
+// Return error; caller decides logging
+func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr.Event {
+    if opts == nil || opts.App == nil {
+        return nil
+    }
+    // ... network call ...
+    return event
+}
 
-(To be filled by the team)
+// Error-returning variant
+func ReplyToNote(ctx context.Context, parentID, content string, opts *GetOptions) (*nostr.Event, error) {
+    // ... validation, signing, publishing ...
+    return event, nil
+}
+```
+
+**Rule**: Log at DEBUG level for expected failures (relay timeout, event not found). Log at ERROR only for actual exceptions.
 
 ---
 
-## Error Handling Patterns
+## CLI Commands — handleError
 
-<!-- Try-catch patterns, error propagation -->
+```go
+// cmd/errors.go
+type CommandError struct {
+    Message string
+    Err     error
+}
 
-(To be filled by the team)
+func (e *CommandError) Error() string {
+    return e.Message
+}
+
+func handleError(err error) {
+    if err == nil {
+        return
+    }
+    var cmdErr *CommandError
+    if errors.As(err, &cmdErr) {
+        fmt.Fprintf(os.Stderr, "Error: %s\n", cmdErr.Message)
+    } else {
+        fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+    }
+    os.Exit(1)
+}
+```
+
+**Usage**:
+```go
+func runReply(cmd *cobra.Command, args []string) {
+    event, err := utils.ReplyToNote(...)
+    if err != nil {
+        handleError(err)
+    }
+    fmt.Println("Replied!")
+}
+```
 
 ---
 
-## API Error Responses
+## TUI Error Handling
 
-<!-- Standard error response format -->
+```go
+// Opening an error window
+return m, bubblon.Fail(err)  // shows error, returns to parent
 
-(To be filled by the team)
+// Within a command (compose send)
+if err != nil {
+    return sendErrorMsg{err: err}, nil
+}
+```
+
+`bubblon.Fail(err)` renders the error in a window and sends `Closed{}` on dismiss.
+
+---
+
+## Initialization Errors
+
+```go
+// Fatal: cannot proceed without this
+logger.Fatal("failed to initialize config", "error", err.Error())
+
+// Non-fatal: continue with degraded state
+logger.Error("failed to connect to local relay", "error", err.Error())
+```
 
 ---
 
@@ -67,7 +129,6 @@ if a.store != nil {
         }
     }
 }
-// ... accumulate more errors ...
 if len(errs) > 0 {
     return errors.Join(errs...)
 }
@@ -76,4 +137,33 @@ return nil
 
 **Why**: `Close()` errors indicate failure to flush/sync data. Ignoring them risks data loss.
 
-(To be filled by the team)
+### Hardcoded timeouts instead of QueryTimeout()
+
+**Wrong**:
+```go
+ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+```
+
+**Correct**:
+```go
+ctx, cancel := context.WithTimeout(ctx, app.QueryTimeout())
+```
+
+---
+
+## Error Types
+
+Defined in `cmd/errors.go`:
+
+```go
+type CommandError struct {
+    Message string
+    Err     error
+}
+```
+
+Use wrapping with `%w` for contextual errors:
+
+```go
+return nil, fmt.Errorf("failed to reply to %s: %w", parentID, err)
+```

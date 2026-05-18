@@ -22,7 +22,7 @@ go build -o nosmec .
 
 - [x] Configuration management (Viper + YAML)
 - [x] Environment variable support (NOSMEC_*)
-- [x] Note posting with NIP-10 conventions
+- [x] Note posting with NIP-10 conventions (5-field e tags)
 - [x] Reply and quote notes
 - [x] Relay management (NIP-65, Kind 10002)
 - [x] DM relay management (NIP-17, Kind 10050)
@@ -30,20 +30,21 @@ go build -o nosmec .
 - [x] Profile management (Kind 0)
 - [x] Community support (NIP-72, Kind 34550, 1111)
 - [x] Subscription/follow system (NIP-02 Kind 3, NIP-51 Kind 10004/10015)
+- [x] Search functionality (NIP-50, with Bleve local + relay extensions)
+- [x] TUI (BubbleTea v2): timeline, compose, thread, event detail, DM, community
 - [x] Alias management
 - [x] Shell completion
 - [x] I2P support
 - [x] Logging with verbosity levels
+- [x] Event→relay tracking for NIP-10 relay hints
 
-### In Progress / Needs Rework
+### In Progress
 
-- [ ] TUI timeline - current implementation is broken, needs redesign
+- [ ] NIP-46 Remote Signing
 
 ### Planned Features
 
-- [ ] NIP-46 Remote Signing
 - [ ] NIP-47 Nostr Wallet Connect
-- [ ] Search functionality (NIP-50)
 - [ ] Event cache management
 - [ ] Offline mode
 

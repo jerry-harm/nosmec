@@ -1,0 +1,6 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "TUI反模式、copy()反模式、NIP规则"}
+{"file": ".trellis/spec/backend/nostr-sdk-usage.md", "reason": "NIP-19/SDK API参考"}
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "NIP-10 e tag、event→relay追踪"}
+{"file": "docs/DESIGN_PRINCIPLES.md", "reason": "待拆分的架构内容来源"}
+{"file": "README.md", "reason": "项目结构，当前过时需更新"}

@@ -1,51 +1,88 @@
 # Database Guidelines
 
-> Database patterns and conventions for this project.
+> BoltDB storage patterns and conventions.
 
 ---
 
 ## Overview
 
-<!--
-Document your project's database conventions here.
+**BoltDB** (`go.etcd.io/bbolt`) for local event storage via `fiatjaf.com/nostr/eventstore/boltdb`.
 
-Questions to answer:
-- What ORM/query library do you use?
-- How are migrations managed?
-- What are the naming conventions for tables/columns?
-- How do you handle transactions?
--->
+- **Path**: `~/.cache/nosmec/nosmec.db`
+- **Lock**: `~/.cache/nosmec/nosmec.lock` (PID file, prevents secondary instances)
+- **Backend**: `&boltdb.BoltBackend{Path: dbPath}` initialized via `boltStore.Init()`
 
-(To be filled by the team)
+Store interface: `eventstore.Store` (type alias `StoreInterface` in `config/interfaces.go`).
 
 ---
 
-## Query Patterns
+## Store Initialization
 
-<!-- How should queries be written? Batch operations? -->
-
-(To be filled by the team)
-
----
-
-## Migrations
-
-<!-- How to create and run migrations -->
-
-(To be filled by the team)
+```go
+// config/config.go:NewLMDB
+dbPath := filepath.Join(dataDir, "nosmec.db")
+boltStore := &boltdb.BoltBackend{Path: dbPath}
+if err := boltStore.Init(); err != nil {
+    return nil, fmt.Errorf("failed to initialize BoltDB: %w", err)
+}
+return boltStore, nil
+```
 
 ---
 
-## Naming Conventions
+## NIP-65 Relay List Caching (In-Memory Only)
 
-<!-- Table names, column names, index names -->
+User relay lists (from NIP-65 Kind 10002) are **not stored in BoltDB**. They're kept in-memory in `AppContext.knownRelays` and persisted to the config file (`known_relays` in `nosmec.yaml`) on `Close()`.
 
-(To be filled by the team)
+The `DiscoverUserRelays` function queries the network on-demand; there's no `user-relays` bucket in BoltDB.
 
 ---
 
-## Common Mistakes
+## BoltDB as Nostr Event Store
 
-<!-- Database-related mistakes your team has made -->
+The `eventstore.Store` interface (`fiatjaf.com/nostr/eventstore`) handles:
+- Storing and retrieving nostr events by ID/kind/author
+- Subscriptions over local event set
 
-(To be filled by the team)
+**Local relay** (`StartLocalRelay` in `config/config.go`) uses this store as its backend — events published to the local relay are persisted here and served to subsequent queries.
+
+---
+
+## CacheEvent — Local Relay Publishing
+
+```go
+func CacheEvent(event *nostr.Event, app *config.AppContext) {
+    if !shouldCache(event, app) { return }
+    go func() {
+        app.Pool().PublishMany(context.Background(), []string{localRelayURL}, *event)
+    }()
+}
+```
+
+Triggered by `shouldCache()` which matches against `Config.CacheFilters`. Only publishes to local relay (`ws://localhost:PORT`).
+
+---
+
+## Close() Error Handling
+
+When closing the store, errors must be accumulated and returned:
+
+```go
+func (a *AppContext) Close() error {
+    a.mu.Lock()
+    defer a.mu.Unlock()
+    var errs []error
+    if a.store != nil {
+        if err := a.store.Close(); err != nil {
+            errs = append(errs, err)
+        }
+    }
+    // ... relay persistence ...
+    if len(errs) > 0 {
+        return errors.Join(errs...)
+    }
+    return nil
+}
+```
+
+**Why**: `Close()` errors indicate failure to flush/sync data. Ignoring them risks data loss.

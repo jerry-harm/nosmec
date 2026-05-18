@@ -143,42 +143,61 @@ go mod tidy
 nosmec/
 ├── cmd/                    # Cobra command definitions
 │   ├── root.go            # Root command
-│   ├── note.go            # Note commands
-│   ├── relay.go           # Relay management
-│   ├── subscribe.go       # Subscription management
-│   ├── profile.go         # Profile commands
-│   ├── community.go       # Community commands
-│   ├── alias.go           # Alias commands
-│   └── dm.go              # DM commands
+│   ├── note_commands.go   # Note commands (Kind 1)
+│   ├── event_commands.go  # Generic event commands (all kinds)
+│   ├── relay_commands.go  # Relay management (NIP-65, NIP-17)
+│   ├── search_commands.go # Search commands (NIP-50)
+│   ├── gossip_commands.go # Gossip relay list
+│   ├── config_commands.go # Config management
+│   ├── profile_commands.go # Profile commands (Kind 0)
+│   ├── community_commands.go # Community commands (NIP-72)
+│   ├── dm_commands.go     # DM commands (NIP-17)
+│   ├── registry.go        # Command registration
+│   ├── errors.go          # Error types
+│   └── completion/        # Shell completion
 │
 ├── config/                # Configuration management
 │   ├── config.go         # Viper initialization
 │   ├── types.go          # Type definitions
-│   └── relay.go          # Relay configuration
+│   ├── relay.go          # Relay configuration
+│   ├── context.go        # AppContext (DI container)
+│   └── interfaces.go     # StoreInterface, etc.
 │
-├── utils/                 # Utility functions
+├── utils/                 # Business logic
+│   ├── get.go            # Querying (GetEvent, GetProfile, GetTimeline)
 │   ├── post.go           # Publishing (PostNote, Reply, Quote)
-│   ├── get.go            # Querying (GetTimeline, GetEvent)
 │   ├── profile.go         # Profile operations
-│   ├── community.go       # Community operations
-│   ├── subscription.go    # Subscription operations
-│   ├── dm.go             # DM operations
-│   └── alias.go          # Alias operations
+│   ├── community.go       # Community operations (NIP-72)
+│   ├── subscription.go    # Subscription/follow (NIP-02, NIP-51)
+│   ├── dm.go             # DM operations (NIP-17, nip59 GiftWrap)
+│   ├── relay_list.go     # Relay list publish/parse
+│   ├── user_relays.go    # NIP-65 discovery, GetQueryRelays
+│   ├── search.go         # NIP-50 search
+│   ├── filters.go        # Pure nostr.Filter builders (testable)
+│   ├── alias.go          # Alias management
+│   ├── show.go           # Display formatting (NIP-19 bech32)
+│   ├── sync.go           # Sync from network
+│   ├── proxy.go          # SOCKS/I2P proxy support
+│   └── *_test.go         # Test files alongside implementation
 │
-├── logger/                # Logging utilities
-├── tui/                   # TUI (work in progress)
-│   ├── timeline/         # Timeline TUI (needs rework)
-│   └── common/          # Common TUI components
+├── tui/                   # Terminal UI (BubbleTea v2)
+│   ├── timeline/         # Timeline view + list
+│   ├── compose/          # Note/DM compose
+│   ├── thread/           # Thread view with treeview
+│   ├── event/            # Event detail view
+│   ├── dm/               # DM list + chat
+│   ├── community/        # Community view
+│   ├── bubblon/          # Window management (bubblon.Controller)
+│   └── cmd/              # TUI command registry
+│
+├── logger/                # Structured logging (slog)
 │
 └── docs/                  # Documentation
+    ├── README.md         # This file
+    ├── DEV.md            # Development guide
+    ├── NIP.md           # NIP protocol reference
+    ├── CONFIG.md         # Configuration details
+    └── RELAY.md          # Relay management details
 ```
 
-## Known Issues
-
-- TUI timeline is incomplete and needs rework
-- DM functionality needs testing
-- NIP-46 Remote Signing not implemented
-
-## License
-
-MIT
+## Supported NIPs
