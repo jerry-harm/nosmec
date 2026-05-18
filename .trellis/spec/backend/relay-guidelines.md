@@ -103,49 +103,70 @@ func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags
 
 ## Event→Relay Tracking for NIP-10 e Tags
 
-When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via a package-level map in `config/config.go`.
+When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via `access.System` backed by BoltDB `KVStore` (persists across restarts).
 
-### API
+### API (access.System)
 
 ```go
 // TrackEventRelay records which remote relay an event was fetched from.
-// First write wins — subsequent calls for the same eventID are ignored.
-// Local relay events are filtered in EventMiddleware, never tracked.
-func TrackEventRelay(eventID, relayURL string)
+// First write wins — uses KVStore.Update() for atomicity.
+// Returns error on KVStore failure.
+func (sys *System) TrackEventRelay(eventID, relayURL string) error
 
 // GetEventRelay returns the relay URL an event was fetched from.
 // Returns "" if never tracked.
+func (sys *System) GetEventRelay(eventID string) string
+```
+
+### API (config package — backward compatible delegates)
+
+```go
+// config.TrackEventRelay delegates to access.GlobalSystem.TrackEventRelay()
+// with in-memory fallback before System exists.
+func TrackEventRelay(eventID, relayURL string)
+
+// config.GetEventRelay delegates to access.GlobalSystem.GetEventRelay()
+// with in-memory fallback for the window before System exists.
 func GetEventRelay(eventID string) string
 ```
 
 ### Population
 
-`TrackEventRelay` is called inside `Pool.EventMiddleware` (config/config.go:214-216) for every incoming event:
+Called inside `Pool.EventMiddleware` (config/config.go) for every incoming event:
 
 ```go
-// Track event→relay for NIP-10 e tag relay hints (skip local relay)
 if ev.ID != [32]byte{} && ie.Relay.URL != localRelayURL {
-    TrackEventRelay(ev.ID.Hex(), ie.Relay.URL)
+    if err := sys.TrackEventRelay(ev.ID.Hex(), ie.Relay.URL); err != nil {
+        logger.Warn("failed to track event relay", "error", err.Error())
+    }
 }
 ```
 
-### Design Decision: First-Write-Wins + Local Relay Filter
+### Storage: KVStore (BoltDB)
 
-**Context**: Events are first fetched from remote relays, then cached to local relay. Later reads from local cache would cause the EventMiddleware to fire again with `ws://localhost:PORT` — overwriting the real remote relay URL.
+Event→relay mappings are stored in `access.System.KvStore` backed by BoltDB (`fiatjaf.com/nostr/sdk/kvstore/bbolt`). The KVStore file lives at `{dataDir}/kvstore.db`.
+
+Keys: `evrel:{eventID}` → relay URL (as bytes)
+
+`TrackEventRelay` uses `kvstore.Update()` for atomic first-write-wins: the update callback checks if current value is non-nil, and only writes if the key is empty.
+
+### Design Decision: KVStore Persistence + First-Write-Wins
+
+**Context**: The old in-memory `eventRelays` map was lost on restart, causing NIP-10 e tags to lose relay hints after app restart.
 
 **Options considered**:
-1. Let local relay overwrite → NIP-10 tags get `ws://localhost:PORT` as relay hint (wrong)
-2. Track only remote relay + never overwrite → first (remote) relay wins
+1. In-memory map (old) — fast but lost on restart
+2. KVStore (BoltDB) — persistent across restarts, atomic first-write-wins via `Update()`
 
-**Decision**: Approach 2 — two-layer protection:
-1. EventMiddleware checks `ie.Relay.URL != localRelayURL` before tracking
-2. `TrackEventRelay` checks `eventRelays[id]` exists before writing (first-write-wins)
-
-**Result**: Even after events are cached and retrieved from local relay, `GetEventRelay` returns the original remote relay URL.
+**Decision**: Approach 2 — KVStore (BoltDB):
+1. `access.System` holds a `kvstore.KVStore` field opened at `{dataDir}/kvstore.db`
+2. `TrackEventRelay` uses `kvstore.Update()` — the callback checks existing value, skips write if already set
+3. `GetEventRelay` uses `kvstore.Get()` — returns value or "" on miss
+4. Local relay filtering still happens in EventMiddleware (same as before)
 
 ### Thread Safety
 
-The map uses `sync.RWMutex` (`eventRelayMu`). `TrackEventRelay` takes write lock, `GetEventRelay` takes read lock. Called from multiple goroutine contexts (Pool callbacks).
+KVStore via BoltDB is thread-safe within a single process. No external mutex needed — BoltDB handles concurrent reads and serializes writes internally.
 
 ---
 

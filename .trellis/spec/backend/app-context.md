@@ -15,6 +15,7 @@ type AppContext struct {
     viper       *viper.Viper      // Config persistence (WriteConfig on mutations)
     knownRelays map[string]struct{} // Discovered relays, persisted on Close()
     hints       sdk_hints.HintsDB // Relay→pubkey scoring from every incoming event
+    sys         *access.System    // Access layer (Pool, Hints, KVStore, RelayStreams)
 }
 ```
 
@@ -34,12 +35,13 @@ Created in `config/config.go` during app init. Pool and store are injected; hint
 
 ## Key Methods
 
-### Pool / Store
+### Pool / Store / System
 
 ```go
 func (a *AppContext) Pool() *nostr.Pool   // Returns the nostr connection pool
 func (a *AppContext) Store() StoreInterface // Returns the BoltDB store
 func (a *AppContext) Hints() sdk_hints.HintsDB // Returns relay→pubkey scoring DB
+func (a *AppContext) System() *access.System  // Returns the access layer
 ```
 
 ### Identity
@@ -148,8 +150,9 @@ func (a *AppContext) localRelayURL() string {
 `AppContext.Close()` is called on app shutdown:
 
 1. Closes the BoltDB store
-2. Merges `knownRelays` into `cfg.KnownRelays`
-3. Persists merged list via `viper.WriteConfig()`
+2. Closes the KVStore (via `sys.Close()`)
+3. Merges `knownRelays` into `cfg.KnownRelays`
+4. Persists merged list via `viper.WriteConfig()`
 
 ```go
 func (a *AppContext) Close() error {
