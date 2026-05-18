@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 38
+- **Total Sessions**: 39
 - **Last Active**: 2026-05-18
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1295 | Active |
+| `journal-1.md` | ~1329 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 39 | 2026-05-18 | 实现 label component + 目录重组 | `b074f7e`, `0c2d7e0` | `main` |
 | 38 | 2026-05-18 | 重构访问系统 - 参考 nostr/sdk System 模块 | `3578ccd`, `3159849` | `main` |
 | 37 | 2026-05-17 | implement HintsDB auto-learning and unified GetQueryRelays relay strategy | `e0cf3b1`, `097b632` | `main` |
 | 36 | 2026-05-17 | unify event detail across all entry points, thread UX fixes | `12546e8` | `main` |

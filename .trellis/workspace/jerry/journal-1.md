@@ -1293,3 +1293,37 @@ Designed and implemented HintsDB (config/hints.go): learned relay→pubkey assoc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 39: 实现 label component + 目录重组
+
+**Date**: 2026-05-18
+**Task**: 实现 label component + 目录重组
+**Branch**: `main`
+
+### Summary
+
+新建 tui/component/label/（pubkey/username chip，可点击，异步 fetch profile name），集成到 timeline/event/thread 三个视图；将 tui/bubblon 移至 tui/component/bubblon 完成目录重组；更新 .trellis/spec/tui/index.md 和新增 label-component.md
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b074f7e` | (see git log) |
+| `0c2d7e0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
