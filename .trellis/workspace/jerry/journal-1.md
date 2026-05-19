@@ -1625,3 +1625,36 @@ Forked the upstream nostr SDK into nostr_sdk, merged sdkplus into the fork, upda
 ### Next Steps
 
 - None - task complete
+
+
+## Session 49: Support community event threads
+
+**Date**: 2026-05-19
+**Task**: Support community event threads
+**Branch**: `main`
+
+### Summary
+
+Moved community thread scope and scoped thread query orchestration into nostr_sdk, fixed top-level kind 1111 community posts so event detail can open their thread view correctly, added local-first scoped thread tests, and updated backend SDK specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `372e706` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

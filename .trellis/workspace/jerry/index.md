@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 48
+- **Total Sessions**: 49
 - **Last Active**: 2026-05-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1627 | Active |
+| `journal-1.md` | ~1660 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 49 | 2026-05-19 | Support community event threads | `372e706` | `main` |
 | 48 | 2026-05-19 | Fork nostr SDK into nostr_sdk | `ae52d3a`, `09e3981` | `main` |
 | 47 | 2026-05-19 | community discover help bar 修复 | `1f283af` | `main` |
 | 46 | 2026-05-19 | community discover help bar 修复 | `1f283af` | `main` |
