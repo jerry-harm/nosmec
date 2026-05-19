@@ -18,6 +18,7 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/sdkplus"
+	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/tui/event"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 	"github.com/jerry-harm/nosmec/utils"
@@ -62,37 +63,35 @@ type styles struct {
 	helpStyle     lipgloss.Style
 }
 
-func newStyles(darkBG bool) styles {
-	lightDark := lipgloss.LightDark(darkBG)
-
+func newStyles(t *theme.Theme) styles {
 	return styles{
 		app: lipgloss.NewStyle().
 			Padding(1, 2),
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.TitleText).
+			Background(t.TitleBg).
 			Padding(0, 1),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#04B575"), lipgloss.Color("#04B575"))),
+			Foreground(t.StatusText),
 		itemTitle: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Foreground(t.TextBright).
 			Bold(true),
 		itemDesc: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#AAAAAA"), lipgloss.Color("#7A7A7A"))),
+			Foreground(t.TextMuted),
 		itemSelected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFF00")).
+			Foreground(t.Selection).
 			Bold(true),
 		detailBox: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("#25A065")).
+			BorderForeground(t.Border).
 			Padding(1, 1),
 		detailHeader: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Foreground(t.TextBright).
 			Bold(true),
 		detailContent: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#FFFFFF"), lipgloss.Color("#1A1A1A"))),
+			Foreground(t.Text),
 		helpStyle: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#9A9A9A"), lipgloss.Color("#6B6B6B"))),
+			Foreground(t.TextMuted),
 	}
 }
 
@@ -209,7 +208,7 @@ func NewModel(app *config.AppContext, filter string, hashtags []string, limit in
 		limit:         limit,
 		communityAddr: communityAddr,
 	}
-	m.styles = newStyles(false)
+	m.styles = newStyles(theme.DefaultTheme(false))
 	m.keys = newListKeyMap()
 	m.delegateKeys = newDelegateKeyMap()
 	m.seenEventIDs = make(map[nostr.ID]bool)
@@ -263,7 +262,7 @@ func (m *model) updateListProperties() {
 	h, v := m.styles.app.GetFrameSize()
 	m.list.SetSize(m.width-h, m.height-v)
 
-	m.styles = newStyles(m.darkBG)
+	m.styles = newStyles(theme.DefaultTheme(m.darkBG))
 	m.list.Styles.Title = m.styles.title
 }
 
@@ -945,9 +944,9 @@ func formatItemTitle(i item) string {
 
 	var prefix string
 	if author == "" {
-		prefix = label.RenderLabel(pubkey, "", label.StateLoading)
+		prefix = label.RenderLabel(pubkey, "", label.StateLoading, theme.Default())
 	} else {
-		prefix = label.RenderLabel(pubkey, author, label.StateResolved)
+		prefix = label.RenderLabel(pubkey, author, label.StateResolved, theme.Default())
 	}
 
 	switch i.kind {

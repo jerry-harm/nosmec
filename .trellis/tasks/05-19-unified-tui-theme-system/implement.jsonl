@@ -1,0 +1,8 @@
+{"file": "tui/timeline/model.go", "reason": "styles struct + newStyles(darkBG bool) — migrate color values to theme tokens"}
+{"file": "tui/event/styles.go", "reason": "eventStyles struct + newStyles — migrate to theme-based colors"}
+{"file": "tui/compose/styles.go", "reason": "styles struct + newStyles — migrate to theme-based colors"}
+{"file": "tui/dm/styles.go", "reason": "styles struct + newStyles — migrate to theme-based colors"}
+{"file": "tui/community/discover/model.go", "reason": "styles struct + newStyles inline — migrate to theme-based colors"}
+{"file": "tui/dm/list/model.go", "reason": "styles + newStyles inline at lines 60-97 — migrate to theme-based colors"}
+{"file": "tui/thread/thread.go", "reason": "inline styles at lines 36-43 — migrate to theme-based colors"}
+{"file": "tui/component/label/model.go", "reason": "inline styles at lines 186-199 — migrate to theme-based colors"}

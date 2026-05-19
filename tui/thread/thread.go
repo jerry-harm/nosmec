@@ -18,6 +18,7 @@ import (
 	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"github.com/jerry-harm/nosmec/tui/component/label"
+	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -29,20 +30,20 @@ type styles struct {
 	placeholder   lipgloss.Style
 }
 
-func newStyles() styles {
+func newStyles(t *theme.Theme) styles {
 	return styles{
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.TitleText).
+			Background(t.TitleBg).
 			Padding(0, 1),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")),
+			Foreground(t.StatusText),
 		helpStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#AAAAAA")),
+			Foreground(t.TextMuted),
 		currentEvent: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFF00")),
+			Foreground(t.Selection),
 		placeholder: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")),
+			Foreground(t.TextMutedAlt),
 	}
 }
 
@@ -113,10 +114,10 @@ func (p *eventProvider) Name(event nostr.Event) string {
 	name, ok := globalNameCache[pubkey]
 	globalNameCacheMu.RUnlock()
 	if ok && name != "" {
-		labelStr := label.RenderLabel(pubkey, name, label.StateResolved)
+		labelStr := label.RenderLabel(pubkey, name, label.StateResolved, theme.Default())
 		return strings.TrimSpace(content) + " (" + labelStr + ")"
 	}
-	labelStr := label.RenderLabel(pubkey, "", label.StateLoading)
+	labelStr := label.RenderLabel(pubkey, "", label.StateLoading, theme.Default())
 	return strings.TrimSpace(content) + " (" + labelStr + ")"
 }
 
@@ -162,7 +163,7 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, ctrl *bu
 	m := &Model{
 		event:          event,
 		app:            app,
-		styles:         newStyles(),
+		styles:         newStyles(theme.DefaultTheme(false)),
 		keys:           newKeyMap(),
 		ctrl:           ctrl,
 		width:          width,

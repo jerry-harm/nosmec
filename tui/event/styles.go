@@ -1,6 +1,9 @@
 package event
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/jerry-harm/nosmec/tui/theme"
+)
 
 type eventStyles struct {
 	container      lipgloss.Style
@@ -15,43 +18,36 @@ type eventStyles struct {
 	communityAddr  lipgloss.Style
 }
 
-func newStyles(darkBG bool) eventStyles {
-	lightDark := lipgloss.LightDark(darkBG)
-
-	borderColor := lipgloss.Color("#25A065")
-	if darkBG {
-		borderColor = lipgloss.Color("#00875A")
-	}
-
+func newStyles(t *theme.Theme) eventStyles {
 	return eventStyles{
 		container: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
-			BorderForeground(borderColor).
+			BorderForeground(t.Border).
 			Padding(1, 1).
 			Width(78).
 			Height(22),
 		header: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#00FF00"), lipgloss.Color("#00875A"))).
+			Foreground(t.TextBright).
 			Bold(true),
 		viewport: lipgloss.NewStyle().
 			Margin(0, 0).
 			Padding(0, 0),
 		footer: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#6B6B6B")),
+			Foreground(t.TextMutedDark),
 		author: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#00AA00"), lipgloss.Color("#008800"))).
+			Foreground(t.AuthorText).
 			Bold(true),
 		time: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")),
+			Foreground(t.TextMutedAlt),
 		content: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#333333")),
+			Foreground(t.TextDark),
 		tags: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666")),
+			Foreground(t.TextMutedAlt),
 		confirm: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF6B6B")).
+			Foreground(t.ErrorAlt).
 			Bold(true),
 		communityAddr: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFD700")).
+			Foreground(t.CommunityAddr).
 			Bold(true),
 	}
 }

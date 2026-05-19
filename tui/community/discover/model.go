@@ -12,6 +12,7 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"github.com/jerry-harm/nosmec/tui/event"
+	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 )
@@ -61,30 +62,31 @@ type styles struct {
 	helpStyle     lipgloss.Style
 }
 
-func newStyles() styles {
+func newStyles(t *theme.Theme) styles {
 	return styles{
 		app: lipgloss.NewStyle().Padding(1, 2),
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.TitleText).
+			Background(t.TitleBg).
 			Padding(0, 1),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")),
+			Foreground(t.StatusText),
 		helpStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#AAAAAA")),
+			Foreground(t.TextMuted),
 	}
 }
 
-func (s styles) setupListDelegate(delegate *list.DefaultDelegate) {
+func (s styles) setupListDelegate(delegate list.DefaultDelegate, t *theme.Theme) {
 	delegate.Styles.SelectedTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFF00")).
+		Foreground(t.Selection).
+		BorderForeground(t.Border).
 		Bold(true)
 	delegate.Styles.SelectedDesc = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFF00"))
+		Foreground(t.Selection)
 	delegate.Styles.NormalTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00FF00"))
+		Foreground(t.TextBright)
 	delegate.Styles.NormalDesc = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#AAAAAA"))
+		Foreground(t.TextMuted)
 }
 
 type keyMap struct {
@@ -137,15 +139,13 @@ func newKeyMap() *keyMap {
 
 func NewModel(app *config.AppContext) *model {
 	m := &model{app: app}
-	m.styles = newStyles()
+	t := theme.DefaultTheme(false)
+	m.styles = newStyles(t)
 	m.keys = newKeyMap()
 
 	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
-		Foreground(lipgloss.Color("#FFFF00")).
-		BorderForeground(lipgloss.Color("#25A065"))
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
-		Foreground(lipgloss.Color("#DDDDDD"))
+	s := m.styles
+	s.setupListDelegate(delegate, t)
 
 	delegate.ShortHelpFunc = func() []key.Binding {
 		return []key.Binding{m.keys.open, m.keys.eventDetail, m.keys.refresh}

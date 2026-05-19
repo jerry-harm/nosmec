@@ -9,6 +9,7 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/tui/theme"
 )
 
 type Config struct {
@@ -145,16 +146,31 @@ func truncateNpub(pubkey string) string {
 	return "@" + pubkey
 }
 
-func RenderLabel(pubkey, name string, state State) string {
+func RenderLabel(pubkey, name string, state State, t *theme.Theme) string {
 	var text string
+	var style lipgloss.Style
+
 	switch state {
+	case StateLoading:
+		text = truncateNpub(pubkey)
+		style = lipgloss.NewStyle().Foreground(t.TextMutedAlt)
 	case StateResolved:
 		text = "@" + name
+		style = lipgloss.NewStyle().
+			Foreground(t.TextBright).
+			Background(t.AuthorTextAlt).
+			Padding(0, 1)
+	case StateError:
+		text = truncateNpub(pubkey)
+		style = lipgloss.NewStyle().
+			Foreground(t.TextMutedAlt).
+			Background(t.ErrorAlt).
+			Padding(0, 1)
 	default:
 		text = truncateNpub(pubkey)
+		style = lipgloss.NewStyle().Foreground(t.TextMutedAlt)
 	}
 
-	style := renderStyleForState(state)
 	return style.Render(text)
 }
 

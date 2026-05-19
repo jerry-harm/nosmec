@@ -13,6 +13,7 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -66,25 +67,25 @@ type styles struct {
 	helpStyle     lipgloss.Style
 }
 
-func newStyles() styles {
+func newStyles(t *theme.Theme) styles {
 	return styles{
 		app: lipgloss.NewStyle().Padding(1, 2),
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.TitleText).
+			Background(t.TitleBg).
 			Padding(0, 1),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")),
+			Foreground(t.StatusText),
 		itemTitle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")).
+			Foreground(t.TextBright).
 			Bold(true),
 		itemDesc: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#AAAAAA")),
+			Foreground(t.TextMuted),
 		itemSelected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFF00")).
+			Foreground(t.Selection).
 			Bold(true),
 		helpStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#AAAAAA")),
+			Foreground(t.TextMuted),
 	}
 }
 
@@ -108,7 +109,7 @@ func newKeyMap() *keyMap {
 
 func NewModel(app *config.AppContext) *model {
 	m := &model{app: app}
-	m.styles = newStyles()
+	m.styles = newStyles(theme.DefaultTheme(false))
 	m.keys = newKeyMap()
 
 	delegate := list.NewDefaultDelegate()

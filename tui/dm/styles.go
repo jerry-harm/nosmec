@@ -2,6 +2,7 @@ package dm
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/jerry-harm/nosmec/tui/theme"
 )
 
 type styles struct {
@@ -17,30 +18,30 @@ type styles struct {
 	help        lipgloss.Style
 }
 
-func newStyles() styles {
+func newStyles(t *theme.Theme) styles {
 	return styles{
 		header: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.Text).
+			Background(t.TitleBg).
 			Bold(true).
 			Padding(0, 1),
 		messageArea: lipgloss.NewStyle().
 			Padding(1, 0),
 		inputArea: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")).
+			Foreground(t.TextBright).
 			Padding(0, 1),
 		mine: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00AAFF")),
+			Foreground(t.TagColor),
 		theirs: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")),
+			Foreground(t.Text),
 		timestamp: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666")),
+			Foreground(t.TextMutedAlt),
 		npub: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")),
+			Foreground(t.TextMutedAlt),
 		errorMsg: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF4444")).
+			Foreground(t.Error).
 			Bold(true),
 		help: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666")),
+			Foreground(t.TextMutedAlt),
 	}
 }

@@ -2,6 +2,7 @@ package compose
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/jerry-harm/nosmec/tui/theme"
 )
 
 type styles struct {
@@ -22,50 +23,50 @@ type styles struct {
 	statusText      lipgloss.Style
 }
 
-func newStyles() styles {
+func newStyles(t *theme.Theme) styles {
 	return styles{
 		header: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.Text).
+			Background(t.TitleBg).
 			Bold(true).
 			Padding(0, 1),
 		formArea: lipgloss.NewStyle().
 			Padding(1, 0),
 		inputArea: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")).
+			Foreground(t.TextBright).
 			Padding(0, 1),
 		errorMsg: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF4444")).
+			Foreground(t.Error).
 			Bold(true),
 		successMsg: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")).
+			Foreground(t.TextBright).
 			Bold(true),
 		help: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666")),
+			Foreground(t.TextMutedAlt),
 		button: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")),
+			Foreground(t.TextMutedAlt),
 		buttonActive: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")).
+			Foreground(t.TextBright).
 			Bold(true),
 		fieldLabel: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")),
+			Foreground(t.TextMutedAlt),
 		fieldValue: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")),
+			Foreground(t.Text),
 		tagList: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666")),
+			Foreground(t.TextMutedAlt),
 		tagItem: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00AAFF")),
+			Foreground(t.TagColor),
 		tagItemSelected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(lipgloss.Color("#25A065")).
+			Foreground(t.Text).
+			Background(t.TitleBg).
 			Bold(true).
 			Padding(0, 1),
 		sendingOverlay: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(lipgloss.Color("#333333")).
+			Foreground(t.Text).
+			Background(t.OverlayBg).
 			Padding(2, 4),
 		statusText: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00")).
+			Foreground(t.TextBright).
 			Bold(true),
 	}
 }

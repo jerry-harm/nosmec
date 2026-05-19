@@ -10,6 +10,7 @@ import (
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
+	"github.com/jerry-harm/nosmec/tui/theme"
 )
 
 var (
@@ -455,7 +456,7 @@ func TestBuildTuiModel(t *testing.T) {
 			m := &Model{
 				currentEventID: tt.currentEventID,
 				provider:       &eventProvider{},
-				styles:         newStyles(),
+				styles:         newStyles(theme.DefaultTheme(false)),
 				width:          80,
 				height:         25,
 			}
@@ -508,7 +509,7 @@ func TestBuildInitialTree(t *testing.T) {
 			event:          event,
 			currentEventID: id.Hex(),
 			provider:       &eventProvider{},
-			styles:         newStyles(),
+			styles:         newStyles(theme.DefaultTheme(false)),
 			width:          80,
 			height:         25,
 		}
@@ -539,7 +540,7 @@ func TestBuildInitialTree(t *testing.T) {
 			event:          event,
 			currentEventID: id.Hex(),
 			provider:       &eventProvider{},
-			styles:         newStyles(),
+			styles:         newStyles(theme.DefaultTheme(false)),
 			width:          80,
 			height:         25,
 		}
@@ -581,7 +582,7 @@ func TestBuildInitialTree(t *testing.T) {
 			event:          event,
 			currentEventID: id.Hex(),
 			provider:       &eventProvider{},
-			styles:         newStyles(),
+			styles:         newStyles(theme.DefaultTheme(false)),
 			width:          80,
 			height:         25,
 		}
@@ -615,7 +616,7 @@ func TestBuildInitialTree(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Run("loaded msg triggers rerender", func(t *testing.T) {
 		m := &Model{
-			styles: newStyles(),
+			styles: newStyles(theme.DefaultTheme(false)),
 			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
@@ -631,7 +632,7 @@ func TestUpdate(t *testing.T) {
 
 	t.Run("window resize updates dimensions", func(t *testing.T) {
 		m := &Model{
-			styles: newStyles(),
+			styles: newStyles(theme.DefaultTheme(false)),
 			keys:   newKeyMap(),
 		}
 		newModel, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -649,7 +650,7 @@ func TestUpdate(t *testing.T) {
 
 	t.Run("esc key returns bubblon.Close", func(t *testing.T) {
 		m := &Model{
-			styles: newStyles(),
+			styles: newStyles(theme.DefaultTheme(false)),
 			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
@@ -666,7 +667,7 @@ func TestUpdate(t *testing.T) {
 
 	t.Run("non-esc key without tuiModel is nop", func(t *testing.T) {
 		m := &Model{
-			styles: newStyles(),
+			styles: newStyles(theme.DefaultTheme(false)),
 			keys:   newKeyMap(),
 		}
 		newModel, cmd := m.Update(tea.KeyPressMsg{Text: "down"})
@@ -691,7 +692,7 @@ func TestUpdate(t *testing.T) {
 		)
 
 		m := &Model{
-			styles:   newStyles(),
+			styles:   newStyles(theme.DefaultTheme(false)),
 			keys:     newKeyMap(),
 			tuiModel: tuiModel,
 			width:    80,
@@ -716,7 +717,7 @@ func TestUpdate(t *testing.T) {
 
 		called := false
 		m := &Model{
-			styles:   newStyles(),
+			styles:   newStyles(theme.DefaultTheme(false)),
 			keys:     newKeyMap(),
 			tuiModel: tuiModel,
 			ctrl:     &bubblon.Controller{},
@@ -748,7 +749,7 @@ func TestUpdate(t *testing.T) {
 		)
 
 		m := &Model{
-			styles:   newStyles(),
+			styles:   newStyles(theme.DefaultTheme(false)),
 			keys:     newKeyMap(),
 			tuiModel: tuiModel,
 			ctrl:     &bubblon.Controller{},
@@ -765,7 +766,7 @@ func TestUpdate(t *testing.T) {
 func TestView(t *testing.T) {
 	t.Run("no data shows no thread data", func(t *testing.T) {
 		m := &Model{
-			styles: newStyles(),
+			styles: newStyles(theme.DefaultTheme(false)),
 			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
@@ -789,7 +790,7 @@ func TestView(t *testing.T) {
 		)
 
 		m := &Model{
-			styles:   newStyles(),
+			styles:   newStyles(theme.DefaultTheme(false)),
 			keys:     newKeyMap(),
 			width:    80,
 			height:   25,
@@ -817,7 +818,7 @@ func TestView(t *testing.T) {
 		)
 
 		m := &Model{
-			styles:   newStyles(),
+			styles:   newStyles(theme.DefaultTheme(false)),
 			keys:     newKeyMap(),
 			width:    80,
 			height:   25,
@@ -832,7 +833,7 @@ func TestView(t *testing.T) {
 
 	t.Run("view always includes title", func(t *testing.T) {
 		m := &Model{
-			styles: newStyles(),
+			styles: newStyles(theme.DefaultTheme(false)),
 			keys:   newKeyMap(),
 			width:  80,
 			height: 25,
