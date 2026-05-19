@@ -1658,3 +1658,36 @@ Moved community thread scope and scoped thread query orchestration into nostr_sd
 ### Next Steps
 
 - None - task complete
+
+
+## Session 50: Add nip72 parsing layer and strict NIP community model
+
+**Date**: 2026-05-19
+**Task**: Add nip72 parsing layer and strict NIP community model
+**Branch**: `main`
+
+### Summary
+
+Introduced nosmec/nip72 as a dedicated NIP-72 protocol parsing package with pointer-first helpers (GetCommunityPointer, GetRootPointer, GetParentPointer, ClassifyRole) mirroring nip10/nip22 style. Enforced strict NIP-only semantics without legacy fallback. Added pure SDK thread helpers (GetThreadParentPointer, GetThreadRootID) on nostr_sdk without attaching to System. Rewired community scope extraction to consume nip72 pointers. Updated fork architecture and usage specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `06c5919` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
