@@ -34,6 +34,7 @@ tui/
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Window Size Management](./window-size-management.md) | Bubblon child view dimensions + frame size subtraction | Complete |
+| [TUI Theme System](./theme-system.md) | Centralized color tokens via tui/theme package | Complete |
 | [Tag Input UX](./tag-input-ux.md) | Compose window tag input patterns | Complete |
 | [Label Component](./label-component.md) | Pubkey/username chip with async profile fetch | Complete |
 
