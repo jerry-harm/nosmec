@@ -11,7 +11,11 @@ func TestExtractCommunityScope_PrefersUppercaseA(t *testing.T) {
 		Kind: nostr.KindComment,
 		Tags: nostr.Tags{
 			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
-			{"a", "1111:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:parent"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
 		},
 	}
 
@@ -21,15 +25,15 @@ func TestExtractCommunityScope_PrefersUppercaseA(t *testing.T) {
 	}
 }
 
-func TestExtractCommunityScope_FallsBackToLegacyLowercaseA(t *testing.T) {
+func TestExtractCommunityScope_RejectsLegacyLowercaseOnly(t *testing.T) {
 	event := &nostr.Event{
-		Kind: nostr.KindTextNote,
+		Kind: nostr.KindComment,
 		Tags: nostr.Tags{{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"}},
 	}
 
 	scope := ExtractCommunityScope(event)
-	if scope != "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats" {
-		t.Fatalf("ExtractCommunityScope() = %q", scope)
+	if scope != "" {
+		t.Fatalf("ExtractCommunityScope() = %q, want empty", scope)
 	}
 }
 
@@ -49,7 +53,7 @@ func TestMatchesCommunityScope(t *testing.T) {
 	scope := "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"
 	event := &nostr.Event{
 		Kind: nostr.KindComment,
-		Tags: nostr.Tags{{"A", scope}},
+		Tags: nostr.Tags{{"A", scope}, {"a", scope}, {"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, {"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, {"K", "34550"}, {"k", "34550"}},
 	}
 
 	if !MatchesCommunityScope(event, scope) {

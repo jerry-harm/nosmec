@@ -380,7 +380,11 @@ func TestCommunityScopeOf_PrefersUppercaseA(t *testing.T) {
 		Kind: nostr.KindComment,
 		Tags: nostr.Tags{
 			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
-			{"a", "1111:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:parent"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
 		},
 	}
 
@@ -390,17 +394,17 @@ func TestCommunityScopeOf_PrefersUppercaseA(t *testing.T) {
 	}
 }
 
-func TestCommunityScopeOf_FallsBackToLegacyLowercaseA(t *testing.T) {
+func TestCommunityScopeOf_RejectsLegacyLowercaseOnly(t *testing.T) {
 	event := &nostr.Event{
-		Kind: nostr.KindTextNote,
+		Kind: nostr.KindComment,
 		Tags: nostr.Tags{
 			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
 		},
 	}
 
 	scope := nostr_sdk.ExtractCommunityScope(event)
-	if scope != "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats" {
-		t.Fatalf("communityScopeOf() = %q", scope)
+	if scope != "" {
+		t.Fatalf("communityScopeOf() = %q, want empty", scope)
 	}
 }
 
@@ -425,7 +429,11 @@ func TestMatchesCommunityScope_UsesRootScope(t *testing.T) {
 		Kind: nostr.KindComment,
 		Tags: nostr.Tags{
 			{"A", scope},
-			{"e", testParentID, "", "reply"},
+			{"a", scope},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
 		},
 	}
 
@@ -440,7 +448,11 @@ func TestMatchesCommunityScope_RejectsDifferentCommunity(t *testing.T) {
 		Kind: nostr.KindComment,
 		Tags: nostr.Tags{
 			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:dogs"},
-			{"e", testParentID, "", "reply"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:dogs"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
 		},
 	}
 

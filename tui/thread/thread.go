@@ -11,7 +11,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/nip10"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/nostr_sdk"
@@ -62,19 +61,7 @@ func extractParentID(event *nostr.Event) string {
 	if event == nil {
 		return ""
 	}
-	if event.Kind == nostr.KindComment {
-		for _, tag := range event.Tags {
-			if len(tag) >= 2 && tag[0] == "e" && nostr.IsValid32ByteHex(tag[1]) {
-				ptr := nip10.GetImmediateParent(event.Tags)
-				if ptr == nil {
-					return ""
-				}
-				return ptr.AsTagReference()
-			}
-		}
-		return ""
-	}
-	ptr := nip10.GetImmediateParent(event.Tags)
+	ptr := nostr_sdk.GetThreadParentPointer(event)
 	if ptr == nil {
 		return ""
 	}
@@ -95,27 +82,7 @@ func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err err
 	if event == nil {
 		return nostr.ID{}, false, errors.New("nil event")
 	}
-	if event.Kind == nostr.KindComment {
-		hasETag := false
-		for _, tag := range event.Tags {
-			if len(tag) >= 2 && tag[0] == "e" && nostr.IsValid32ByteHex(tag[1]) {
-				hasETag = true
-				break
-			}
-		}
-		if !hasETag {
-			return event.ID, true, nil
-		}
-	}
-	ptr := nip10.GetThreadRoot(event.Tags)
-	if ptr == nil {
-		return event.ID, true, nil
-	}
-	id, err := nostr.IDFromHex(ptr.AsTagReference())
-	if err != nil {
-		return nostr.ID{}, false, err
-	}
-	return id, id == event.ID, nil
+	return nostr_sdk.GetThreadRootID(event)
 }
 
 var globalNameCache = make(map[string]string)

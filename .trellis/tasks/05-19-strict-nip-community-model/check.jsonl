@@ -1,0 +1,3 @@
+{"file":".trellis/tasks/05-19-strict-nip-community-model/prd.md","reason":"Verify the implementation matches the approved design: strict NIP-only parsing, standalone nip72 package, composable thread APIs, and clear separation of pure parsing versus stateful retrieval."}
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"Check that final code still respects the fork boundary, System responsibilities, and any updated community/thread architecture decisions."}
+{"file":".trellis/spec/backend/nostr-sdk-usage.md","reason":"Check exported API shape and caller expectations after replacing old scoped community helpers with nip72-driven semantics and smaller SDK helpers."}

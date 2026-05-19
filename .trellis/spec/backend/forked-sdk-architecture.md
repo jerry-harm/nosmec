@@ -1,6 +1,6 @@
 # Forked nostr SDK Architecture
 
-> The project forks `fiatjaf.com/nostr/sdk/` into `nosmec/nostr_sdk/` to open up internal APIs and add community feed functions as first-class SDK methods.
+> The project forks `fiatjaf.com/nostr/sdk/` into `nosmec/nostr_sdk/` to open up internal APIs, while protocol parsing stays in `fiatjaf.com/nostr` NIP packages plus project-local `nosmec/nip72`.
 
 ---
 
@@ -23,6 +23,9 @@ fiatjaf.com/nostr (core)       ← lib dep, not forked
   │   ├── bleve/ (full-text)
   │   └── wrappers/ (DynamicPublisher)
   └── nip*/                    ← lib dep, not forked
+
+nosmec/nip72/                  ← our code
+  └── strict NIP-72 tag interpretation helpers
 
 nosmec/nostr_sdk/ (forked)     ← our code
   ├── system.go (System struct + NewSystem + timeline methods)
@@ -88,21 +91,43 @@ func (sys *System) FetchRepliesToRoot(ctx context.Context, rootID nostr.ID, limi
 func (sys *System) FetchParent(ctx context.Context, event *nostr.Event, timeoutMs int) *nostr.Event
 ```
 
-### 5. Community Thread Query APIs
+### 5. NIP-72 Parsing Layer
 
-Community-thread protocol semantics must live in `nostr_sdk`, not in TUI components. The SDK owns:
+Community protocol parsing is not owned by `nostr_sdk.System`. It lives in a dedicated `nip72` package, shaped similarly to `nip10` / `nip22`:
 
-1. community root-scope extraction (`A=34550:...`, legacy fallback to lowercase `a` only when needed)
+```go
+func GetCommunityPointer(event *nostr.Event) nostr.Pointer
+func GetRootPointer(event *nostr.Event) nostr.Pointer
+func GetParentPointer(event *nostr.Event) nostr.Pointer
+func ClassifyRole(event *nostr.Event) (Role, bool)
+```
+
+Rules:
+- strict NIP-only interpretation
+- no lowercase-only / malformed-event fallback
+- pointer-first API (`nostr.EntityPointer`, `nostr.EventPointer`, `nostr.Pointer`)
+- no project-owned cross-event policy helpers in `nip72`
+
+### 6. Community Thread Query APIs
+
+Community-thread protocol semantics are split between `nip72` parsing and `nostr_sdk` retrieval. The SDK owns:
+
+1. scope extraction from already-parsed strict NIP-72 community pointers
 2. scope-aware event filtering
 3. thread-scoped parent-chain and reply traversal
 4. local-store-first retrieval before relay fallback
+5. pure thread helpers that are not attached to `System`
 
 ```go
 // community_scope.go
 func ExtractCommunityScope(event *nostr.Event) string
 func MatchesCommunityScope(event *nostr.Event, scope string) bool
 
-// community_scope.go / community_thread.go
+// thread_refs.go
+func GetThreadParentPointer(event *nostr.Event) nostr.Pointer
+func GetThreadRootID(event *nostr.Event) (rootID nostr.ID, isRoot bool, err error)
+
+// community_scope.go / community_thread.go / system.go
 func (sys *System) FetchSpecificEventInScope(ctx context.Context, pointer nostr.Pointer, scope string, params FetchSpecificEventParameters) (*nostr.Event, []string, error)
 func (sys *System) FetchEventsReferencingIDsInScope(ctx context.Context, ids []nostr.ID, relays []string, scope string) []*nostr.Event
 func (sys *System) FetchEventByIDInScope(ctx context.Context, id nostr.ID, relays []string, scope string) (*nostr.Event, []string, error)
@@ -112,7 +137,7 @@ func (sys *System) FetchParentChainInScope(ctx context.Context, event *nostr.Eve
 func (sys *System) FetchRepliesBreadthFirstInScope(ctx context.Context, rootID nostr.ID, relays []string, scope string, maxDepth int, batchSize int) []*nostr.Event
 ```
 
-### 6. Local-First Rule for Scoped Thread Queries
+### 7. Local-First Rule for Scoped Thread Queries
 
 Scoped reply fetches should query `sys.Store` first, then use relays only as a supplement. This keeps thread reconstruction aligned with the rest of the forked SDK's local-first design.
 
@@ -122,6 +147,32 @@ for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOption
     // filter by scope here
 }
 ```
+
+### 8. Wrong vs Correct: Parsing Ownership
+
+Wrong:
+```go
+type CommunityRef struct {
+    Address string
+    Author  nostr.PubKey
+}
+
+func ParseCommunity(event *nostr.Event) CommunityRef { ... }
+```
+
+Correct:
+```go
+ptr := nip72.GetCommunityPointer(event)
+if ptr == nil {
+    return ""
+}
+scope := ptr.(nostr.EntityPointer).AsTagReference()
+```
+
+Why:
+- `nip72` should mirror existing pointer-oriented NIP helpers
+- caller policy stays outside the parser
+- SDK and TUI compare normalized pointer values instead of custom wrappers
 
 Correct:
 ```go

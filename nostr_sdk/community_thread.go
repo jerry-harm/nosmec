@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/nip10"
 )
 
 // FetchEventByIDInScope fetches a specific event ID constrained to a community
@@ -43,7 +42,7 @@ func (sys *System) FetchParentChainInScope(ctx context.Context, event *nostr.Eve
 	current := event
 
 	for depth := 0; depth < maxDepth; depth++ {
-		ptr := nip10.GetImmediateParent(current.Tags)
+		ptr := GetThreadParentPointer(current)
 		if ptr == nil {
 			break
 		}
@@ -61,8 +60,8 @@ func (sys *System) FetchParentChainInScope(ctx context.Context, event *nostr.Eve
 		chain = append(chain, parent)
 		current = parent
 
-		rootPtr := nip10.GetThreadRoot(parent.Tags)
-		if rootPtr == nil || rootPtr.AsTagReference() == parent.ID.Hex() {
+		rootID, isRoot, err := GetThreadRootID(parent)
+		if err != nil || isRoot || rootID == parent.ID {
 			break
 		}
 	}

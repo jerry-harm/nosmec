@@ -10,7 +10,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
-	"fiatjaf.com/nostr/nip10"
 	"fiatjaf.com/nostr/eventstore/nullstore"
 	"fiatjaf.com/nostr/eventstore/wrappers"
 	"github.com/jerry-harm/nosmec/nostr_sdk/cache"
@@ -540,24 +539,9 @@ func (sys *System) FetchParent(ctx context.Context, event *nostr.Event, timeoutM
 		return nil
 	}
 
-	replyTag := event.Tags.FindWithValue("e", "reply")
-	if len(replyTag) < 2 {
-		return nil
-	}
-
-	relayHint := ""
-	if len(replyTag) >= 3 && replyTag[2] != "" {
-		relayHint = replyTag[2]
-	}
-
-	ptr := nip10.GetImmediateParent(event.Tags)
+	ptr := GetThreadParentPointer(event)
 	if ptr == nil {
 		return nil
-	}
-
-	if ep, ok := ptr.(nostr.EventPointer); ok && relayHint != "" {
-		ep.Relays = []string{relayHint}
-		ptr = ep
 	}
 
 	if timeoutMs > 0 {

@@ -238,9 +238,17 @@ pm, _ := sys.FetchProfileFromInput(ctx, "npub1...")  // 直接获取 profile met
 events, err := sys.FetchFeedPage(ctx, pubkeys, kinds, ...)
 events, err := sys.StreamLiveFeed(ctx, pubkeys, kinds, ...)
 
+// nip72 community protocol parsing
+ptr := nip72.GetCommunityPointer(event)          // nostr.Pointer or nil
+rootPtr := nip72.GetRootPointer(event)           // nostr.Pointer or nil
+parentPtr := nip72.GetParentPointer(event)       // nostr.Pointer or nil
+role, ok := nip72.ClassifyRole(event)             // TopLevelPost / Reply / Unknown
+
 // Community thread scope / traversal
 scope := nostr_sdk.ExtractCommunityScope(event)
 ok := nostr_sdk.MatchesCommunityScope(event, scope)
+parentPtr := nostr_sdk.GetThreadParentPointer(event)
+rootID, isRoot, err := nostr_sdk.GetThreadRootID(event)
 evt, relays, err := sys.FetchEventByIDInScope(ctx, id, relays, scope)
 root, relays, err := sys.FetchRootEventInScope(ctx, rootID, relays, scope)
 parent := sys.FetchParentInScope(ctx, event, scope, timeoutMs)

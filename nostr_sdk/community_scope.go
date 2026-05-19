@@ -2,34 +2,18 @@ package nostr_sdk
 
 import (
 	"context"
-	"strings"
 
 	"fiatjaf.com/nostr"
+	"github.com/jerry-harm/nosmec/nip72"
 )
 
-const communityScopeKindPrefix = "34550:"
-
-// ExtractCommunityScope returns the community root scope for an event.
-// It prefers the NIP-22/NIP-72 uppercase A tag and falls back to legacy
-// lowercase a tags that directly reference a kind:34550 community address.
+// ExtractCommunityScope returns the strict NIP-72 community scope for an event.
 func ExtractCommunityScope(event *nostr.Event) string {
-	if event == nil {
+	ptr := nip72.GetCommunityPointer(event)
+	if ptr == nil {
 		return ""
 	}
-
-	for _, tag := range event.Tags {
-		if len(tag) >= 2 && tag[0] == "A" && strings.HasPrefix(tag[1], communityScopeKindPrefix) {
-			return tag[1]
-		}
-	}
-
-	for _, tag := range event.Tags {
-		if len(tag) >= 2 && tag[0] == "a" && strings.HasPrefix(tag[1], communityScopeKindPrefix) {
-			return tag[1]
-		}
-	}
-
-	return ""
+	return ptr.(nostr.EntityPointer).AsTagReference()
 }
 
 // MatchesCommunityScope reports whether an event belongs to the given
@@ -87,6 +71,9 @@ func (sys *System) FetchEventsReferencingIDsInScope(
 	filter := nostr.Filter{
 		Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
 		Tags:  nostr.TagMap{"e": idHexes},
+	}
+	if scope != "" {
+		filter.Kinds = []nostr.Kind{nostr.KindComment}
 	}
 
 	var events []*nostr.Event
