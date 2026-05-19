@@ -90,17 +90,18 @@ func (s styles) setupListDelegate(delegate *list.DefaultDelegate) {
 type keyMap struct {
 	quit       key.Binding
 	kill       key.Binding
+	refresh    key.Binding
 	eventDetail key.Binding
 	open       key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.open, k.eventDetail, k.quit, k.kill}
+	return []key.Binding{k.open, k.eventDetail, k.refresh, k.quit, k.kill}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.open, k.eventDetail, k.quit, k.kill},
+		{k.open, k.eventDetail, k.refresh, k.quit, k.kill},
 	}
 }
 
@@ -113,6 +114,10 @@ func newKeyMap() *keyMap {
 		kill: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("ctrl+c", "kill"),
+		),
+		refresh: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "refresh"),
 		),
 		eventDetail: key.NewBinding(
 			key.WithKeys("ctrl+e"),
@@ -141,14 +146,17 @@ func NewModel(app *config.AppContext) *model {
 	m.list.Title = "Community Discovery"
 	m.list.Styles.Title = m.styles.title
 	m.list.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{m.keys.open, m.keys.eventDetail}
+		return []key.Binding{m.keys.refresh, m.keys.open, m.keys.eventDetail}
 	}
 
 	return m
 }
 
 func (m *model) Init() tea.Cmd {
-	return m.loadCommunities()
+	return tea.Batch(
+		m.list.StartSpinner(),
+		m.loadCommunities(),
+	)
 }
 
 func (m *model) loadCommunities() tea.Cmd {
@@ -181,6 +189,7 @@ type loadedMsg struct {
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case loadedMsg:
+		m.list.StopSpinner()
 		m.items = msg.items
 		listItems := make([]list.Item, len(m.items))
 		for i, item := range m.items {
@@ -194,6 +203,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.list.NewStatusMessage(m.styles.statusMessage.Render(fmt.Sprintf("%d communities", len(m.items))))
 
 	case errMsg:
+		m.list.StopSpinner()
 		return m, m.list.NewStatusMessage(m.styles.statusMessage.Render("Error: " + msg.err))
 
 	case tea.WindowSizeMsg:
@@ -212,6 +222,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if key.Matches(msg, m.keys.kill) {
 			os.Exit(0)
+		}
+		if key.Matches(msg, m.keys.refresh) {
+			m.loaded = false
+			m.items = nil
+			m.list.SetItems(nil)
+			return m, tea.Batch(m.list.StartSpinner(), m.loadCommunities())
 		}
 		if key.Matches(msg, m.keys.eventDetail) {
 			if !m.loaded || m.list.SelectedItem() == nil {
