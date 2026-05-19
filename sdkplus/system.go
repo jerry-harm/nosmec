@@ -262,13 +262,18 @@ func (sys *System) FetchFollowedTimelinePage(
 
 			relays := sys.System.FetchOutboxRelays(ctx, nostr.PubKey{}, 2)
 			if len(relays) == 0 {
-				relays = []string{"wss://relay.damus.io", "wss://nos.lol"}
+				relays = []string{"wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"}
 			}
 
+			count := 0
 			for ie := range sys.System.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "community"}) {
 				sys.System.Publisher.Publish(ctx, ie.Event)
 				if ie.Event.CreatedAt < until || until == 0 {
 					events = append(events, ie.Event)
+					count++
+					if count >= limitPerKey {
+						break
+					}
 				}
 			}
 		}(addr)
