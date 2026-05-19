@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 46
+- **Total Sessions**: 47
 - **Last Active**: 2026-05-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1560 | Active |
+| `journal-1.md` | ~1593 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 47 | 2026-05-19 | community discover help bar 修复 | `1f283af` | `main` |
 | 46 | 2026-05-19 | community discover help bar 修复 | `1f283af` | `main` |
 | 45 | 2026-05-19 | community discover 刷新+spinner | `60d2bd9` | `main` |
 | 44 | 2026-05-19 | community discover Enter timeline size 修复 | `26e00b5` | `main` |

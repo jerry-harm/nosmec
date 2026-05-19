@@ -1558,3 +1558,36 @@ discover model 的 delegate 缺少 ShortHelpFunc/FullHelpFunc，导致底部 hel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 47: community discover help bar 修复
+
+**Date**: 2026-05-19
+**Task**: community discover help bar 修复
+**Branch**: `main`
+
+### Summary
+
+在 delegate 上添加 ShortHelpFunc 和 FullHelpFunc，修复了 help bar 不显示的问题（AdditionalFullHelpKeys 是 list 级别，delegate 级别才是 bubbles list 渲染 help bar 用的）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1f283af` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
