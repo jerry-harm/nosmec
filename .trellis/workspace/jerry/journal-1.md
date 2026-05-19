@@ -1360,3 +1360,36 @@ Designed and implemented HintsDB (config/hints.go): learned relay→pubkey assoc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 41: community discover 导航: Ctrl+E 进入 event 详情, Enter 进入 timeline
+
+**Date**: 2026-05-19
+**Task**: community discover 导航: Ctrl+E 进入 event 详情, Enter 进入 timeline
+**Branch**: `main`
+
+### Summary
+
+将 community discover 从 standalone 改为 bubblon stack 架构。Ctrl+E 打开 community 的 kind:34550 raw event 详情 (EventView)，Enter 打开 community timeline。timeline 的 esc handler 修复为 child view 模式下用 Close() 而非 Quit。CommunityDefinition 增加 Event 字段。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `570fdfe` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
