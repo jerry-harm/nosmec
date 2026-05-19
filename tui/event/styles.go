@@ -3,15 +3,16 @@ package event
 import "charm.land/lipgloss/v2"
 
 type eventStyles struct {
-	container lipgloss.Style
-	header    lipgloss.Style
-	viewport  lipgloss.Style
-	footer    lipgloss.Style
-	author    lipgloss.Style
-	time      lipgloss.Style
-	content   lipgloss.Style
-	tags      lipgloss.Style
-	confirm   lipgloss.Style
+	container      lipgloss.Style
+	header         lipgloss.Style
+	viewport       lipgloss.Style
+	footer         lipgloss.Style
+	author         lipgloss.Style
+	time           lipgloss.Style
+	content        lipgloss.Style
+	tags           lipgloss.Style
+	confirm        lipgloss.Style
+	communityAddr  lipgloss.Style
 }
 
 func newStyles(darkBG bool) eventStyles {
@@ -48,6 +49,9 @@ func newStyles(darkBG bool) eventStyles {
 			Foreground(lipgloss.Color("#666666")),
 		confirm: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF6B6B")).
+			Bold(true),
+		communityAddr: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFD700")).
 			Bold(true),
 	}
 }

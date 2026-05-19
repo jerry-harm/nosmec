@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 )
@@ -36,7 +37,15 @@ func (m *EventView) renderHeader() string {
 		m.styles.time.Render(timeStr),
 		kindStr)
 
-	return m.styles.header.Render(line1+"\n"+line2)
+	lines := line1 + "\n" + line2
+
+	// Line 3 (kind 34550 only): Community Address
+	if e.Kind == nostr.KindCommunityDefinition {
+		addr := fmt.Sprintf("34550:%s:%s", e.PubKey.Hex(), e.Tags.GetD())
+		lines += "\n" + fmt.Sprintf("Community Address: %s", m.styles.communityAddr.Render(addr))
+	}
+
+	return m.styles.header.Render(lines)
 }
 
 func (m *EventView) renderContent() string {
