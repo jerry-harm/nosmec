@@ -114,14 +114,15 @@ func BuildReplyTagsWithRoot(parentEvent *nostr.Event, rootPubKey string) nostr.T
 	}
 }
 
-func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content string) (*nostr.Event, error) {
+func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, quotedAuthorPubkey, content string) (*nostr.Event, error) {
 	secretKey, err := app.GetMySecretKey()
 	if err != nil {
 		return nil, err
 	}
 
+	relay := config.GetEventRelay(quotedID)
 	tags := nostr.Tags{
-		{"q", quotedID},
+		{"q", quotedID, relay, quotedAuthorPubkey},
 	}
 
 	event := &nostr.Event{
@@ -149,7 +150,7 @@ func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, content st
 	return event, nil
 }
 
-func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*nostr.Event, error) {
+func DeleteNote(ctx context.Context, app *config.AppContext, eventID, authorPubkey string) (*nostr.Event, error) {
 	secretKey, err := app.GetMySecretKey()
 	if err != nil {
 		return nil, err
@@ -158,7 +159,7 @@ func DeleteNote(ctx context.Context, app *config.AppContext, eventID string) (*n
 	event := &nostr.Event{
 		Kind:      nostr.KindDeletion,
 		CreatedAt: nostr.Timestamp(time.Now().Unix()),
-		Tags:      nostr.Tags{{"e", eventID}},
+		Tags:      nostr.Tags{{"e", eventID}, {"p", authorPubkey}},
 		Content:   "",
 		PubKey:    secretKey.Public(),
 	}

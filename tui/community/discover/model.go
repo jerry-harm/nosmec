@@ -88,11 +88,12 @@ func (s styles) setupListDelegate(delegate *list.DefaultDelegate) {
 }
 
 type keyMap struct {
-	quit       key.Binding
-	kill       key.Binding
-	refresh    key.Binding
-	eventDetail key.Binding
-	open       key.Binding
+	quit           key.Binding
+	kill           key.Binding
+	refresh        key.Binding
+	eventDetail    key.Binding
+	open           key.Binding
+	toggleHelpMenu key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
@@ -127,6 +128,10 @@ func newKeyMap() *keyMap {
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "timeline"),
 		),
+		toggleHelpMenu: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "help"),
+		),
 	}
 }
 
@@ -153,7 +158,7 @@ func NewModel(app *config.AppContext) *model {
 		}
 	}
 
-	m.list = list.New(nil, delegate, 80, 20)
+	m.list = list.New(nil, delegate, 0, 0)
 	m.list.Title = "Community Discovery"
 	m.list.Styles.Title = m.styles.title
 
@@ -217,7 +222,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.list.SetSize(msg.Width, msg.Height)
+		h, v := m.styles.app.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
 
 	case bubblon.Closed:
 		// A child view (event detail or timeline) was closed by the controller.
@@ -236,6 +242,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.items = nil
 			m.list.SetItems(nil)
 			return m, tea.Batch(m.list.StartSpinner(), m.loadCommunities())
+		}
+		if key.Matches(msg, m.keys.toggleHelpMenu) {
+			m.list.SetShowHelp(!m.list.ShowHelp())
+			return m, nil
 		}
 		if key.Matches(msg, m.keys.eventDetail) {
 			if !m.loaded || m.list.SelectedItem() == nil {
@@ -258,7 +268,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			communityAddr := fmt.Sprintf("%d:%s:%s",
 				34550,
-				selected.def.Moderators[0].Hex(),
+				selected.def.Event.PubKey.Hex(),
 				selected.def.ID,
 			)
 			tlModel := timeline.NewModel(m.app, "community", nil, 10, communityAddr)

@@ -226,8 +226,9 @@ func (m *model) AddQuote(parentEvent *nostr.Event) {
 	m.composeKind = KindQuote
 	m.parentEvent = parentEvent
 	m.quotedID = parentEvent.ID.Hex()
+	relay := config.GetEventRelay(parentEvent.ID.Hex())
 	m.tags = append(m.tags,
-		Tag{"q", parentEvent.ID.Hex()},
+		Tag{"q", parentEvent.ID.Hex(), relay, parentEvent.PubKey.Hex()},
 	)
 }
 

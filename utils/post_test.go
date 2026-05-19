@@ -8,16 +8,17 @@ import (
 
 func TestQuoteNoteTags(t *testing.T) {
 	quotedID := "test-event-id-123"
+	quotedPubkey := "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
 
 	tags := nostr.Tags{
-		{"q", quotedID},
+		{"q", quotedID, "", quotedPubkey},
 	}
 
 	if len(tags) != 1 {
 		t.Errorf("len(tags) = %d, want 1", len(tags))
 	}
-	if tags[0][0] != "q" || tags[0][1] != quotedID {
-		t.Errorf("tags[0] = %v, want [q, %s]", tags[0], quotedID)
+	if tags[0][0] != "q" || tags[0][1] != quotedID || tags[0][3] != quotedPubkey {
+		t.Errorf("tags[0] = %v, want [q, %s, <relay>, %s]", tags[0], quotedID, quotedPubkey)
 	}
 }
 
@@ -68,16 +69,21 @@ func TestReplyToNoteTags(t *testing.T) {
 
 func TestDeleteNoteTags(t *testing.T) {
 	eventID := "delete-this-event"
+	authorPubkey := "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
 
 	tags := nostr.Tags{
 		{"e", eventID},
+		{"p", authorPubkey},
 	}
 
-	if len(tags) != 1 {
-		t.Errorf("len(tags) = %d, want 1", len(tags))
+	if len(tags) != 2 {
+		t.Errorf("len(tags) = %d, want 2", len(tags))
 	}
 	if tags[0][0] != "e" || tags[0][1] != eventID {
 		t.Errorf("tags[0] = %v, want [e, %s]", tags[0], eventID)
+	}
+	if tags[1][0] != "p" || tags[1][1] != authorPubkey {
+		t.Errorf("tags[1] = %v, want [p, %s]", tags[1], authorPubkey)
 	}
 }
 

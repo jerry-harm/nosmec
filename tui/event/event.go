@@ -296,7 +296,7 @@ func (m *EventView) deleteAndClose() tea.Cmd {
 	if m.event == nil {
 		return nil
 	}
-	go utils.DeleteNote(context.Background(), m.app, m.event.ID.Hex())
+	go utils.DeleteNote(context.Background(), m.app, m.event.ID.Hex(), m.event.PubKey.Hex())
 	if m.ctrl != nil {
 		return func() tea.Msg { return bubblon.Close() }
 	}

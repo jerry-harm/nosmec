@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/nip-conventions.md", "reason": "NIP-72 community post convention — kind:1111 with A/a tags (not kind:1). K/k tags ARE standard per NIP-72. Community address uses author-pubkey from the 34550 event."}
+{"file": ".trellis/spec/tui/window-size-management.md", "reason": "Reference for list/frame size handling patterns across TUI views"}
+{"file": "utils/community.go", "reason": "PostToCommunity function — needs KindComment→KindTextNote, remove K/k tags, add community author pubkey reference"}
+{"file": "utils/post.go", "reason": "QuoteNote (q tag missing relay) and DeleteNote (missing p tag)"}
+{"file": "tui/community/discover/model.go", "reason": "Community address construction — uses Moderators[0] instead of Event.PubKey"}

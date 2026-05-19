@@ -33,6 +33,7 @@ tui/
 
 | Guide | Description | Status |
 |-------|-------------|--------|
+| [Window Size Management](./window-size-management.md) | Bubblon child view dimensions + frame size subtraction | Complete |
 | [Tag Input UX](./tag-input-ux.md) | Compose window tag input patterns | Complete |
 | [Label Component](./label-component.md) | Pubkey/username chip with async profile fetch | Complete |
 

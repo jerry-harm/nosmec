@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/nip-conventions.md", "reason": "NIP-72 community address format — author pubkey from event field, not p tag moderator"}
+{"file": ".trellis/spec/backend/nip-conventions.md", "reason": "NIP-18 deletion requires p tag — confirm expected behavior"}
+{"file": "utils/post.go", "reason": "QuoteNote and DeleteNote functions — verify current implementation and test expectations"}
