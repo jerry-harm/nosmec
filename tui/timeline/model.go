@@ -111,7 +111,7 @@ type model struct {
 	limit         int
 	communityAddr string
 
-	ctrl bubblon.Controller
+	ctrl *bubblon.Controller
 
 	// Infinite scroll state
 	isLoadingMore bool
@@ -235,6 +235,12 @@ func NewModel(app *config.AppContext, filter string, hashtags []string, limit in
 	m.list = groceryList
 
 	return m
+}
+
+// SetBubblonController stores the bubblon controller so the timeline
+// model can navigate back to the parent when used as a child view.
+func (m *model) SetBubblonController(ctrl *bubblon.Controller) {
+	m.ctrl = ctrl
 }
 
 func (m *model) Init() tea.Cmd {
@@ -727,7 +733,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showDetailMsg:
 		logger.Debug("showDetailMsg received")
 		logger.Debug("about to call event.New")
-		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName, &m.ctrl)
+		ev := event.New(&msg.event.Event, m.app, m.width, m.height, msg.authorName, m.ctrl)
 		logger.Debug("event.New returned")
 		logger.Debug("EventView created, about to Open")
 		logger.Debug("EventView opened, returning")
@@ -854,6 +860,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.subCancel != nil {
 				m.subCancel()
 			}
+			if m.ctrl.Models() > 0 {
+				return m, func() tea.Msg { return bubblon.Close() }
+			}
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.toggleTitleBar):
@@ -894,12 +903,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() tea.View {
-	// If we have open windows via bubblon, render the top view
-	if m.ctrl.Models() > 0 {
-		v := m.ctrl.View()
-		v.AltScreen = true
-		return v
-	}
+	// Always render the list. The bubblon root controller handles View delegation
+	// to child models (EventView, compose, etc.) when they are stacked on top.
 	v := tea.NewView(m.styles.app.Render(m.list.View()))
 	v.AltScreen = true
 	return v

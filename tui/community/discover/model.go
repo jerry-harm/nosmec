@@ -10,6 +10,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
+	"github.com/jerry-harm/nosmec/tui/event"
+	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -44,8 +47,11 @@ type model struct {
 	keys   *keyMap
 	app    *config.AppContext
 	items  []communityItem
-	errMsg string
 	loaded bool
+
+	ctrl   *bubblon.Controller
+	width  int
+	height int
 }
 
 type styles struct {
@@ -82,8 +88,20 @@ func (s styles) setupListDelegate(delegate *list.DefaultDelegate) {
 }
 
 type keyMap struct {
-	quit key.Binding
-	kill key.Binding
+	quit       key.Binding
+	kill       key.Binding
+	eventDetail key.Binding
+	open       key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.open, k.eventDetail, k.quit, k.kill}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.open, k.eventDetail, k.quit, k.kill},
+	}
 }
 
 func newKeyMap() *keyMap {
@@ -95,6 +113,14 @@ func newKeyMap() *keyMap {
 		kill: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("ctrl+c", "kill"),
+		),
+		eventDetail: key.NewBinding(
+			key.WithKeys("ctrl+e"),
+			key.WithHelp("ctrl+e", "event"),
+		),
+		open: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "timeline"),
 		),
 	}
 }
@@ -114,6 +140,9 @@ func NewModel(app *config.AppContext) *model {
 	m.list = list.New(nil, delegate, 80, 20)
 	m.list.Title = "Community Discovery"
 	m.list.Styles.Title = m.styles.title
+	m.list.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{m.keys.open, m.keys.eventDetail}
+	}
 
 	return m
 }
@@ -165,8 +194,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.list.NewStatusMessage(m.styles.statusMessage.Render(fmt.Sprintf("%d communities", len(m.items))))
 
 	case errMsg:
-		m.errMsg = msg.err
-		return m, m.list.NewStatusMessage(m.styles.statusMessage.Render("Error: "+msg.err))
+		return m, m.list.NewStatusMessage(m.styles.statusMessage.Render("Error: " + msg.err))
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.list.SetSize(msg.Width, msg.Height)
+
+	case bubblon.Closed:
+		// A child view (event detail or timeline) was closed by the controller.
+		// The controller already popped the child; we just need to resume rendering.
+		return m, nil
 
 	case tea.KeyMsg:
 		if key.Matches(msg, m.keys.quit) {
@@ -175,29 +213,39 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.kill) {
 			os.Exit(0)
 		}
-		if msg.String() == "enter" {
-			if m.loaded && m.list.SelectedItem() != nil {
-				selected := m.items[m.list.Index()]
-				addr := fmt.Sprintf("%d:%s:%s",
-					34550,
-					selected.def.Moderators[0].Hex(),
-					selected.def.ID,
-				)
-				return m, func() tea.Msg {
-					return openCommunity{addr: addr, name: selected.def.Name}
-				}
+		if key.Matches(msg, m.keys.eventDetail) {
+			if !m.loaded || m.list.SelectedItem() == nil {
+				return m, nil
 			}
+			selected := m.items[m.list.Index()]
+			if selected.def.Event == nil {
+				return m, nil
+			}
+			ev := event.New(selected.def.Event, m.app, m.width, m.height, "", m.ctrl)
+			return m, bubblon.Open(ev)
+		}
+		if key.Matches(msg, m.keys.open) {
+			if !m.loaded || m.list.SelectedItem() == nil {
+				return m, nil
+			}
+			selected := m.items[m.list.Index()]
+			if len(selected.def.Moderators) == 0 {
+				return m, nil
+			}
+			communityAddr := fmt.Sprintf("%d:%s:%s",
+				34550,
+				selected.def.Moderators[0].Hex(),
+				selected.def.ID,
+			)
+			tlModel := timeline.NewModel(m.app, "community", nil, 10, communityAddr)
+			tlModel.SetBubblonController(m.ctrl)
+			return m, bubblon.Open(tlModel)
 		}
 	}
 
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
-}
-
-type openCommunity struct {
-	addr string
-	name string
 }
 
 func (m *model) View() tea.View {
@@ -217,6 +265,16 @@ func RunCommunityDiscover(app *config.AppContext) error {
 	}
 
 	m := NewModel(app)
-	_, err := tea.NewProgram(m).Run()
-	return err
+	ctrl, err := bubblon.New(m)
+	if err != nil {
+		fmt.Println("fatal:", err)
+		os.Exit(1)
+	}
+	m.ctrl = &ctrl
+	_, err = tea.NewProgram(ctrl).Run()
+	if err != nil {
+		fmt.Println("Error running community discover:", err)
+		os.Exit(1)
+	}
+	return nil
 }

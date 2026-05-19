@@ -18,6 +18,7 @@ type CommunityDefinition struct {
 	Moderators  []nostr.PubKey
 	Relays      map[string]string
 	ID          string
+	Event       *nostr.Event // raw Nostr event for event detail view
 }
 
 func FetchCommunityEvents(ctx context.Context, app *config.AppContext) ([]CommunityDefinition, error) {
@@ -80,6 +81,7 @@ func FetchCommunityEvents(ctx context.Context, app *config.AppContext) ([]Commun
 				}
 			}
 		}
+		def.Event = &ev
 		communities = append(communities, def)
 	}
 

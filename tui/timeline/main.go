@@ -25,6 +25,7 @@ func RunTimeline(app *config.AppContext, filter string, hashtags []string, limit
 		fmt.Println("fatal:", err)
 		os.Exit(1)
 	}
+	tlModel.SetBubblonController(&ctrl)
 	_, err = tea.NewProgram(ctrl).Run()
 	if err != nil {
 		fmt.Println("Error running timeline:", err)
