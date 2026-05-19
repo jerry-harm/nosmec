@@ -88,6 +88,53 @@ func (sys *System) FetchRepliesToRoot(ctx context.Context, rootID nostr.ID, limi
 func (sys *System) FetchParent(ctx context.Context, event *nostr.Event, timeoutMs int) *nostr.Event
 ```
 
+### 5. Community Thread Query APIs
+
+Community-thread protocol semantics must live in `nostr_sdk`, not in TUI components. The SDK owns:
+
+1. community root-scope extraction (`A=34550:...`, legacy fallback to lowercase `a` only when needed)
+2. scope-aware event filtering
+3. thread-scoped parent-chain and reply traversal
+4. local-store-first retrieval before relay fallback
+
+```go
+// community_scope.go
+func ExtractCommunityScope(event *nostr.Event) string
+func MatchesCommunityScope(event *nostr.Event, scope string) bool
+
+// community_scope.go / community_thread.go
+func (sys *System) FetchSpecificEventInScope(ctx context.Context, pointer nostr.Pointer, scope string, params FetchSpecificEventParameters) (*nostr.Event, []string, error)
+func (sys *System) FetchEventsReferencingIDsInScope(ctx context.Context, ids []nostr.ID, relays []string, scope string) []*nostr.Event
+func (sys *System) FetchEventByIDInScope(ctx context.Context, id nostr.ID, relays []string, scope string) (*nostr.Event, []string, error)
+func (sys *System) FetchRootEventInScope(ctx context.Context, rootID nostr.ID, relays []string, scope string) (*nostr.Event, []string, error)
+func (sys *System) FetchParentInScope(ctx context.Context, event *nostr.Event, scope string, timeoutMs int) *nostr.Event
+func (sys *System) FetchParentChainInScope(ctx context.Context, event *nostr.Event, scope string, timeoutMs int, maxDepth int) []*nostr.Event
+func (sys *System) FetchRepliesBreadthFirstInScope(ctx context.Context, rootID nostr.ID, relays []string, scope string, maxDepth int, batchSize int) []*nostr.Event
+```
+
+### 6. Local-First Rule for Scoped Thread Queries
+
+Scoped reply fetches should query `sys.Store` first, then use relays only as a supplement. This keeps thread reconstruction aligned with the rest of the forked SDK's local-first design.
+
+Wrong:
+```go
+for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{}) {
+    // filter by scope here
+}
+```
+
+Correct:
+```go
+for evt := range sys.Store.QueryEvents(filter, limit) {
+    if MatchesCommunityScope(&evt, scope) {
+        // use local event first
+    }
+}
+for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{}) {
+    // supplement with network events not already seen
+}
+```
+
 Helper functions in `feeds.go` (were already in forked SDK):
 ```go
 func makePubkeyStreamKey(prefix byte, pubkey nostr.PubKey) []byte

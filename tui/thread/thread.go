@@ -62,6 +62,18 @@ func extractParentID(event *nostr.Event) string {
 	if event == nil {
 		return ""
 	}
+	if event.Kind == nostr.KindComment {
+		for _, tag := range event.Tags {
+			if len(tag) >= 2 && tag[0] == "e" && nostr.IsValid32ByteHex(tag[1]) {
+				ptr := nip10.GetImmediateParent(event.Tags)
+				if ptr == nil {
+					return ""
+				}
+				return ptr.AsTagReference()
+			}
+		}
+		return ""
+	}
 	ptr := nip10.GetImmediateParent(event.Tags)
 	if ptr == nil {
 		return ""
@@ -82,6 +94,18 @@ func collectETags(tags nostr.Tags) []nostr.Tag {
 func extractRootEvent(event *nostr.Event) (rootID nostr.ID, isRoot bool, err error) {
 	if event == nil {
 		return nostr.ID{}, false, errors.New("nil event")
+	}
+	if event.Kind == nostr.KindComment {
+		hasETag := false
+		for _, tag := range event.Tags {
+			if len(tag) >= 2 && tag[0] == "e" && nostr.IsValid32ByteHex(tag[1]) {
+				hasETag = true
+				break
+			}
+		}
+		if !hasETag {
+			return event.ID, true, nil
+		}
 	}
 	ptr := nip10.GetThreadRoot(event.Tags)
 	if ptr == nil {
@@ -214,6 +238,7 @@ func (m *Model) fetchThread() tea.Cmd {
 		defer cancel()
 
 		var events []*nostr.Event
+		communityScope := nostr_sdk.ExtractCommunityScope(m.event)
 
 		rootID, isRoot, err := extractRootEvent(m.event)
 		if err != nil {
@@ -233,7 +258,7 @@ func (m *Model) fetchThread() tea.Cmd {
 			m.mu.Unlock()
 			logger.Debug("thread: event IS root")
 		} else {
-			rootEvent, rootRelays := m.fetchRootEvent(ctx, rootID)
+			rootEvent, rootRelays := m.fetchRootEvent(ctx, rootID, communityScope)
 			m.mu.Lock()
 			m.root = rootEvent
 			m.mu.Unlock()
@@ -245,11 +270,11 @@ func (m *Model) fetchThread() tea.Cmd {
 
 			// Walk up the reply chain fetching each parent by ID.
 			// #e=Root may not find parents that lack the "root" marker.
-			parentChain = m.fetchParentChain(ctx)
+			parentChain = m.app.System().FetchParentChainInScope(ctx, m.event, communityScope, m.app.QueryTimeoutms(), maxThreadDepth)
 			events = append(events, parentChain...)
 		}
 
-		replyEvents := m.fetchThreadReplies(ctx, rootID)
+		replyEvents := m.fetchThreadReplies(ctx, rootID, communityScope)
 		logger.Debug("thread: fetchThreadReplies result", "count", len(replyEvents))
 		events = append(events, replyEvents...)
 
@@ -268,72 +293,29 @@ func (m *Model) fetchThread() tea.Cmd {
 	}
 }
 
-func (m *Model) fetchRootEvent(ctx context.Context, rootID nostr.ID) (*nostr.Event, []string) {
+func (m *Model) fetchRootEvent(ctx context.Context, rootID nostr.ID, communityScope string) (*nostr.Event, []string) {
 	logger.Debug("thread: fetchRootEvent", "rootID", rootID.Hex()[:8])
-	return m.fetchEventByID(ctx, rootID)
-}
-
-func (m *Model) fetchParentChain(ctx context.Context) []*nostr.Event {
-	var chain []*nostr.Event
-	seen := map[string]bool{m.event.ID.Hex(): true}
-	current := m.event
-
-	for depth := 0; depth < maxThreadDepth; depth++ {
-		parentID := extractParentID(current)
-		if parentID == "" || seen[parentID] {
-			break
-		}
-		seen[parentID] = true
-
-		pid, err := nostr.IDFromHex(parentID)
-		if err != nil {
-			break
-		}
-
-		parent, _ := m.fetchEventByID(ctx, pid)
-		if parent == nil {
-			break
-		}
-
-		logger.Debug("thread: fetchParentChain found", "depth", depth,
-			"eventID", parent.ID.Hex()[:8])
-		chain = append(chain, parent)
-		current = parent
-
-		if _, isRoot, _ := extractRootEvent(parent); isRoot {
-			break
-		}
-	}
-
-	return chain
-}
-
-func (m *Model) fetchEventByID(ctx context.Context, id nostr.ID) (*nostr.Event, []string) {
 	relays := utils.GetQueryRelays(m.event, m.app)
-	if len(relays) == 0 {
-		relays = m.app.AllReadableRelays()
-	}
-	if len(relays) == 0 {
-		return nil, nil
-	}
-
-	filter, err := utils.BuildNoteFilter(id.Hex())
+	event, successRelays, err := m.app.System().FetchRootEventInScope(ctx, rootID, relays, communityScope)
 	if err != nil {
-		return nil, nil
+		return nil, successRelays
 	}
+	return event, successRelays
+}
 
-	result := m.app.Pool().QuerySingle(ctx, relays, filter, nostr.SubscriptionOptions{})
-	if result == nil {
-		return nil, nil
+func (m *Model) fetchEventByID(ctx context.Context, id nostr.ID, communityScope string) (*nostr.Event, []string) {
+	relays := utils.GetQueryRelays(m.event, m.app)
+	event, successRelays, err := m.app.System().FetchEventByIDInScope(ctx, id, relays, communityScope)
+	if err != nil {
+		return nil, successRelays
 	}
-
-	return &result.Event, relays
+	return event, successRelays
 }
 
 const maxThreadDepth = 10
 const queryBatchSize = 50
 
-func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nostr.Event {
+func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID, communityScope string) []*nostr.Event {
 	relays := utils.GetQueryRelays(m.event, m.app)
 	logger.Debug("thread: fetchThreadReplies", "rootID", rootID.Hex()[:8], "relays", len(relays))
 	if len(relays) == 0 {
@@ -344,54 +326,11 @@ func (m *Model) fetchThreadReplies(ctx context.Context, rootID nostr.ID) []*nost
 		logger.Debug("thread: fetchThreadReplies no relays")
 		return nil
 	}
-
-	var allEvents []*nostr.Event
-	seen := map[string]bool{rootID.Hex(): true}
-	queryIDs := []string{rootID.Hex()}
-
-	for depth := 0; depth < maxThreadDepth && len(queryIDs) > 0; depth++ {
-		logger.Debug("thread: fetchThreadReplies depth", "depth", depth, "queryIDs", len(queryIDs))
-
-		var nextIDs []string
-
-		for start := 0; start < len(queryIDs); start += queryBatchSize {
-			end := start + queryBatchSize
-			if end > len(queryIDs) {
-				end = len(queryIDs)
-			}
-			batch := queryIDs[start:end]
-
-			filter := nostr.Filter{
-				Kinds: []nostr.Kind{nostr.KindTextNote, nostr.KindComment},
-				Tags:  nostr.TagMap{"e": batch},
-			}
-
-			ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
-			results := m.app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
-
-			var batchCount int
-			for relayEvent := range results {
-				batchCount++
-				ev := relayEvent.Event
-				if seen[ev.ID.Hex()] {
-					continue
-				}
-				seen[ev.ID.Hex()] = true
-
-				eventCopy := ev
-				allEvents = append(allEvents, &eventCopy)
-				nextIDs = append(nextIDs, ev.ID.Hex())
-			}
-			cancel()
-			logger.Debug("thread: fetchThreadReplies batch", "depth", depth, "batchIDs", len(batch), "found", batchCount)
-		}
-
-		logger.Debug("thread: fetchThreadReplies depth done", "depth", depth, "newIDs", len(nextIDs))
-		queryIDs = nextIDs
-	}
-
-	logger.Debug("thread: fetchThreadReplies done", "total", len(allEvents))
-	return allEvents
+	ctxQuery, cancel := context.WithTimeout(ctx, m.app.QueryTimeout())
+	defer cancel()
+	events := m.app.System().FetchRepliesBreadthFirstInScope(ctxQuery, rootID, relays, communityScope, maxThreadDepth, queryBatchSize)
+	logger.Debug("thread: fetchThreadReplies done", "total", len(events))
+	return events
 }
 
 func (m *Model) buildTuiModel(events []*nostr.Event) (*treeview.TuiTreeModel[nostr.Event], error) {

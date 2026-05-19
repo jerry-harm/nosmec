@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"github.com/jerry-harm/nosmec/tui/theme"
 )
@@ -290,6 +291,161 @@ func TestExtractParentID_NestedReply(t *testing.T) {
 	parentID := extractParentID(event)
 	if parentID != testParentID {
 		t.Errorf("nested reply parent should be reply marker ID %q, got %q", testParentID, parentID)
+	}
+}
+
+func TestExtractParentID_TopLevelCommunityPostHasNoEventParent(t *testing.T) {
+	event := &nostr.Event{
+		Kind: nostr.KindComment,
+		Tags: nostr.Tags{
+			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"K", "34550"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"k", "34550"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+		},
+	}
+
+	parentID := extractParentID(event)
+	if parentID != "" {
+		t.Fatalf("extractParentID() = %q, want empty for top-level community post", parentID)
+	}
+}
+
+func TestExtractRootEvent_TopLevelCommunityPostTreatsSelfAsRoot(t *testing.T) {
+	id, _ := nostr.IDFromHex(strings.Repeat("a", 64))
+	event := &nostr.Event{
+		ID:      id,
+		Kind:    nostr.KindComment,
+		Content: "community post",
+		Tags: nostr.Tags{
+			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"K", "34550"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"k", "34550"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+		},
+	}
+
+	rootID, isRoot, err := extractRootEvent(event)
+	if err != nil {
+		t.Fatalf("extractRootEvent() unexpected error = %v", err)
+	}
+	if !isRoot {
+		t.Fatal("extractRootEvent() isRoot = false, want true")
+	}
+	if rootID != id {
+		t.Fatalf("extractRootEvent() rootID = %v, want %v", rootID, id)
+	}
+}
+
+func TestBuildInitialTree_TopLevelCommunityPostBuildsTree(t *testing.T) {
+	id, _ := nostr.IDFromHex(strings.Repeat("b", 64))
+	event := &nostr.Event{
+		ID:      id,
+		Kind:    nostr.KindComment,
+		Content: "community post",
+		Tags: nostr.Tags{
+			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"K", "34550"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"k", "34550"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+		},
+	}
+	m := &Model{
+		event:          event,
+		currentEventID: id.Hex(),
+		provider:       &eventProvider{},
+		styles:         newStyles(theme.DefaultTheme(false)),
+		width:          80,
+		height:         25,
+	}
+
+	m.buildInitialTree()
+
+	if m.tuiModel == nil {
+		t.Fatal("expected non-nil tuiModel for top-level community post")
+	}
+	if m.root != event {
+		t.Fatal("expected community top-level post to become root event")
+	}
+}
+
+func TestCommunityScopeOf_PrefersUppercaseA(t *testing.T) {
+	event := &nostr.Event{
+		Kind: nostr.KindComment,
+		Tags: nostr.Tags{
+			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"a", "1111:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:parent"},
+		},
+	}
+
+	scope := nostr_sdk.ExtractCommunityScope(event)
+	if scope != "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats" {
+		t.Fatalf("communityScopeOf() = %q", scope)
+	}
+}
+
+func TestCommunityScopeOf_FallsBackToLegacyLowercaseA(t *testing.T) {
+	event := &nostr.Event{
+		Kind: nostr.KindTextNote,
+		Tags: nostr.Tags{
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+		},
+	}
+
+	scope := nostr_sdk.ExtractCommunityScope(event)
+	if scope != "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats" {
+		t.Fatalf("communityScopeOf() = %q", scope)
+	}
+}
+
+func TestCommunityScopeOf_IgnoresNonCommunityLowercaseA(t *testing.T) {
+	event := &nostr.Event{
+		Kind: nostr.KindComment,
+		Tags: nostr.Tags{
+			{"a", "1111:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:parent"},
+			{"e", testParentID, "", "reply"},
+		},
+	}
+
+	scope := nostr_sdk.ExtractCommunityScope(event)
+	if scope != "" {
+		t.Fatalf("communityScopeOf() = %q, want empty", scope)
+	}
+}
+
+func TestMatchesCommunityScope_UsesRootScope(t *testing.T) {
+	scope := "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"
+	event := &nostr.Event{
+		Kind: nostr.KindComment,
+		Tags: nostr.Tags{
+			{"A", scope},
+			{"e", testParentID, "", "reply"},
+		},
+	}
+
+	if !nostr_sdk.MatchesCommunityScope(event, scope) {
+		t.Fatal("matchesCommunityScope() = false, want true")
+	}
+}
+
+func TestMatchesCommunityScope_RejectsDifferentCommunity(t *testing.T) {
+	scope := "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"
+	event := &nostr.Event{
+		Kind: nostr.KindComment,
+		Tags: nostr.Tags{
+			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:dogs"},
+			{"e", testParentID, "", "reply"},
+		},
+	}
+
+	if nostr_sdk.MatchesCommunityScope(event, scope) {
+		t.Fatal("matchesCommunityScope() = true, want false")
 	}
 }
 

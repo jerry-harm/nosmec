@@ -1,0 +1,3 @@
+{"file":".trellis/spec/backend/nip-conventions.md","reason":"Protocol semantics for NIP-72, NIP-22, and NIP-10 must stay aligned during thread traversal changes."}
+{"file":".trellis/spec/backend/query-patterns.md","reason":"Thread fetch logic touches relay/query behavior and should follow project query conventions."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Thread changes need to preserve existing TUI and testing patterns in this repo."}

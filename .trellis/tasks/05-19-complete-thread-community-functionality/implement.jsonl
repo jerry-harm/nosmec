@@ -1,0 +1,5 @@
+{"id":"step-1-scope-detection","title":"Add community thread scope detection helpers in nostr_sdk","spec_ref":"./prd.md","status":"completed"}
+{"id":"step-2-parent-root","title":"Make parent/root traversal NIP-compliant for community comments","spec_ref":"./prd.md","status":"completed","depends_on":["step-1-scope-detection"]}
+{"id":"step-3-reply-filtering","title":"Filter community thread replies by matching community root scope","spec_ref":"./prd.md","status":"completed","depends_on":["step-2-parent-root"]}
+{"id":"step-4-tests","title":"Add or update tests covering community thread traversal behavior","spec_ref":"./prd.md","status":"completed","depends_on":["step-3-reply-filtering"]}
+{"id":"step-5-verify","title":"Run focused verification for thread/community behavior and project build/tests","spec_ref":"./prd.md","status":"completed","depends_on":["step-4-tests"]}

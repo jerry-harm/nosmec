@@ -238,6 +238,15 @@ pm, _ := sys.FetchProfileFromInput(ctx, "npub1...")  // 直接获取 profile met
 events, err := sys.FetchFeedPage(ctx, pubkeys, kinds, ...)
 events, err := sys.StreamLiveFeed(ctx, pubkeys, kinds, ...)
 
+// Community thread scope / traversal
+scope := nostr_sdk.ExtractCommunityScope(event)
+ok := nostr_sdk.MatchesCommunityScope(event, scope)
+evt, relays, err := sys.FetchEventByIDInScope(ctx, id, relays, scope)
+root, relays, err := sys.FetchRootEventInScope(ctx, rootID, relays, scope)
+parent := sys.FetchParentInScope(ctx, event, scope, timeoutMs)
+parents := sys.FetchParentChainInScope(ctx, event, scope, timeoutMs, maxDepth)
+replies := sys.FetchRepliesBreadthFirstInScope(ctx, rootID, relays, scope, maxDepth, batchSize)
+
 // Relay List
 relays := sys.FetchRelayList(ctx, pubkey)              // GenericList[string, Relay]
 relays := sys.FetchInboxRelays(ctx, pubkey, n)
