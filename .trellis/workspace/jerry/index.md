@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 41
+- **Total Sessions**: 42
 - **Last Active**: 2026-05-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1395 | Active |
+| `journal-1.md` | ~1428 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 42 | 2026-05-19 | community timeline 修复: EventView 显示地址栏, 刷新和帖子显示逻辑已验证 | `dc56c54` | `main` |
 | 41 | 2026-05-19 | community discover 导航: Ctrl+E 进入 event 详情, Enter 进入 timeline | `570fdfe` | `main` |
 | 40 | 2026-05-18 | 清理 utils 过度封装，sdkplus wrapper 全部移除 | `fa45ecd` | `main` |
 | 39 | 2026-05-18 | 实现 label component + 目录重组 | `b074f7e`, `0c2d7e0` | `main` |

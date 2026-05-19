@@ -1393,3 +1393,36 @@ Designed and implemented HintsDB (config/hints.go): learned relay→pubkey assoc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 42: community timeline 修复: EventView 显示地址栏, 刷新和帖子显示逻辑已验证
+
+**Date**: 2026-05-19
+**Task**: community timeline 修复: EventView 显示地址栏, 刷新和帖子显示逻辑已验证
+**Branch**: `main`
+
+### Summary
+
+EventView 的 renderHeader() 增加 kind:34550 的 community 地址显示（格式 34550:pubkey_hex:d_value，金色加粗）。刷新(r键)和帖子渲染逻辑已在代码中验证正确（community timeline 和 note timeline 共用同一 model）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dc56c54` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
