@@ -142,12 +142,20 @@ func NewModel(app *config.AppContext) *model {
 	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
 		Foreground(lipgloss.Color("#DDDDDD"))
 
+	delegate.ShortHelpFunc = func() []key.Binding {
+		return []key.Binding{m.keys.open, m.keys.eventDetail, m.keys.refresh}
+	}
+	delegate.FullHelpFunc = func() [][]key.Binding {
+		return [][]key.Binding{
+			{m.keys.refresh},
+			{m.keys.open, m.keys.eventDetail},
+			{m.keys.quit, m.keys.kill},
+		}
+	}
+
 	m.list = list.New(nil, delegate, 80, 20)
 	m.list.Title = "Community Discovery"
 	m.list.Styles.Title = m.styles.title
-	m.list.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{m.keys.refresh, m.keys.open, m.keys.eventDetail}
-	}
 
 	return m
 }
