@@ -1591,3 +1591,37 @@ discover model 的 delegate 缺少 ShortHelpFunc/FullHelpFunc，导致底部 hel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 48: Fork nostr SDK into nostr_sdk
+
+**Date**: 2026-05-19
+**Task**: Fork nostr SDK into nostr_sdk
+**Branch**: `main`
+
+### Summary
+
+Forked the upstream nostr SDK into nostr_sdk, merged sdkplus into the fork, updated imports and config to use nostr_sdk directly, and documented the architecture and migration details.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ae52d3a` | (see git log) |
+| `09e3981` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
