@@ -8,8 +8,8 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	sdk "fiatjaf.com/nostr/sdk"
-	sdk_hints "fiatjaf.com/nostr/sdk/hints"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
+	"github.com/jerry-harm/nosmec/nostr_sdk/hints"
 	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/spf13/viper"
 )
@@ -20,14 +20,14 @@ type AppContext struct {
 	mu           sync.RWMutex
 	viper        *viper.Viper
 	knownRelays  map[string]struct{}
-	hints        sdk_hints.HintsDB
-	sys          *sdk.System
+	hints        hints.HintsDB
+	sys          *nostr_sdk.System
 }
 
 func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
 	sys := GlobalSystem
 	if sys == nil {
-		sys = sdk.NewSystem()
+		sys = nostr_sdk.NewSystem()
 		GlobalSystem = sys
 	}
 	if sys.Pool == nil {
@@ -45,7 +45,7 @@ func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
 }
 
 
-func (a *AppContext) System() *sdk.System {
+func (a *AppContext) System() *nostr_sdk.System {
 	return a.sys
 }
 
@@ -57,7 +57,7 @@ func (a *AppContext) Pool() *nostr.Pool {
 	return a.pool
 }
 
-func (a *AppContext) Hints() sdk_hints.HintsDB {
+func (a *AppContext) Hints() hints.HintsDB {
 	return a.hints
 }
 

@@ -14,10 +14,9 @@ import (
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/sdkplus"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/tui/event"
 	"github.com/jerry-harm/nosmec/tui/component/label"
@@ -282,7 +281,7 @@ func (m *model) fetchTimeline() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		ext := sdkplus.Wrap(m.app.System())
+		ext := m.app.System()
 		var rawEvents []nostr.Event
 		var err error
 
@@ -383,12 +382,12 @@ func (m *model) fetchProfileNames(pubkeys []string) tea.Cmd {
 			return namesMsg{names: nil}
 		}
 
-		ext := sdkplus.Wrap(m.app.System())
+		ext := m.app.System()
 		profiles := ext.FetchProfilesBatch(context.Background(), pubKeys)
 		result := make(map[string]string)
 		for pkStr, pk := range pkToStr {
 			if evt, ok := profiles[pk]; ok {
-				if meta, err := sdk.ParseMetadata(*evt); err == nil && meta.Name != "" {
+				if meta, err := nostr_sdk.ParseMetadata(*evt); err == nil && meta.Name != "" {
 					result[pkStr] = meta.Name
 				}
 			}
@@ -423,7 +422,7 @@ func (m *model) fetchMoreOld() tea.Cmd {
 
 		until := oldestEvent.CreatedAt - 1
 
-		ext := sdkplus.Wrap(m.app.System())
+		ext := m.app.System()
 		var rawEvents []nostr.Event
 		var err error
 

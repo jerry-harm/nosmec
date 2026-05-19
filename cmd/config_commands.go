@@ -11,7 +11,6 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
@@ -742,7 +741,7 @@ configDMRelayAddCmd := &cobra.Command{
 				communityAddrs = append(communityAddrs, s.ID)
 			}
 
-			events, err := sdkplus.Wrap(app.System()).FetchFollowedTimelinePage(ctx, pubkeys, communityAddrs, limit, 0)
+			events, err := app.System().FetchFollowedTimelinePage(ctx, pubkeys, communityAddrs, limit, 0)
 			if err != nil {
 				handleError(newError("failed to fetch timeline", err))
 				return

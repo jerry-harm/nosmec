@@ -12,10 +12,9 @@ import (
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	tea "charm.land/bubbletea/v2"
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/sdkplus"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/thread"
 	"github.com/jerry-harm/nosmec/utils"
@@ -173,7 +172,7 @@ func (m *EventView) Init() tea.Cmd {
 func (m *EventView) fetchEventAsync() tea.Cmd {
 	return func() tea.Msg {
 		logger.Debug("fetchEventAsync starting", "eventID", m.eventID)
-		ext := sdkplus.Wrap(m.app.System())
+		ext := m.app.System()
 		event := ext.FetchNote(context.Background(), m.eventID, m.app.QueryTimeoutms())
 		logger.Debug("fetchEventAsync done", "event", event)
 		return EventLoadedMsg{Event: event}
@@ -186,7 +185,7 @@ func (m *EventView) fetchProfileNameAsync() tea.Cmd {
 		pm := m.app.System().FetchProfileMetadata(context.Background(), m.event.PubKey)
 		name := ""
 		if pm.Event != nil {
-			if meta, err := sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
+			if meta, err := nostr_sdk.ParseMetadata(*pm.Event); err == nil && meta.Name != "" {
 				name = meta.Name
 			}
 		}

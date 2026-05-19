@@ -11,7 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"fiatjaf.com/nostr/sdk"
+	sdk "github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/utils"

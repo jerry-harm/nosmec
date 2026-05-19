@@ -10,16 +10,16 @@ import (
 	"fiatjaf.com/nostr/eventstore/bleve"
 	"fiatjaf.com/nostr/eventstore/boltdb"
 	"fiatjaf.com/nostr/nip19"
-	"fiatjaf.com/nostr/sdk"
-	sdk_hints "fiatjaf.com/nostr/sdk/hints"
-	"fiatjaf.com/nostr/sdk/hints/bbolth"
 	"github.com/jerry-harm/nosmec/logger"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
+	"github.com/jerry-harm/nosmec/nostr_sdk/hints"
+	"github.com/jerry-harm/nosmec/nostr_sdk/hints/bbolth"
 	"github.com/spf13/viper"
 )
 
 var (
 	globalPool   *nostr.Pool
-	globalHints  sdk_hints.HintsDB
+	globalHints  hints.HintsDB
 	globalConfig Config
 	configDir    string
 	onceInit     sync.Once
@@ -27,7 +27,7 @@ var (
 	proxyConfig  ProxyConfig
 	globalViper  *viper.Viper
 
-	GlobalSystem *sdk.System
+	GlobalSystem *nostr_sdk.System
 )
 
 type ProxyConfig struct {
@@ -168,7 +168,7 @@ func loadConfig() *Config {
 	return &config
 }
 
-func GlobalHints() sdk_hints.HintsDB {
+func GlobalHints() hints.HintsDB {
 	if globalHints != nil {
 		return globalHints
 	}
@@ -185,7 +185,7 @@ func GlobalHints() sdk_hints.HintsDB {
 	return globalHints
 }
 
-func NewPool(h sdk_hints.HintsDB) *nostr.Pool {
+func NewPool(h hints.HintsDB) *nostr.Pool {
 	opts := nostr.PoolOptions{
 		RelayOptions: nostr.RelayOptions{
 			NoticeHandler: func(relay *nostr.Relay, notice string) {
@@ -204,7 +204,7 @@ func GlobalPool() *nostr.Pool {
 		return globalPool
 	}
 	if GlobalSystem == nil {
-		GlobalSystem = sdk.NewSystem()
+		GlobalSystem = nostr_sdk.NewSystem()
 		hints := GlobalHints()
 		GlobalSystem.Hints = hints
 

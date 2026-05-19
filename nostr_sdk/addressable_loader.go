@@ -1,0 +1,148 @@
+package nostr_sdk
+
+import (
+	"context"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"fiatjaf.com/nostr"
+	"github.com/jerry-harm/nosmec/nostr_sdk/dataloader"
+)
+
+// this is similar to replaceable_loader and reuses logic from that.
+
+func (sys *System) initializeAddressableDataloaders() {
+	sys.addressableLoaders = make(map[nostr.Kind]*dataloader.Loader[nostr.PubKey, []nostr.Event])
+	sys.RegisterAddressableDataloader(30000)
+	sys.RegisterAddressableDataloader(30002)
+	sys.RegisterAddressableDataloader(30015)
+	sys.RegisterAddressableDataloader(30030)
+	sys.RegisterAddressableDataloader(34550) // KindCommunityDefinition
+}
+
+func (sys *System) RegisterAddressableDataloader(kind nostr.Kind) {
+	if sys.addressableLoaders == nil {
+		sys.addressableLoaders = make(map[nostr.Kind]*dataloader.Loader[nostr.PubKey, []nostr.Event])
+	}
+	if _, exists := sys.addressableLoaders[kind]; !exists {
+		sys.addressableLoaders[kind] = sys.createAddressableDataloader(kind)
+	}
+}
+
+func (sys *System) createAddressableDataloader(kind nostr.Kind) *dataloader.Loader[nostr.PubKey, []nostr.Event] {
+	return dataloader.NewBatchedLoader(
+		func(ctxs []context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]dataloader.Result[[]nostr.Event] {
+			return sys.batchLoadAddressableEvents(ctxs, kind, pubkeys)
+		},
+		dataloader.Options{
+			Wait:         time.Millisecond * 110,
+			MaxThreshold: 30,
+		},
+	)
+}
+
+func (sys *System) batchLoadAddressableEvents(
+	ctxs []context.Context,
+	kind nostr.Kind,
+	pubkeys []nostr.PubKey,
+) map[nostr.PubKey]dataloader.Result[[]nostr.Event] {
+	batchSize := len(pubkeys)
+	results := make(map[nostr.PubKey]dataloader.Result[[]nostr.Event], batchSize)
+	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
+	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(pubkeys))
+	cm := sync.Mutex{}
+
+	aggregatedContext, aggregatedCancel := context.WithCancel(context.Background())
+	waiting := atomic.Int32{}
+	waiting.Add(int32(len(pubkeys)))
+
+	for i, pubkey := range pubkeys {
+		ctx, cancel := context.WithCancel(ctxs[i])
+		defer cancel()
+
+		// build batched queries for the external relays
+		go func(i int, pubkey nostr.PubKey, ctx context.Context) {
+			// gather relays we'll use for this pubkey
+			relays := sys.determineRelaysToQuery(ctx, pubkey, kind)
+
+			cm.Lock()
+			for _, relay := range relays {
+				// each relay will have a custom filter
+				idx, ok := relayFilterIndex[relay]
+				var dfilter nostr.DirectedFilter
+				if ok {
+					dfilter = relayFilter[idx]
+				} else {
+					dfilter = nostr.DirectedFilter{
+						Relay: relay,
+						Filter: nostr.Filter{
+							Kinds:   []nostr.Kind{kind},
+							Authors: make([]nostr.PubKey, 0, batchSize-i /* this and all pubkeys after this can be added */),
+						},
+					}
+					idx = len(relayFilter)
+					relayFilterIndex[relay] = idx
+					relayFilter = append(relayFilter, dfilter)
+				}
+				dfilter.Authors = append(dfilter.Authors, pubkey)
+				relayFilter[idx] = dfilter
+			}
+			cm.Unlock()
+			wg.Done()
+
+			<-ctx.Done()
+			if waiting.Add(-1) == 0 {
+				aggregatedCancel()
+			}
+		}(i, pubkey, ctx)
+	}
+
+	// wait for relay batches to be prepared
+	wg.Wait()
+
+	// query all relays with the prepared filters
+	multiSubs := sys.Pool.BatchedQueryMany(aggregatedContext, relayFilter, nostr.SubscriptionOptions{
+		Label: "loadaddrs",
+	})
+nextEvent:
+	for {
+		select {
+		case ie, more := <-multiSubs:
+			if !more {
+				return results
+			}
+
+			events := results[ie.PubKey].Data
+			if events == nil {
+				// no events found, so just add this and end
+				results[ie.PubKey] = dataloader.Result[[]nostr.Event]{Data: []nostr.Event{ie.Event}}
+				continue nextEvent
+			}
+
+			// there are events, so look for a match
+			d := ie.Tags.GetD()
+			for i, event := range events {
+				if event.Tags.GetD() == d {
+					// there is a match
+					if event.CreatedAt < ie.CreatedAt {
+						// ...and this one is newer, so replace
+						events[i] = ie.Event
+					} else {
+						// ... but this one is older, so ignore
+					}
+					// in any case we end this here
+					continue nextEvent
+				}
+			}
+
+			events = append(events, ie.Event)
+			results[ie.PubKey] = dataloader.Result[[]nostr.Event]{Data: events}
+		case <-aggregatedContext.Done():
+			return results
+		}
+	}
+}

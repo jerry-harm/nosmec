@@ -20,7 +20,6 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip10"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -201,7 +200,7 @@ func (m *model) AddReply(ctx context.Context, app *config.AppContext, parentEven
 	}
 	var rootPubKey string
 	if !isRoot && rootID != parentEvent.ID {
-		ext := sdkplus.Wrap(app.System())
+		ext := app.System()
 		if rootEvent := ext.FetchNote(ctx, rootID.Hex(), app.QueryTimeoutms()); rootEvent != nil {
 			rootPubKey = rootEvent.PubKey.Hex()
 		}

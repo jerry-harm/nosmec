@@ -12,10 +12,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip10"
-	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/sdkplus"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 	"github.com/jerry-harm/nosmec/tui/theme"
@@ -509,11 +508,11 @@ func (m *Model) fetchProfileNames(items []nostr.Event) {
 			return
 		}
 
-		ext := sdkplus.Wrap(m.app.System())
+		ext := m.app.System()
 		profiles := ext.FetchProfilesBatch(context.Background(), pubKeys)
 		names := make(map[nostr.PubKey]string)
 		for pk, event := range profiles {
-			if meta, err := sdk.ParseMetadata(*event); err == nil && meta.Name != "" {
+			if meta, err := nostr_sdk.ParseMetadata(*event); err == nil && meta.Name != "" {
 				names[pk] = meta.Name
 			}
 		}

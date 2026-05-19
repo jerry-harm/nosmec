@@ -15,7 +15,7 @@ import (
 	"fiatjaf.com/nostr/keyer"
 	"fiatjaf.com/nostr/nip19"
 	"fiatjaf.com/nostr/nip59"
-	"fiatjaf.com/nostr/sdk"
+	sdk "github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/utils"
 )

@@ -8,7 +8,6 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
-	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/community/discover"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
@@ -115,7 +114,7 @@ func registerCommunityCommands() {
 			}
 
 			// Fetch parent post
-			wrapper := sdkplus.Wrap(app.System())
+			wrapper := app.System()
 			parentEvent := wrapper.FetchNote(ctx, eventIDStr, app.QueryTimeoutms())
 			if parentEvent == nil {
 				handleError(newError("parent post not found", nil))
@@ -172,7 +171,7 @@ func registerCommunityCommands() {
 					Authors: []nostr.PubKey{myPubKey},
 					Limit:   1,
 				}
-				followedEvent := sdkplus.Wrap(app.System()).FetchEventByFilter(ctx, followedFilter, timeoutMs)
+				followedEvent := app.System().FetchEventByFilter(ctx, followedFilter, timeoutMs)
 				if followedEvent != nil {
 					var followed []string
 					for _, tag := range followedEvent.Tags {
@@ -277,7 +276,7 @@ func registerCommunityCommands() {
 				Authors: []nostr.PubKey{authorPubKey},
 				Tags:    nostr.TagMap{"d": []string{communityID}},
 			}
-			event := sdkplus.Wrap(app.System()).FetchEventByFilter(ctx, filter, app.QueryTimeoutms())
+			event := app.System().FetchEventByFilter(ctx, filter, app.QueryTimeoutms())
 			if event == nil {
 				handleError(newError("community not found", nil))
 			}

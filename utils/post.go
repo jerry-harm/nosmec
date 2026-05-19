@@ -9,7 +9,6 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip10"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/sdkplus"
 )
 
 func PostNote(ctx context.Context, app *config.AppContext, content string) (*nostr.Event, error) {
@@ -49,7 +48,7 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 		return nil, err
 	}
 
-	ext := sdkplus.Wrap(app.System())
+	ext := app.System()
 	parentEvent := ext.FetchNote(ctx, parentID, app.QueryTimeoutms())
 	if parentEvent == nil {
 		return nil, fmt.Errorf("parent note not found: %s", parentID)

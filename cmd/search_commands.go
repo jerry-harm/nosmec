@@ -8,7 +8,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"fiatjaf.com/nostr/sdk"
+	sdk "github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )

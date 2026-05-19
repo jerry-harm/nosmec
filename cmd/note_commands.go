@@ -7,7 +7,6 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
-	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
@@ -108,7 +107,7 @@ func registerNoteCommands() {
 			ctx := context.Background()
 			app := getApp()
 
-			parentEvent := sdkplus.Wrap(app.System()).FetchNote(ctx, eventIDStr, 5000)
+			parentEvent := app.System().FetchNote(ctx, eventIDStr, 5000)
 			if parentEvent == nil {
 				handleError(newError("note not found", nil))
 				return
