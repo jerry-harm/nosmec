@@ -20,6 +20,7 @@ This directory contains guidelines for backend development. Each file covers a s
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | ⚠️ Template |
 | [NIP Conventions](./nip-conventions.md) | NIP-19/10/65/17 output/input rules | ✅ Complete |
 | [Nostr SDK Usage](./nostr-sdk-usage.md) | PubKey/EventID conversion, API reference | ✅ Complete |
+| [Forked SDK Architecture](./forked-sdk-architecture.md) | Why we fork, what's forked, dependency boundary | 🏗️ Planned |
 | [Quality Guidelines](./quality-guidelines.md) | TDD, TUI patterns, anti-patterns, NIP rules | ✅ Complete |
 | [Relay Guidelines](./relay-guidelines.md) | NIP-10 e tag, relay selection, event→relay tracking | ✅ Complete |
 | [AppContext](./app-context.md) | DI container, all methods and fields | ✅ Complete |

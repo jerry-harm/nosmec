@@ -1,0 +1,5 @@
+{"id": "step-1-fork-copy", "title": "Step 1: Copy fiatjaf.com/nostr/sdk → nosmec/nostr_sdk (preserve original)","spec_ref":"./prd.md","status":"pending"}
+{"id": "step-2-export-loaders", "title": "Step 2: Export replaceableLoaders/addressableLoaders + register kind 34550","spec_ref":"./prd.md","status":"pending","depends_on":["step-1"]}
+{"id": "step-3-merge-sdkplus", "title": "Step 3: Merge sdkplus functions into nostr_sdk, delete sdkplus/","spec_ref":"./prd.md","status":"pending","depends_on":["step-2"]}
+{"id": "step-4-update-imports", "title": "Step 4: Update all nostr_sdk imports across codebase","spec_ref":"./prd.md","status":"pending","depends_on":["step-3"]}
+{"id": "step-5-build-verify", "title": "Step 5: Build + test + go mod tidy","spec_ref":"./prd.md","status":"pending","depends_on":["step-4"]}
