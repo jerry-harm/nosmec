@@ -15,7 +15,6 @@ import (
 	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
-	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/sdkplus"
 	"github.com/jerry-harm/nosmec/tui/compose"
 	"github.com/jerry-harm/nosmec/tui/thread"
@@ -127,7 +126,7 @@ func (m *EventView) SetController(ctrl *bubblon.Controller) {
 }
 
 func (m *EventView) initStyles() {
-	m.styles = newStyles(theme.DefaultTheme(m.darkBG))
+	m.styles = newStyles(m.app.Theme())
 }
 
 func (m *EventView) initViewport(width, height int) {
@@ -376,7 +375,7 @@ func (m *EventView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.BackgroundColorMsg:
 		m.darkBG = msg.IsDark()
-		m.styles = newStyles(theme.DefaultTheme(m.darkBG))
+		m.styles = newStyles(m.app.Theme())
 
 	case tea.KeyPressMsg:
 		cmd = m.handleMsg(msg)

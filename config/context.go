@@ -10,6 +10,7 @@ import (
 	"fiatjaf.com/nostr/nip19"
 	sdk "fiatjaf.com/nostr/sdk"
 	sdk_hints "fiatjaf.com/nostr/sdk/hints"
+	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/spf13/viper"
 )
 
@@ -46,6 +47,10 @@ func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
 
 func (a *AppContext) System() *sdk.System {
 	return a.sys
+}
+
+func (a *AppContext) Theme() *theme.Theme {
+	return theme.LoadTheme(a.viper)
 }
 
 func (a *AppContext) Pool() *nostr.Pool {

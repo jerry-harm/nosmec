@@ -208,7 +208,7 @@ func NewModel(app *config.AppContext, filter string, hashtags []string, limit in
 		limit:         limit,
 		communityAddr: communityAddr,
 	}
-	m.styles = newStyles(theme.DefaultTheme(false))
+	m.styles = newStyles(app.Theme())
 	m.keys = newListKeyMap()
 	m.delegateKeys = newDelegateKeyMap()
 	m.seenEventIDs = make(map[nostr.ID]bool)
@@ -262,7 +262,13 @@ func (m *model) updateListProperties() {
 	h, v := m.styles.app.GetFrameSize()
 	m.list.SetSize(m.width-h, m.height-v)
 
-	m.styles = newStyles(theme.DefaultTheme(m.darkBG))
+	var t *theme.Theme
+	if m.app != nil {
+		t = m.app.Theme()
+	} else {
+		t = theme.DefaultTheme(m.darkBG)
+	}
+	m.styles = newStyles(t)
 	m.list.Styles.Title = m.styles.title
 }
 

@@ -8,7 +8,6 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/tui/component/label"
-	"github.com/jerry-harm/nosmec/tui/theme"
 )
 
 func (m *EventView) renderHeader() string {
@@ -29,9 +28,9 @@ func (m *EventView) renderHeader() string {
 	var namePart string
 	pubkeyHex := e.PubKey.Hex()
 	if m.authorName != "" {
-		namePart = label.RenderLabel(pubkeyHex, m.authorName, label.StateResolved, theme.Default())
+		namePart = label.RenderLabel(pubkeyHex, m.authorName, label.StateResolved, m.styles.t)
 	} else {
-		namePart = label.RenderLabel(pubkeyHex, "", label.StateLoading, theme.Default())
+		namePart = label.RenderLabel(pubkeyHex, "", label.StateLoading, m.styles.t)
 	}
 	line2 := fmt.Sprintf("%s | %s | %s",
 		namePart,

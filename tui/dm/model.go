@@ -17,7 +17,6 @@ import (
 	"fiatjaf.com/nostr/nip59"
 	"fiatjaf.com/nostr/sdk"
 	"github.com/jerry-harm/nosmec/config"
-	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -104,7 +103,7 @@ func NewModel(app *config.AppContext, recipientPubKey nostr.PubKey) *model {
 		recipientPubKey: recipientPubKey,
 		recipientNpub:  nip19.EncodeNpub(recipientPubKey),
 	}
-	m.styles = newStyles(theme.DefaultTheme(false))
+	m.styles = newStyles(app.Theme())
 	m.keys = newKeyMap()
 	m.viewport = viewport.New()
 	m.viewport.SetYOffset(0)
@@ -248,7 +247,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
-		m.styles = newStyles(theme.DefaultTheme(false))
+m.styles = newStyles(m.app.Theme())
 		return m, nil
 
 	case tea.WindowSizeMsg:

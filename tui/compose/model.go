@@ -21,7 +21,6 @@ import (
 	"fiatjaf.com/nostr/nip10"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/sdkplus"
-	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -161,7 +160,7 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 		communityAddr: communityAddr,
 		quotedID:      quotedID,
 	}
-	m.styles = newStyles(theme.DefaultTheme(false))
+m.styles = newStyles(m.app.Theme())
 	m.keys = newKeyMap()
 	m.help = help.New()
 
@@ -262,8 +261,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.BackgroundColorMsg:
-m.styles = newStyles(theme.DefaultTheme(false))
+case tea.BackgroundColorMsg:
+		m.styles = newStyles(m.app.Theme())
 		return m, nil
 
 	case tea.WindowSizeMsg:

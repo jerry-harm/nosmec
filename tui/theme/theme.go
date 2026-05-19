@@ -3,6 +3,8 @@ package theme
 import (
 	"charm.land/lipgloss/v2"
 	"image/color"
+
+	"github.com/spf13/viper"
 )
 
 type Theme struct {
@@ -101,4 +103,38 @@ func DefaultTheme(darkBG bool) *Theme {
 
 func Default() *Theme {
 	return &defaultLight
+}
+
+func LoadTheme(v *viper.Viper) *Theme {
+	if v == nil {
+		return &defaultLight
+	}
+	return &Theme{
+		Primary:            lipgloss.Color(v.GetString("theme.primary")),
+		PrimaryDark:        lipgloss.Color(v.GetString("theme.primary_dark")),
+		TextBright:         lipgloss.Color(v.GetString("theme.text_bright")),
+		TextBrightAlt:      lipgloss.Color(v.GetString("theme.text_bright_alt")),
+		Text:               lipgloss.Color(v.GetString("theme.text")),
+		TextDark:           lipgloss.Color(v.GetString("theme.text_dark")),
+		TextMuted:          lipgloss.Color(v.GetString("theme.text_muted")),
+		TextMutedDark:      lipgloss.Color(v.GetString("theme.text_muted_dark")),
+		TextMutedAlt:       lipgloss.Color(v.GetString("theme.text_muted_alt")),
+		Selection:          lipgloss.Color(v.GetString("theme.selection")),
+		StatusText:         lipgloss.Color(v.GetString("theme.status_text")),
+		AuthorText:         lipgloss.Color(v.GetString("theme.author_text")),
+		AuthorTextAlt:      lipgloss.Color(v.GetString("theme.author_text_alt")),
+		Error:              lipgloss.Color(v.GetString("theme.error")),
+		ErrorAlt:           lipgloss.Color(v.GetString("theme.error_alt")),
+		TagColor:           lipgloss.Color(v.GetString("theme.tag_color")),
+		CommunityAddr:      lipgloss.Color(v.GetString("theme.community_addr")),
+		OverlayBg:          lipgloss.Color(v.GetString("theme.overlay_bg")),
+		TitleText:          lipgloss.Color(v.GetString("theme.title_text")),
+		TitleBg:            lipgloss.Color(v.GetString("theme.title_bg")),
+		Border:             lipgloss.Color(v.GetString("theme.border")),
+		BorderDark:         lipgloss.Color(v.GetString("theme.border_dark")),
+		ViewportBorder:     lipgloss.Color(v.GetString("theme.viewport_border")),
+		ViewportBorderDark: lipgloss.Color(v.GetString("theme.viewport_border_dark")),
+		InputPlaceholder:   lipgloss.Color(v.GetString("theme.input_placeholder")),
+		Spinner:            lipgloss.Color(v.GetString("theme.spinner")),
+	}
 }

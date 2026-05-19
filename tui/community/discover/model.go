@@ -139,7 +139,7 @@ func newKeyMap() *keyMap {
 
 func NewModel(app *config.AppContext) *model {
 	m := &model{app: app}
-	t := theme.DefaultTheme(false)
+	t := app.Theme()
 	m.styles = newStyles(t)
 	m.keys = newKeyMap()
 

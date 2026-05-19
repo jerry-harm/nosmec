@@ -163,7 +163,7 @@ func New(event *nostr.Event, app *config.AppContext, width, height int, ctrl *bu
 	m := &Model{
 		event:          event,
 		app:            app,
-		styles:         newStyles(theme.DefaultTheme(false)),
+		styles:         newStyles(app.Theme()),
 		keys:           newKeyMap(),
 		ctrl:           ctrl,
 		width:          width,
