@@ -239,6 +239,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 			tlModel := timeline.NewModel(m.app, "community", nil, 10, communityAddr)
 			tlModel.SetBubblonController(m.ctrl)
+			tlModel.InjectSize(m.width, m.height)
 			return m, bubblon.Open(tlModel)
 		}
 	}

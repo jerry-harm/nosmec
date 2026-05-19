@@ -243,6 +243,14 @@ func (m *model) SetBubblonController(ctrl *bubblon.Controller) {
 	m.ctrl = ctrl
 }
 
+// InjectSize is called by discover model before pushing timeline onto bubblon stack
+// to ensure timeline has correct dimensions when running as a child view.
+func (m *model) InjectSize(width, height int) {
+	m.width = width
+	m.height = height
+	m.updateListProperties()
+}
+
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor,
