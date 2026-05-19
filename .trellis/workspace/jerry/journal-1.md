@@ -1525,3 +1525,36 @@ Init() 增加 list.StartSpinner()，loadedMsg/errMsg handler 调用 StopSpinner(
 ### Next Steps
 
 - None - task complete
+
+
+## Session 46: community discover help bar 修复
+
+**Date**: 2026-05-19
+**Task**: community discover help bar 修复
+**Branch**: `main`
+
+### Summary
+
+discover model 的 delegate 缺少 ShortHelpFunc/FullHelpFunc，导致底部 help bar 不显示。已在 delegate 级别添加这两个函数。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1f283af` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
