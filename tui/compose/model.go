@@ -177,15 +177,15 @@ func newCompose(app *config.AppContext, kind ComposeKind, parentEvent *nostr.Eve
 	m.tagInput.Placeholder = `["tag1","tag2"]`
 	m.tagInput.SetStyles(textinput.Styles{
 		Focused: textinput.StyleState{
-			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+			Placeholder: lipgloss.NewStyle().Foreground(m.styles.t.InputPlaceholder),
 		},
 		Blurred: textinput.StyleState{
-			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+			Placeholder: lipgloss.NewStyle().Foreground(m.styles.t.InputPlaceholder),
 		},
 	})
 
 	m.spinner = spinner.New(spinner.WithSpinner(spinner.Dot))
-	m.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	m.spinner.Style = lipgloss.NewStyle().Foreground(m.styles.t.Spinner)
 
 	return m
 }

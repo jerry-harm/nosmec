@@ -6,6 +6,7 @@ import (
 )
 
 type styles struct {
+	t             *theme.Theme
 	header         lipgloss.Style
 	formArea       lipgloss.Style
 	inputArea      lipgloss.Style
@@ -25,6 +26,7 @@ type styles struct {
 
 func newStyles(t *theme.Theme) styles {
 	return styles{
+		t: t,
 		header: lipgloss.NewStyle().
 			Foreground(t.Text).
 			Background(t.TitleBg).

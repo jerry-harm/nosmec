@@ -6,6 +6,7 @@ import (
 )
 
 type eventStyles struct {
+	t             *theme.Theme
 	container      lipgloss.Style
 	header         lipgloss.Style
 	viewport       lipgloss.Style
@@ -20,6 +21,7 @@ type eventStyles struct {
 
 func newStyles(t *theme.Theme) eventStyles {
 	return eventStyles{
+		t: t,
 		container: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(t.Border).

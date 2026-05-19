@@ -28,6 +28,10 @@ type Theme struct {
 	TitleBg       color.Color
 	Border        color.Color
 	BorderDark    color.Color
+	ViewportBorder    color.Color
+	ViewportBorderDark color.Color
+	InputPlaceholder  color.Color
+	Spinner            color.Color
 }
 
 var defaultLight = Theme{
@@ -51,8 +55,12 @@ var defaultLight = Theme{
 	OverlayBg:     lipgloss.Color("#333333"),
 	TitleText:     lipgloss.Color("#FFFDF5"),
 	TitleBg:       lipgloss.Color("#25A065"),
-	Border:        lipgloss.Color("#25A065"),
-	BorderDark:    lipgloss.Color("#00875A"),
+	Border:             lipgloss.Color("#25A065"),
+	BorderDark:         lipgloss.Color("#00875A"),
+	ViewportBorder:     lipgloss.Color("#25A065"),
+	ViewportBorderDark: lipgloss.Color("#00875A"),
+	InputPlaceholder:   lipgloss.Color("#666666"),
+	Spinner:            lipgloss.Color("#00FF00"),
 }
 
 var defaultDark = Theme{
@@ -76,8 +84,12 @@ var defaultDark = Theme{
 	OverlayBg:     lipgloss.Color("#333333"),
 	TitleText:     lipgloss.Color("#FFFDF5"),
 	TitleBg:       lipgloss.Color("#00875A"),
-	Border:        lipgloss.Color("#00875A"),
-	BorderDark:    lipgloss.Color("#00875A"),
+	Border:             lipgloss.Color("#00875A"),
+	BorderDark:         lipgloss.Color("#00875A"),
+	ViewportBorder:     lipgloss.Color("#00875A"),
+	ViewportBorderDark: lipgloss.Color("#00875A"),
+	InputPlaceholder:   lipgloss.Color("#666666"),
+	Spinner:            lipgloss.Color("#00FF00"),
 }
 
 func DefaultTheme(darkBG bool) *Theme {

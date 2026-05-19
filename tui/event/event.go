@@ -131,10 +131,7 @@ func (m *EventView) initStyles() {
 }
 
 func (m *EventView) initViewport(width, height int) {
-	borderColor := lipgloss.Color("#25A065")
-	if m.darkBG {
-		borderColor = lipgloss.Color("#00875A")
-	}
+	borderColor := m.styles.t.ViewportBorder
 
 	m.viewport = viewport.New()
 	m.viewport.SetWidth(width)
