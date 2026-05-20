@@ -131,3 +131,84 @@ func TestRejectsLegacyLowercaseOnly(t *testing.T) {
 	_, ok := ClassifyRole(event)
 	require.False(t, ok)
 }
+
+func TestGetParentPointer_TopLevelPostReturnsNil(t *testing.T) {
+	event := &nostr.Event{
+		Kind: nostr.KindComment,
+		Tags: nostr.Tags{
+			{"A", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"a", "34550:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:cats"},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
+			{"e", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+		},
+	}
+
+	require.Nil(t, GetParentPointer(event))
+}
+
+func TestCommunityDefinitionGetters(t *testing.T) {
+	event := &nostr.Event{
+		Kind:   nostr.KindCommunityDefinition,
+		PubKey: mustPubKey(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		Tags: nostr.Tags{
+			{"d", "cats"},
+			{"name", "Cats"},
+			{"description", "For cat people"},
+			{"image", "https://example.com/cats.png", "256x256"},
+			{"p", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "wss://relay.example.com", "moderator"},
+			{"p", "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+			{"relay", "wss://authors.example.com", "author"},
+			{"relay", "wss://requests.example.com", "requests"},
+			{"relay", "wss://default.example.com"},
+		},
+	}
+
+	require.True(t, IsCommunityDefinition(event))
+	require.Equal(t, "cats", GetDefinitionIdentifier(event))
+	require.Equal(t, "Cats", GetDefinitionName(event))
+	require.Equal(t, "For cat people", GetDefinitionDescription(event))
+	require.Equal(t, "https://example.com/cats.png", GetDefinitionImage(event))
+	require.Equal(
+		t,
+		[]nostr.PubKey{
+			mustPubKey(t, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+		},
+		GetDefinitionModerators(event),
+	)
+	require.Equal(
+		t,
+		[]CommunityRelay{
+			{URL: "wss://authors.example.com", Purpose: "author"},
+			{URL: "wss://requests.example.com", Purpose: "requests"},
+			{URL: "wss://default.example.com", Purpose: ""},
+		},
+		GetDefinitionRelays(event),
+	)
+}
+
+func TestCommunityDefinitionGetters_AreLightweightOnPartialTags(t *testing.T) {
+	event := &nostr.Event{
+		Kind: nostr.KindCommunityDefinition,
+		Tags: nostr.Tags{
+			{"d", "cats"},
+			{"relay", "wss://default.example.com"},
+			{"relay"},
+			{"p", "not-a-pubkey", "", "moderator"},
+		},
+	}
+
+	require.True(t, IsCommunityDefinition(event))
+	require.Equal(t, "cats", GetDefinitionIdentifier(event))
+	require.Equal(t, "", GetDefinitionName(event))
+	require.Equal(t, "", GetDefinitionDescription(event))
+	require.Equal(t, "", GetDefinitionImage(event))
+	require.Empty(t, GetDefinitionModerators(event))
+	require.Equal(
+		t,
+		[]CommunityRelay{{URL: "wss://default.example.com", Purpose: ""}},
+		GetDefinitionRelays(event),
+	)
+}

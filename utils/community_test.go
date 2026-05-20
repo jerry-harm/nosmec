@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"fiatjaf.com/nostr"
+	"github.com/jerry-harm/nosmec/nip72"
 )
 
 func TestParseCommunityAddr_Valid(t *testing.T) {
@@ -152,5 +153,18 @@ func TestParseCommunityAddr_PartsLengthNoCheck(t *testing.T) {
 				t.Errorf("ParseCommunityAddr(%q) = nil, want error containing %q", tt.addr, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestCommunityDefinition_RelayShapeSupportsPurpose(t *testing.T) {
+	def := CommunityDefinition{
+		Relays: []nip72.CommunityRelay{
+			{URL: "wss://authors.example.com", Purpose: "author"},
+			{URL: "wss://requests.example.com", Purpose: "requests"},
+		},
+	}
+
+	if got := def.Relays[0].Purpose; got != "author" {
+		t.Fatalf("first relay purpose = %q, want %q", got, "author")
 	}
 }

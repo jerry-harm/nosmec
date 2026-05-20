@@ -1,0 +1,6 @@
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"Current project SDK layering, nip72 ownership, pointer-first parsing, and local-first query rules for forked nostr_sdk."}
+{"file":".trellis/spec/backend/nostr-sdk-usage.md","reason":"Current project conventions for nostr types, pointer helpers, sdk usage patterns, and existing community/thread helper surfaces."}
+{"file":".trellis/spec/backend/nip-conventions.md","reason":"Project NIP implementation rules, including reading relevant NIP specs first and current NIP-72/NIP-65 conventions."}
+{"file":".trellis/spec/backend/query-patterns.md","reason":"Existing relay query patterns, timeout rules, and relay selection priorities that should inform FetchEventsByFilter design."}
+{"file":".trellis/spec/backend/relay-guidelines.md","reason":"Relay hint extraction and event-to-relay tracking rules relevant to SDK-managed relay choice and fetch behavior."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"This refactor crosses nip72, nostr_sdk, utils, and callers; use for boundary and contract decisions."}

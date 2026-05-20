@@ -24,6 +24,30 @@ func GetEvent(ctx context.Context, filter nostr.Filter, opts *GetOptions) *nostr
 
 ---
 
+## Generic Multi-Event Query via SDK
+
+For multi-event reads that should benefit from SDK-owned relay selection and local-store-first behavior, prefer:
+
+```go
+events, err := sys.FetchEventsByFilter(ctx, filter, nostr_sdk.FetchEventsOptions{
+    SaveToLocalStore: true,
+})
+```
+
+Contract:
+- returns `[]nostr.Event`
+- reads local store first unless `SkipLocalStore`
+- optionally skips network when `SkipNetwork`
+- deduplicates by event ID across local + network results
+- sorts newest-first before returning
+- chooses relays internally unless `FetchEventsOptions.Relays` overrides them
+
+Use this for generic event retrieval such as `kind:34550` community definition discovery.
+
+Do not add a new specialized `FetchXxx` method when the caller can already express the query as a `nostr.Filter` plus light post-processing.
+
+---
+
 ## Async Query
 
 ```go
@@ -94,6 +118,20 @@ func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string
 ```
 
 Implemented in `utils/user_relays.go`.
+
+---
+
+## FetchEventsByFilter Relay Defaults
+
+`nostr_sdk.System.FetchEventsByFilter` uses SDK-owned relay defaults when the caller does not supply `FetchEventsOptions.Relays`.
+
+Priority:
+1. **ID queries** — `JustIDRelays` + `FallbackRelays`
+2. **Single-author queries** — author's outbox relays via `FetchOutboxRelays` + `FallbackRelays`
+3. **Community definition queries (`kind:34550`)** — `RelayListRelays` + `FallbackRelays`
+4. **Everything else** — `FallbackRelays`
+
+This keeps relay choice centralized in the SDK and avoids scattering community/profile/event-specific relay logic back into callers.
 
 ---
 

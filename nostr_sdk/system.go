@@ -12,6 +12,7 @@ import (
 	"fiatjaf.com/nostr/eventstore"
 	"fiatjaf.com/nostr/eventstore/nullstore"
 	"fiatjaf.com/nostr/eventstore/wrappers"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/jerry-harm/nosmec/nostr_sdk/cache"
 	cache_memory "github.com/jerry-harm/nosmec/nostr_sdk/cache/memory"
 	"github.com/jerry-harm/nosmec/nostr_sdk/dataloader"
@@ -19,7 +20,6 @@ import (
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints/memoryh"
 	"github.com/jerry-harm/nosmec/nostr_sdk/kvstore"
 	kvstore_memory "github.com/jerry-harm/nosmec/nostr_sdk/kvstore/memory"
-	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // System represents the core functionality of the SDK, providing access to
@@ -77,8 +77,16 @@ type System struct {
 
 	Publisher nostr.Publisher
 
-	replaceableLoaders    map[nostr.Kind]*dataloader.Loader[nostr.PubKey, nostr.Event]
-	addressableLoaders   map[nostr.Kind]*dataloader.Loader[nostr.PubKey, []nostr.Event]
+	replaceableLoaders map[nostr.Kind]*dataloader.Loader[nostr.PubKey, nostr.Event]
+	addressableLoaders map[nostr.Kind]*dataloader.Loader[nostr.PubKey, []nostr.Event]
+}
+
+type FetchEventsOptions struct {
+	Relays           []string
+	SkipLocalStore   bool
+	SkipNetwork      bool
+	SaveToLocalStore bool
+	Limit            int
 }
 
 // SystemModifier is a function that modifies a System instance.
@@ -477,6 +485,104 @@ func (sys *System) FetchEventByFilter(
 
 	evt, _, _ := sys.FetchSpecificEvent(ctx, pointer, params)
 	return evt
+}
+
+func (sys *System) FetchEventsByFilter(
+	ctx context.Context,
+	filter nostr.Filter,
+	opts FetchEventsOptions,
+) ([]nostr.Event, error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		if filter.Limit > 0 {
+			limit = filter.Limit
+		} else {
+			limit = 100
+		}
+	}
+
+	results := make([]nostr.Event, 0, limit)
+	seen := make(map[nostr.ID]struct{}, limit)
+
+	appendEvent := func(evt nostr.Event) bool {
+		if _, ok := seen[evt.ID]; ok {
+			return false
+		}
+		seen[evt.ID] = struct{}{}
+		results = append(results, evt)
+		return len(results) >= limit
+	}
+
+	if !opts.SkipLocalStore {
+		for evt := range sys.Store.QueryEvents(filter, limit) {
+			if appendEvent(evt) {
+				slices.SortFunc(results, nostr.CompareEventReverse)
+				return results, nil
+			}
+		}
+	}
+
+	if opts.SkipNetwork {
+		slices.SortFunc(results, nostr.CompareEventReverse)
+		return results, nil
+	}
+
+	relays := opts.Relays
+	if len(relays) == 0 {
+		relays = sys.defaultRelaysForFilter(ctx, filter)
+	}
+	if len(relays) == 0 {
+		slices.SortFunc(results, nostr.CompareEventReverse)
+		return results, nil
+	}
+
+	for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "filterfetch"}) {
+		if opts.SaveToLocalStore {
+			sys.Publisher.Publish(ctx, ie.Event)
+		}
+		appendEvent(ie.Event)
+		if len(results) >= limit {
+			break
+		}
+	}
+
+	slices.SortFunc(results, nostr.CompareEventReverse)
+	return results, nil
+}
+
+func (sys *System) defaultRelaysForFilter(ctx context.Context, filter nostr.Filter) []string {
+	if len(filter.IDs) > 0 {
+		relays := append([]string{}, sys.JustIDRelays.URLs...)
+		if len(sys.FallbackRelays.URLs) > 0 {
+			relays = nostr.AppendUnique(relays, sys.FallbackRelays.URLs...)
+		}
+		if len(relays) > 0 {
+			return relays
+		}
+	}
+
+	if len(filter.Authors) == 1 {
+		relays := sys.FetchOutboxRelays(ctx, filter.Authors[0], 3)
+		if len(sys.FallbackRelays.URLs) > 0 {
+			relays = nostr.AppendUnique(relays, sys.FallbackRelays.URLs...)
+		}
+		if len(relays) > 0 {
+			return relays
+		}
+	}
+
+	if slices.Contains(filter.Kinds, nostr.KindCommunityDefinition) && len(sys.RelayListRelays.URLs) > 0 {
+		relays := append([]string{}, sys.RelayListRelays.URLs...)
+		if len(sys.FallbackRelays.URLs) > 0 {
+			relays = nostr.AppendUnique(relays, sys.FallbackRelays.URLs...)
+		}
+		return relays
+	}
+
+	if len(sys.FallbackRelays.URLs) > 0 {
+		return sys.FallbackRelays.URLs
+	}
+	return []string{"wss://relay.damus.io", "wss://nos.lol"}
 }
 
 func filterToPointer(filter nostr.Filter) nostr.Pointer {

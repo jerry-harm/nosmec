@@ -9,38 +9,38 @@
 SDK's `replaceableLoaders` / `addressableLoaders` are unexported and hardcoded to specific event kinds. Kind 34550 (community definitions) cannot be registered. Forking lets us:
 
 1. Export dataloader registration APIs
-2. Add kind 34550 to addressable loaders (it's addressable: 30000 ≤ 34550 < 40000)
+2. Add kind 34550 to addressable loaders (it's addressable: 30000 <= 34550 < 40000)
 3. Merge `sdkplus` functions directly into the SDK (no wrapper layer)
 
 ## Dependency Boundary
 
-```
-fiatjaf.com/nostr (core)       ← lib dep, not forked
-  ├── Event, Filter, Pool, PubKey, Kind, Tags...
-  ├── eventstore/              ← lib dep, not forked
-  │   ├── Store interface
-  │   ├── boltdb/ (6 indexes)
-  │   ├── bleve/ (full-text)
-  │   └── wrappers/ (DynamicPublisher)
-  └── nip*/                    ← lib dep, not forked
+```text
+fiatjaf.com/nostr (core)       <- lib dep, not forked
+  |- Event, Filter, Pool, PubKey, Kind, Tags...
+  |- eventstore/               <- lib dep, not forked
+  |  |- Store interface
+  |  |- boltdb/ (6 indexes)
+  |  |- bleve/ (full-text)
+  |  `- wrappers/ (DynamicPublisher)
+  `- nip*/                     <- lib dep, not forked
 
-nosmec/nip72/                  ← our code
-  └── strict NIP-72 tag interpretation helpers
+nosmec/nip72/                  <- our code
+  `- strict NIP-72 tag interpretation helpers
 
-nosmec/nostr_sdk/ (forked)     ← our code
-  ├── system.go (System struct + NewSystem + timeline methods)
-  ├── feeds.go (FetchFeedPage, StreamLiveFeed, makePubkeyStreamKey, etc.)
-  ├── replaceable_loader.go   ← MODIFIED: map-based + exported RegisterReplaceableDataloader
-  ├── addressable_loader.go   ← MODIFIED: map-based + exported RegisterAddressableDataloader + kind 34550
-  ├── specific_event.go
-  ├── metadata.go
-  ├── tracker.go, outbox.go, lists_*.go, ...
-  ├── cache/                  ← sub-packages forked as-is
-  ├── dataloader/
-  ├── hints/
-  └── kvstore/
+nosmec/nostr_sdk/ (forked)     <- our code
+  |- system.go (System struct + NewSystem + timeline methods)
+  |- feeds.go (FetchFeedPage, StreamLiveFeed, makePubkeyStreamKey, etc.)
+  |- replaceable_loader.go     <- MODIFIED: map-based + exported RegisterReplaceableDataloader
+  |- addressable_loader.go     <- MODIFIED: map-based + exported RegisterAddressableDataloader + kind 34550
+  |- specific_event.go
+  |- metadata.go
+  |- tracker.go, outbox.go, lists_*.go, ...
+  |- cache/                    <- sub-packages forked as-is
+  |- dataloader/
+  |- hints/
+  `- kvstore/
 
-nosmec/sdkplus/                ← DELETED, merged into nostr_sdk
+nosmec/sdkplus/                <- DELETED, merged into nostr_sdk
 ```
 
 ## SDK Modifications
@@ -70,7 +70,7 @@ func (sys *System) RegisterAddressableDataloader(kind nostr.Kind)
 
 Initialized with known kinds in `NewSystem()`:
 - Replaceable: 0, 3, 10000-10007, 10015, 10019, 10030
-- Addressable: 30000, 30002, 30015, 30030, **34550** (KindCommunityDefinition)
+- Addressable: 30000, 30002, 30015, 30030, `34550` (`KindCommunityDefinition`)
 
 ### 3. Kind 34550 is Addressable
 
@@ -86,27 +86,45 @@ func (sys *System) FetchMyTimelinePage(ctx context.Context, pubkey nostr.PubKey,
 func (sys *System) FetchFollowedTimelinePage(ctx context.Context, pubkeys []nostr.PubKey, communityAddrs []string, limit int, until nostr.Timestamp) ([]nostr.Event, error)
 func (sys *System) FetchProfilesBatch(ctx context.Context, pubkeys []nostr.PubKey) map[nostr.PubKey]*nostr.Event
 func (sys *System) FetchEventByFilter(ctx context.Context, filter nostr.Filter, timeoutMs int) *nostr.Event
+func (sys *System) FetchEventsByFilter(ctx context.Context, filter nostr.Filter, opts FetchEventsOptions) ([]nostr.Event, error)
 func (sys *System) FetchNote(ctx context.Context, noteID string, timeoutMs int) *nostr.Event
 func (sys *System) FetchRepliesToRoot(ctx context.Context, rootID nostr.ID, limit int) []*nostr.Event
 func (sys *System) FetchParent(ctx context.Context, event *nostr.Event, timeoutMs int) *nostr.Event
 ```
 
+`FetchEventsByFilter` is the generic, thicker read-side API for filter-driven multi-event fetches. It returns raw `nostr.Event` values, not community-specific typed objects.
+
 ### 5. NIP-72 Parsing Layer
 
-Community protocol parsing is not owned by `nostr_sdk.System`. It lives in a dedicated `nip72` package, shaped similarly to `nip10` / `nip22`:
+Community protocol parsing is not owned by `nostr_sdk.System`. It lives in a dedicated `nip72` package, shaped similarly to `nip10` / `nip22`: small-grained, single-event, tag-local helpers.
 
 ```go
+type CommunityRelay struct {
+    URL     string
+    Purpose string
+}
+
 func GetCommunityPointer(event *nostr.Event) nostr.Pointer
 func GetRootPointer(event *nostr.Event) nostr.Pointer
 func GetParentPointer(event *nostr.Event) nostr.Pointer
-func ClassifyRole(event *nostr.Event) (Role, bool)
+
+func IsCommunityDefinition(event *nostr.Event) bool
+func GetDefinitionIdentifier(event *nostr.Event) string
+func GetDefinitionName(event *nostr.Event) string
+func GetDefinitionDescription(event *nostr.Event) string
+func GetDefinitionImage(event *nostr.Event) string
+func GetDefinitionModerators(event *nostr.Event) []nostr.PubKey
+func GetDefinitionRelays(event *nostr.Event) []CommunityRelay
 ```
 
 Rules:
-- strict NIP-only interpretation
-- no lowercase-only / malformed-event fallback
+- strict NIP-only interpretation where pointer/tag meaning matters
+- no lowercase-only community fallback for post/thread ownership
 - pointer-first API (`nostr.EntityPointer`, `nostr.EventPointer`, `nostr.Pointer`)
 - no project-owned cross-event policy helpers in `nip72`
+- definition getters are lightweight extraction helpers, not full-event validators
+- top-level community posts must return `nil` from `GetParentPointer`
+- community definition relay tags must preserve both URL and purpose; do not compress them into `map[string]string`
 
 ### 6. Community Thread Query APIs
 
@@ -148,6 +166,18 @@ for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOption
 }
 ```
 
+Correct:
+```go
+for evt := range sys.Store.QueryEvents(filter, limit) {
+    if MatchesCommunityScope(&evt, scope) {
+        // use local event first
+    }
+}
+for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{}) {
+    // supplement with network events not already seen
+}
+```
+
 ### 8. Wrong vs Correct: Parsing Ownership
 
 Wrong:
@@ -174,17 +204,55 @@ Why:
 - caller policy stays outside the parser
 - SDK and TUI compare normalized pointer values instead of custom wrappers
 
-Correct:
+Wrong:
 ```go
-for evt := range sys.Store.QueryEvents(filter, limit) {
-    if MatchesCommunityScope(&evt, scope) {
-        // use local event first
-    }
-}
-for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{}) {
-    // supplement with network events not already seen
+type CommunityDefinition struct {
+    Relays map[string]string
 }
 ```
+
+Correct:
+```go
+type CommunityRelay struct {
+    URL     string
+    Purpose string
+}
+
+relays := nip72.GetDefinitionRelays(event)
+```
+
+Why:
+- relay tags can repeat and carry multiple semantic fields
+- map compression loses purpose fidelity and round-trip safety
+
+### 9. Generic Filter-Based Retrieval Contract
+
+`FetchEventsByFilter` is for generic, multi-event fetches where the caller knows the `nostr.Filter` but should not need to choose relays manually.
+
+```go
+type FetchEventsOptions struct {
+    Relays           []string
+    SkipLocalStore   bool
+    SkipNetwork      bool
+    SaveToLocalStore bool
+    Limit            int
+}
+```
+
+Relay choice defaults:
+- ID queries prefer `JustIDRelays` plus fallback relays
+- single-author queries prefer that author's outbox relays plus fallback relays
+- community definition queries prefer `RelayListRelays` plus fallback relays
+- all other queries fall back to `FallbackRelays`
+
+Behavior contract:
+- reads local store first unless `SkipLocalStore`
+- skips network when `SkipNetwork`
+- deduplicates by event ID across local + network results
+- sorts newest-first before returning
+- may publish network results into the local store when `SaveToLocalStore`
+
+This API is intentionally generic. Community reads should compose it with `nip72` getters instead of adding specialized `FetchCommunityDefinitions` APIs by default.
 
 Helper functions in `feeds.go` (were already in forked SDK):
 ```go
@@ -201,6 +269,8 @@ func encodeTimestamp(v nostr.Timestamp) []byte
 | `sdkplus.FetchFollowedTimelinePage` | `nostr_sdk.System.FetchFollowedTimelinePage` |
 | `sdkplus.Wrap(app.System()).Method()` | `app.System().Method()` |
 | `fiatjaf.com/nostr/sdk` import | `github.com/jerry-harm/nosmec/nostr_sdk` import |
+| `utils`-owned community tag parsing | `nip72` field/pointer extraction |
+| community-specific read parsing in utils | generic `FetchEventsByFilter` + `nip72` composition |
 
 ## Why Not Fork eventstore
 
@@ -211,12 +281,20 @@ func encodeTimestamp(v nostr.Timestamp) []byte
 
 ## Build Verification
 
-After any change to nostr_sdk:
+After any change to `nostr_sdk` or `nip72`:
 ```bash
 go build ./nostr_sdk/...   # SDK itself
-go build ./...             # Full project
-go mod tidy                # Clean up dependencies
+go build ./nip72 ./utils ./cmd ./tui/community/discover
+go build ./...             # Full project when practical
 ```
+
+Behavior-focused tests required for this area:
+```bash
+go test ./nip72 ./utils
+go test ./nostr_sdk -run 'TestFetchEventsByFilter|TestDefaultRelaysForFilter|TestFetchEventsByFilter_CanQueryCommunityDefinitionsFromStore|TestFetchEventByIDInScope_UsesLocalStore|TestFetchParentChainInScope_StopsOnScopeMismatch|TestFetchRepliesBreadthFirstInScope_UsesLocalStoreAndFiltersScope|TestExtractCommunityScope|TestMatchesCommunityScope|TestFetchSpecificEventInScope_NilWhenScopeMismatches'
+```
+
+Do not treat a long-running full `go test ./nostr_sdk` timeout as proof that the refactor is broken unless one of the targeted behavior tests fails.
 
 ## Common Issues
 

@@ -8,6 +8,7 @@ import (
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/cmd/completion"
+	"github.com/jerry-harm/nosmec/nip72"
 	"github.com/jerry-harm/nosmec/tui/community/discover"
 	"github.com/jerry-harm/nosmec/tui/timeline"
 	"github.com/jerry-harm/nosmec/utils"
@@ -39,7 +40,7 @@ func registerCommunityCommands() {
 				Description: description,
 				ImageURL:    imageURL,
 				Moderators:  []nostr.PubKey{},
-				Relays:      make(map[string]string),
+				Relays:      nil,
 				ID:          communityID,
 			}
 
@@ -211,11 +212,9 @@ func registerCommunityCommands() {
 					fmt.Println("  (none)")
 				} else {
 					for _, event := range events {
-						name := ""
-						if nameTag := event.Tags.Find("name"); len(nameTag) > 1 {
-							name = nameTag[1]
-						} else if dTag := event.Tags.Find("d"); len(dTag) > 1 {
-							name = dTag[1]
+						name := nip72.GetDefinitionName(&event)
+						if name == "" {
+							name = nip72.GetDefinitionIdentifier(&event)
 						}
 						if name == "" {
 							name = nip19.EncodeNevent(event.ID, nil, event.PubKey)[:32] + "..."
@@ -282,14 +281,14 @@ func registerCommunityCommands() {
 			}
 
 			fmt.Printf("Community Information:\n")
-			if nameTag := event.Tags.Find("name"); len(nameTag) > 1 {
-				fmt.Printf("Name: %s\n", nameTag[1])
+			if name := nip72.GetDefinitionName(event); name != "" {
+				fmt.Printf("Name: %s\n", name)
 			}
-			if descTag := event.Tags.Find("description"); len(descTag) > 1 {
-				fmt.Printf("Description: %s\n", descTag[1])
+			if desc := nip72.GetDefinitionDescription(event); desc != "" {
+				fmt.Printf("Description: %s\n", desc)
 			}
-			if imageTag := event.Tags.Find("image"); len(imageTag) > 1 {
-				fmt.Printf("Image: %s\n", imageTag[1])
+			if image := nip72.GetDefinitionImage(event); image != "" {
+				fmt.Printf("Image: %s\n", image)
 			}
 			fmt.Printf("ID: %s\n", communityID)
 			fmt.Printf("Author: %s\n", nip19.EncodeNpub(authorPubKey))
@@ -297,10 +296,8 @@ func registerCommunityCommands() {
 			fmt.Printf("Created: %v\n", event.CreatedAt.Time())
 
 			fmt.Printf("\nModerators:\n")
-			for tag := range event.Tags.FindAll("p") {
-				if len(tag) >= 4 && tag[3] == "moderator" {
-					fmt.Printf("  - %s\n", tag[1])
-				}
+			for _, moderator := range nip72.GetDefinitionModerators(event) {
+				fmt.Printf("  - %s\n", nip19.EncodeNpub(moderator))
 			}
 		},
 	}

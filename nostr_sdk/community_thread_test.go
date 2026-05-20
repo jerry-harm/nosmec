@@ -31,7 +31,14 @@ func TestFetchEventByIDInScope_UsesLocalStore(t *testing.T) {
 	event := nostr.Event{
 		ID:   mustID(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
 		Kind: nostr.KindComment,
-		Tags: nostr.Tags{{"A", scope}},
+		Tags: nostr.Tags{
+			{"A", scope},
+			{"a", scope},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
+		},
 	}
 	require.NoError(t, sys.Store.SaveEvent(event))
 
@@ -76,22 +83,51 @@ func TestFetchRepliesBreadthFirstInScope_UsesLocalStoreAndFiltersScope(t *testin
 	root := nostr.Event{
 		ID:   mustID(t, "4444444444444444444444444444444444444444444444444444444444444444"),
 		Kind: nostr.KindComment,
-		Tags: nostr.Tags{{"A", scope}},
+		Tags: nostr.Tags{
+			{"A", scope},
+			{"a", scope},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"k", "34550"},
+		},
 	}
 	reply := nostr.Event{
 		ID:   mustID(t, "5555555555555555555555555555555555555555555555555555555555555555"),
 		Kind: nostr.KindComment,
-		Tags: nostr.Tags{{"A", scope}, {"e", root.ID.Hex(), "", "root"}},
+		Tags: nostr.Tags{
+			{"A", scope},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"e", root.ID.Hex(), "", "root"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"k", "1111"},
+		},
 	}
 	otherReply := nostr.Event{
 		ID:   mustID(t, "6666666666666666666666666666666666666666666666666666666666666666"),
 		Kind: nostr.KindComment,
-		Tags: nostr.Tags{{"A", otherScope}, {"e", root.ID.Hex(), "", "root"}},
+		Tags: nostr.Tags{
+			{"A", otherScope},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"e", root.ID.Hex(), "", "root"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"k", "1111"},
+		},
 	}
 	nested := nostr.Event{
 		ID:   mustID(t, "7777777777777777777777777777777777777777777777777777777777777777"),
 		Kind: nostr.KindComment,
-		Tags: nostr.Tags{{"A", scope}, {"e", root.ID.Hex(), "", "root"}, {"e", reply.ID.Hex(), "", "reply"}},
+		Tags: nostr.Tags{
+			{"A", scope},
+			{"P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"K", "34550"},
+			{"e", root.ID.Hex(), "", "root"},
+			{"e", reply.ID.Hex(), "", "reply"},
+			{"p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			{"k", "1111"},
+		},
 	}
 	require.NoError(t, sys.Store.SaveEvent(root))
 	require.NoError(t, sys.Store.SaveEvent(reply))

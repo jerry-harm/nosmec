@@ -1,0 +1,7 @@
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"Check final layering: nip72 pure parsing, nostr_sdk retrieval ownership, and no drift back into utils for protocol parsing."}
+{"file":".trellis/spec/backend/nostr-sdk-usage.md","reason":"Verify the implementation matches current SDK API style and usage conventions, especially event-returning fetch APIs."}
+{"file":".trellis/spec/backend/nip-conventions.md","reason":"Verify the refactor still follows NIP-driven implementation rules and the lightweight NIP-72 extraction approach."}
+{"file":".trellis/spec/backend/query-patterns.md","reason":"Check FetchEventsByFilter behavior against existing query/timeout/relay selection expectations."}
+{"file":".trellis/spec/backend/relay-guidelines.md","reason":"Check relay-choice, hint usage, and event-relay tracking behavior in the new generic fetch path."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Verify tests cover behavior, edge cases, and pure parsing rules rather than relying only on compile success."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Ensure new generic fetch path and community parsing reuse existing SDK patterns instead of duplicating ad hoc logic."}

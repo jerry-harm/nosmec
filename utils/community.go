@@ -9,6 +9,8 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/config"
+	"github.com/jerry-harm/nosmec/nip72"
+	"github.com/jerry-harm/nosmec/nostr_sdk"
 )
 
 type CommunityDefinition struct {
@@ -16,33 +18,23 @@ type CommunityDefinition struct {
 	Description string
 	ImageURL    string
 	Moderators  []nostr.PubKey
-	Relays      map[string]string
+	Relays      []nip72.CommunityRelay
 	ID          string
 	Event       *nostr.Event // raw Nostr event for event detail view
 }
 
 func FetchCommunityEvents(ctx context.Context, app *config.AppContext) ([]CommunityDefinition, error) {
-	relays := app.AllReadableRelays()
-	if len(relays) == 0 {
-		relays = app.Config().KnownRelays
+	filter := nostr.Filter{Kinds: []nostr.Kind{nostr.KindCommunityDefinition}}
+	events, err := app.System().FetchEventsByFilter(ctx, filter, nostr_sdk.FetchEventsOptions{
+		SaveToLocalStore: true,
+	})
+	if err != nil {
+		return nil, err
 	}
-	if len(relays) == 0 {
-		return nil, fmt.Errorf("no relays available")
-	}
-
-	filter := nostr.Filter{
-		Kinds: []nostr.Kind{nostr.KindCommunityDefinition},
-	}
-
-	ctxQuery, cancel := context.WithTimeout(ctx, app.QueryTimeout())
-	defer cancel()
-
-	results := app.Pool().FetchMany(ctxQuery, relays, filter, nostr.SubscriptionOptions{})
 
 	seen := map[string]bool{}
-	var communities []CommunityDefinition
-	for relayEvent := range results {
-		ev := relayEvent.Event
+	communities := make([]CommunityDefinition, 0, len(events))
+	for _, ev := range events {
 		addr := fmt.Sprintf("%d:%s:%s", ev.Kind, ev.PubKey.Hex(), ev.Tags.GetD())
 		if seen[addr] {
 			continue
@@ -50,36 +42,12 @@ func FetchCommunityEvents(ctx context.Context, app *config.AppContext) ([]Commun
 		seen[addr] = true
 
 		def := CommunityDefinition{
-			ID:     ev.Tags.GetD(),
-			Relays: map[string]string{},
-		}
-		for _, tag := range ev.Tags {
-			switch tag[0] {
-			case "d":
-				def.ID = tag[1]
-			case "name":
-				if len(tag) > 1 {
-					def.Name = tag[1]
-				}
-			case "description":
-				if len(tag) > 1 {
-					def.Description = tag[1]
-				}
-			case "image":
-				if len(tag) > 1 {
-					def.ImageURL = tag[1]
-				}
-			case "p":
-				if len(tag) > 1 {
-					if pk, err := nostr.PubKeyFromHex(tag[1]); err == nil {
-						def.Moderators = append(def.Moderators, pk)
-					}
-				}
-			case "relay":
-				if len(tag) > 1 {
-					def.Relays[tag[1]] = tag[1]
-				}
-			}
+			ID:          nip72.GetDefinitionIdentifier(&ev),
+			Name:        nip72.GetDefinitionName(&ev),
+			Description: nip72.GetDefinitionDescription(&ev),
+			ImageURL:    nip72.GetDefinitionImage(&ev),
+			Moderators:  nip72.GetDefinitionModerators(&ev),
+			Relays:      nip72.GetDefinitionRelays(&ev),
 		}
 		def.Event = &ev
 		communities = append(communities, def)
@@ -112,11 +80,11 @@ func CreateCommunity(ctx context.Context, app *config.AppContext, def CommunityD
 		tags = append(tags, nostr.Tag{"p", moderator.Hex(), "", "moderator"})
 	}
 
-	for purpose, relayURL := range def.Relays {
-		if purpose != "" {
-			tags = append(tags, nostr.Tag{"relay", relayURL, purpose})
+	for _, relay := range def.Relays {
+		if relay.Purpose != "" {
+			tags = append(tags, nostr.Tag{"relay", relay.URL, relay.Purpose})
 		} else {
-			tags = append(tags, nostr.Tag{"relay", relayURL})
+			tags = append(tags, nostr.Tag{"relay", relay.URL})
 		}
 	}
 

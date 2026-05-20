@@ -9,6 +9,11 @@ import (
 
 type Role int
 
+type CommunityRelay struct {
+	URL     string
+	Purpose string
+}
+
 const (
 	Unknown Role = iota
 	TopLevelPost
@@ -74,6 +79,88 @@ func ClassifyRole(event *nostr.Event) (Role, bool) {
 		return Reply, true
 	}
 	return Unknown, false
+}
+
+func IsCommunityDefinition(event *nostr.Event) bool {
+	return event != nil && event.Kind == nostr.KindCommunityDefinition
+}
+
+func GetDefinitionIdentifier(event *nostr.Event) string {
+	if !IsCommunityDefinition(event) {
+		return ""
+	}
+	return event.Tags.GetD()
+}
+
+func GetDefinitionName(event *nostr.Event) string {
+	if !IsCommunityDefinition(event) {
+		return ""
+	}
+	if tag := event.Tags.Find("name"); len(tag) >= 2 {
+		return tag[1]
+	}
+	return ""
+}
+
+func GetDefinitionDescription(event *nostr.Event) string {
+	if !IsCommunityDefinition(event) {
+		return ""
+	}
+	if tag := event.Tags.Find("description"); len(tag) >= 2 {
+		return tag[1]
+	}
+	return ""
+}
+
+func GetDefinitionImage(event *nostr.Event) string {
+	if !IsCommunityDefinition(event) {
+		return ""
+	}
+	if tag := event.Tags.Find("image"); len(tag) >= 2 {
+		return tag[1]
+	}
+	return ""
+}
+
+func GetDefinitionModerators(event *nostr.Event) []nostr.PubKey {
+	if !IsCommunityDefinition(event) {
+		return nil
+	}
+
+	moderators := make([]nostr.PubKey, 0)
+	for tag := range event.Tags.FindAll("p") {
+		if len(tag) < 4 || tag[3] != "moderator" {
+			continue
+		}
+		pk, ok := parsePubKeyTag(tag)
+		if !ok {
+			continue
+		}
+		moderators = append(moderators, pk)
+	}
+
+	return moderators
+}
+
+func GetDefinitionRelays(event *nostr.Event) []CommunityRelay {
+	if !IsCommunityDefinition(event) {
+		return nil
+	}
+
+	relays := make([]CommunityRelay, 0)
+	for tag := range event.Tags.FindAll("relay") {
+		if len(tag) < 2 || tag[1] == "" {
+			continue
+		}
+
+		relay := CommunityRelay{URL: tag[1]}
+		if len(tag) >= 3 {
+			relay.Purpose = tag[2]
+		}
+		relays = append(relays, relay)
+	}
+
+	return relays
 }
 
 func parseCommunityPointer(tag nostr.Tag) (nostr.Pointer, bool) {
