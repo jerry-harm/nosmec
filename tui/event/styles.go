@@ -17,6 +17,7 @@ type eventStyles struct {
 	tags           lipgloss.Style
 	confirm        lipgloss.Style
 	communityAddr  lipgloss.Style
+	relaySource    lipgloss.Style
 }
 
 func newStyles(t *theme.Theme) eventStyles {
@@ -51,5 +52,7 @@ func newStyles(t *theme.Theme) eventStyles {
 		communityAddr: lipgloss.NewStyle().
 			Foreground(t.CommunityAddr).
 			Bold(true),
+		relaySource: lipgloss.NewStyle().
+			Foreground(t.TextMutedAlt),
 	}
 }

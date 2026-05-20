@@ -258,8 +258,9 @@ func (m *EventView) reply() tea.Cmd {
 		return nil
 	}
 
+	target := utils.DetermineReplyTarget(m.event, m.app)
 	composeModel := compose.NewModel(m.app)
-	composeModel.AddReply(context.Background(), m.app, m.event)
+	composeModel.AddReplyFromTarget(context.Background(), m.app, m.event, target)
 	return bubblon.Open(composeModel)
 }
 
@@ -270,8 +271,9 @@ func (m *EventView) quote() tea.Cmd {
 	if m.ctrl == nil {
 		return nil
 	}
+	target := utils.DetermineReplyTarget(m.event, m.app)
 	composeModel := compose.NewModel(m.app)
-	composeModel.AddQuote(m.event)
+	composeModel.AddQuoteFromTarget(m.event, target)
 	return bubblon.Open(composeModel)
 }
 

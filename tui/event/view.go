@@ -7,6 +7,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
+	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 )
 
@@ -43,6 +44,11 @@ func (m *EventView) renderHeader() string {
 	if e.Kind == nostr.KindCommunityDefinition {
 		addr := fmt.Sprintf("34550:%s:%s", e.PubKey.Hex(), e.Tags.GetD())
 		lines += "\n" + fmt.Sprintf("Community Address: %s", m.styles.communityAddr.Render(addr))
+	}
+
+	// Line 4: Relay source (if known)
+	if relays := config.GetEventRelay(e.ID.Hex()); relays != "" {
+		lines += "\n" + fmt.Sprintf("via: %s", m.styles.relaySource.Render(relays))
 	}
 
 	return m.styles.header.Render(lines)

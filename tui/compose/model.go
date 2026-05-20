@@ -188,6 +188,22 @@ m.styles = newStyles(m.app.Theme())
 	return m
 }
 
+// AddReplyFromTarget sets up the compose model for replying to an event using
+// the pre-computed ReplyTarget from utils.DetermineReplyTarget.
+func (m *model) AddReplyFromTarget(ctx context.Context, app *config.AppContext, parentEvent *nostr.Event, target utils.ReplyTarget) {
+	m.composeKind = KindReply
+	m.parentEvent = parentEvent
+	m.parentID = parentEvent.ID.Hex()
+
+	for _, t := range target.RootTags {
+		m.tags = append(m.tags, Tag(t))
+	}
+	for _, t := range target.ParentTags {
+		m.tags = append(m.tags, Tag(t))
+	}
+	m.kindInput.SetValue(strconv.Itoa(int(target.ReplyKind)))
+}
+
 func (m *model) AddReply(ctx context.Context, app *config.AppContext, parentEvent *nostr.Event) {
 	ptr := nip10.GetThreadRoot(parentEvent.Tags)
 	rootID := parentEvent.ID
@@ -219,6 +235,22 @@ func (m *model) AddReplyWithRoot(parentEvent *nostr.Event, rootPubKey string) {
 		m.tags = append(m.tags, Tag(t))
 	}
 	m.tags = append(m.tags, Tag{"p", parentEvent.PubKey.Hex()})
+}
+
+func (m *model) AddQuoteFromTarget(parentEvent *nostr.Event, target utils.ReplyTarget) {
+	m.composeKind = KindQuote
+	m.parentEvent = parentEvent
+	m.quotedID = parentEvent.ID.Hex()
+	relay := config.GetEventRelay(parentEvent.ID.Hex())
+	m.tags = append(m.tags,
+		Tag{"q", parentEvent.ID.Hex(), relay, parentEvent.PubKey.Hex()},
+	)
+	// For non-kind:1 events, also add the root tags for context
+	if target.ReplyKind != nostr.KindTextNote {
+		for _, t := range target.RootTags {
+			m.tags = append(m.tags, Tag(t))
+		}
+	}
 }
 
 func (m *model) AddQuote(parentEvent *nostr.Event) {
