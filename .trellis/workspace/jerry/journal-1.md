@@ -1757,3 +1757,36 @@ Investigated the current slow-test hotspot and confirmed nostr_sdk was dominated
 ### Next Steps
 
 - None - task complete
+
+
+## Session 53: Event detail relay source and NIP-driven reply strategy
+
+**Date**: 2026-05-20
+**Task**: Event detail relay source and NIP-driven reply strategy
+**Branch**: `main`
+
+### Summary
+
+Added relay source display to event detail header (via: relay URL). Built ReplyStrategy resolver with NIP-aware priority: dedicated kinds (1244/2004/1311/42/9) first, then NIP-10 for kind:1, then NIP-22/72 for generic non-kind:1, ReplyUnsupported for undefined paths. Integrated with compose for kind-aware reply/quote. 11 unit tests passing.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `59b4e0b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 52
+- **Total Sessions**: 53
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1759 | Active |
+| `journal-1.md` | ~1792 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 53 | 2026-05-20 | Event detail relay source and NIP-driven reply strategy | `59b4e0b` | `main` |
 | 52 | 2026-05-20 | Narrow default nostr_sdk verification scope | `128fa0d` | `main` |
 | 51 | 2026-05-20 | Refactor community parsing into nip72 and generic sdk fetch | `565b1a5` | `main` |
 | 50 | 2026-05-19 | Add nip72 parsing layer and strict NIP community model | `06c5919` | `main` |
