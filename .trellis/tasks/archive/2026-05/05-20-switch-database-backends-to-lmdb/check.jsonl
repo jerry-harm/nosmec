@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/app-context.md","reason":"Checker should verify final app wiring and sdk.System resource lifecycle remain consistent."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Checker should validate docs/code alignment for LMDB paths, event store backend, and rebuild-from-scratch behavior."}
+{"file":".trellis/spec/backend/relay-guidelines.md","reason":"Checker should ensure KVStore-backed relay tracking behavior is unchanged after backend swap."}
+{"file":".trellis/tasks/05-20-switch-database-backends-to-lmdb/prd.md","reason":"Checker should review against the agreed scope: all persistent stores to LMDB, ignore old BoltDB data."}
+{"file":".trellis/tasks/05-20-switch-database-backends-to-lmdb/research/upstream-eventstore-lmdb.md","reason":"Checker should confirm the implementation matches the researched upstream LMDB event store integration path."}

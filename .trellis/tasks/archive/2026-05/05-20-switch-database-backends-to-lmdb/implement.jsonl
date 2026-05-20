@@ -1,0 +1,6 @@
+{"file":".trellis/spec/backend/app-context.md","reason":"App wiring and sdk.System persistence fields live here; implementer needs current container/backend expectations."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Primary storage backend and path conventions will change from BoltDB to LMDB-backed stores."}
+{"file":".trellis/spec/backend/relay-guidelines.md","reason":"Event-to-relay tracking uses KVStore and must stay compatible while backend changes."}
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"Clarifies the dependency boundary: local nostr_sdk can change, full upstream nostr should not be forked."}
+{"file":".trellis/tasks/05-20-switch-database-backends-to-lmdb/prd.md","reason":"Task requirements and chosen migration strategy: full LMDB switch, no BoltDB data migration."}
+{"file":".trellis/tasks/05-20-switch-database-backends-to-lmdb/research/upstream-eventstore-lmdb.md","reason":"Confirms upstream eventstore/lmdb exists in the pinned version and can replace boltdb without forking upstream."}
