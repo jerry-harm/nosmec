@@ -1856,3 +1856,36 @@ Switched HintsDB, KVStore, and event store from bbolt/BoltDB to LMDB. LMDB suppo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 56: Fix completion blocking by lazy-loading LMDB stores
+
+**Date**: 2026-05-20
+**Task**: Fix completion blocking by lazy-loading LMDB stores
+**Branch**: `main`
+
+### Summary
+
+Debugged shell completion slowness: initApp() was calling GlobalPool() unconditionally, blocking for seconds even though completion needs no persistent storage. Refactored initApp() to skip GlobalPool(), made Pool() and Hints() getters lazily trigger initialization on first access. Completion command now avoids all persistent resources. Build, vet, and tests all pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b10568` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

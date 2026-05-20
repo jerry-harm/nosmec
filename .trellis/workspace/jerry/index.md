@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 55
+- **Total Sessions**: 56
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1858 | Active |
+| `journal-1.md` | ~1891 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 56 | 2026-05-20 | Fix completion blocking by lazy-loading LMDB stores | `1b10568` | `main` |
 | 55 | 2026-05-20 | Switch all persistent DB backends from bbolt/BoltDB to LMDB | `34c19d1` | `main` |
 | 54 | 2026-05-20 | Add relay list command | `1bba05c` | `main` |
 | 53 | 2026-05-20 | Event detail relay source and NIP-driven reply strategy | `59b4e0b` | `main` |
