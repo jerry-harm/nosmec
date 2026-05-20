@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 50
-- **Last Active**: 2026-05-19
+- **Total Sessions**: 51
+- **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1693 | Active |
+| `journal-1.md` | ~1726 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 51 | 2026-05-20 | Refactor community parsing into nip72 and generic sdk fetch | `565b1a5` | `main` |
 | 50 | 2026-05-19 | Add nip72 parsing layer and strict NIP community model | `06c5919` | `main` |
 | 49 | 2026-05-19 | Support community event threads | `372e706` | `main` |
 | 48 | 2026-05-19 | Fork nostr SDK into nostr_sdk | `ae52d3a`, `09e3981` | `main` |

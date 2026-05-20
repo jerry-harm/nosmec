@@ -1691,3 +1691,36 @@ Introduced nosmec/nip72 as a dedicated NIP-72 protocol parsing package with poin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 51: Refactor community parsing into nip72 and generic sdk fetch
+
+**Date**: 2026-05-20
+**Task**: Refactor community parsing into nip72 and generic sdk fetch
+**Branch**: `main`
+
+### Summary
+
+Moved pure community definition parsing out of utils into nip72 with small-grained getters and typed CommunityRelay extraction. Added nostr_sdk.System.FetchEventsByFilter as a generic thicker filter-based read API with SDK-managed relay selection, local-store-first reads, deduplication, and fallback behavior. Refactored community reads to compose generic SDK fetching with nip72 parsing, updated command usage, and captured the new architecture and query contracts in backend specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `565b1a5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
