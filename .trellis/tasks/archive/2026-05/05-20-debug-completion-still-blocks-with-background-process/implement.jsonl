@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/05-20-debug-completion-still-blocks-with-background-process/prd.md","reason":"Contains root cause analysis, fix approach (lazy pool init), and all technical details needed for implementation."}
+{"file":".trellis/spec/backend/app-context.md","reason":"Describes AppContext structure, GlobalPool/GlobalSystem wiring; implementer needs to understand what NewAppContext expects and how to handle nil pool for completion."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Documents the store initialization flow and which backends are opened by GlobalPool; relevant for confirming lazy init boundaries."}
+{"file":"cmd/root.go","reason":"File being modified to remove GlobalPool call from initApp; implementer must read current initApp flow."}
+{"file":"cmd/completion/completion.go","reason":"File being modified; implementer must read GetApp and all completion functions to confirm they already handle nil app safely."}
+{"file":"config/config.go","reason":"File being modified; implementer must read GlobalPool, GlobalHints, and GlobalSystem initialization to understand where to make pool/system lazy."}

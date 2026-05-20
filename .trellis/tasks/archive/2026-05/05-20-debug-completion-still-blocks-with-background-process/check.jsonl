@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/05-20-debug-completion-still-blocks-with-background-process/prd.md","reason":"Checker verifies the implementation matches the lazy pool init approach and acceptance criteria."}
+{"file":".trellis/spec/backend/app-context.md","reason":"Checker verifies AppContext construction and pool wiring still work correctly after lazy init changes."}
+{"file":"cmd/root.go","reason":"Checker verifies initApp no longer calls GlobalPool synchronously."}
+{"file":"cmd/completion/completion.go","reason":"Checker verifies all completion functions still handle their results correctly without pool."}
+{"file":"config/config.go","reason":"Checker verifies lazy initialization logic for GlobalPool and GlobalSystem/Hints/KVStore."}
