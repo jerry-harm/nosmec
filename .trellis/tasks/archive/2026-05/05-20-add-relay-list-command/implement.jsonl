@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/nostr-sdk-usage.md","reason":"SDK System conventions and current backend architecture for adding SDK-native relay enumeration helpers."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"KVStore persistence expectations and local database handling for SDK-backed relay inspection."}
+{"file":".trellis/spec/backend/relay-guidelines.md","reason":"Current relay tracking and outdated relay documentation that must be aligned with the SDK-only approach."}
+{"file":".trellis/spec/backend/app-context.md","reason":"AppContext/backend boundaries for exposing command behavior without reviving removed config relay storage patterns."}

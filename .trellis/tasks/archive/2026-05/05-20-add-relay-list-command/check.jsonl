@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Quality bar for verifying command behavior and regression scope."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Check persistence-layer changes against KVStore/database expectations."}
+{"file":".trellis/spec/backend/relay-guidelines.md","reason":"Verify relay-related documentation and tracking behavior matches the new SDK-only design."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Check that CLI, AppContext, and SDK data flow stay consistent after removing old config relay tracking."}
