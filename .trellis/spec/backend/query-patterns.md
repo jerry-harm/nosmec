@@ -148,6 +148,6 @@ This keeps relay choice centralized in the SDK and avoids scattering community/p
 Profile metadata (Kind 0) is fetched via `sdk.System.FetchProfileMetadata(ctx, pubkey)` which handles:
 
 1. In-memory cache check (MetadataCache LRU, 8000 entries, 6h TTL)
-2. BoltDB/Bleve store query (persisted events)
+2. LMDB/Bleve store query (persisted events)
 3. Network fetch with 7-day debounce (replaces if newer)
 4. Cache + store update

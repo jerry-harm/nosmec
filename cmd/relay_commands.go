@@ -3,17 +3,18 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
-	"go.etcd.io/bbolt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/spf13/cobra"
 )
 
 var (
-	hintsBucketName   = []byte("hints")
-	kvDefaultBucket   = []byte("default")
+	hintsDBIName      = "hints"
+	kvStoreDBIName    = "store"
 	eventRelayPrefix  = byte('r')
 	hintsKeyPubkeyLen = 32
 )
@@ -46,12 +47,12 @@ func registerRelayCommands() {
 }
 
 func writeRelayList(w io.Writer, dataDir string) error {
-	hintsRelays, err := collectHintsDBRelays(filepath.Join(dataDir, "hints.db"))
+	hintsRelays, err := collectHintsDBRelays(filepath.Join(dataDir, "hints"))
 	if err != nil {
 		return err
 	}
 
-	kvRelays, err := collectKVStoreEventRelays(filepath.Join(dataDir, "kvstore.db"))
+	kvRelays, err := collectKVStoreEventRelays(filepath.Join(dataDir, "kvstore"))
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func mergeUniqueSortedRelayURLs(groups ...[]string) []string {
 
 func collectHintsDBRelays(dbPath string) ([]string, error) {
 	var relays []string
-	err := readBoltBucket(dbPath, hintsBucketName, func(k, _ []byte) {
+	err := readLMDB(dbPath, hintsDBIName, func(k, _ []byte) {
 		if len(k) <= hintsKeyPubkeyLen {
 			return
 		}
@@ -102,7 +103,7 @@ func collectHintsDBRelays(dbPath string) ([]string, error) {
 
 func collectKVStoreEventRelays(dbPath string) ([]string, error) {
 	var relays []string
-	err := readBoltBucket(dbPath, kvDefaultBucket, func(k, v []byte) {
+	err := readLMDB(dbPath, kvStoreDBIName, func(k, v []byte) {
 		if len(k) != 9 || k[0] != eventRelayPrefix {
 			return
 		}
@@ -114,28 +115,57 @@ func collectKVStoreEventRelays(dbPath string) ([]string, error) {
 	return mergeUniqueSortedRelayURLs(relays), nil
 }
 
-func readBoltBucket(dbPath string, bucketName []byte, visit func(k, v []byte)) error {
-	db, err := bbolt.Open(dbPath, 0o600, &bbolt.Options{ReadOnly: true})
+func readLMDB(dbPath string, dbiName string, visit func(k, v []byte)) error {
+	// If the directory doesn't exist, there's no data to read.
+	if info, err := os.Stat(dbPath); err != nil || !info.IsDir() {
+		return nil
+	}
+
+	env, err := lmdb.NewEnv()
 	if err != nil {
+		return err
+	}
+	defer env.Close()
+
+	if err := env.SetMaxDBs(1); err != nil {
+		return err
+	}
+	if err := env.SetMapSize(1 << 30); err != nil {
+		return err
+	}
+
+	if err := env.Open(dbPath, lmdb.Readonly|lmdb.NoTLS, 0); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return err
 	}
-	defer db.Close()
 
-	return db.View(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(bucketName)
-		if bucket == nil {
-			return nil
+	return env.View(func(txn *lmdb.Txn) error {
+		txn.RawRead = true
+		dbi, err := txn.OpenDBI(dbiName, 0)
+		if err != nil {
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			return err
 		}
 
-		return bucket.ForEach(func(k, v []byte) error {
+		cursor, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+
+		for k, v, err := cursor.Get(nil, nil, lmdb.First); err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
 			key := append([]byte(nil), k...)
 			val := append([]byte(nil), v...)
 			visit(key, val)
-			return nil
-		})
+		}
+		if !lmdb.IsNotFound(err) {
+			return err
+		}
+		return nil
 	})
 }
 

@@ -103,7 +103,7 @@ func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags
 
 ## Event→Relay Tracking for NIP-10 e Tags
 
-When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via `sdk.System` backed by BoltDB `KVStore` (persists across restarts).
+When building reply tags (NIP-10), we need the relay URL where a referenced event was fetched from. This is tracked via `sdk.System` backed by LMDB `KVStore` (persists across restarts).
 
 ### API (config package — delegates to sdk.System)
 
@@ -127,9 +127,9 @@ if ev.ID != [32]byte{} {
 }
 ```
 
-### Storage: KVStore (BoltDB)
+### Storage: KVStore (LMDB)
 
-Event→relay mappings are stored in `sdk.System.KVStore` backed by BoltDB (`nostr_sdk/kvstore/bbolt`). The KVStore file lives at `{dataDir}/kvstore.db`.
+Event→relay mappings are stored in `sdk.System.KVStore` backed by LMDB (`nostr_sdk/kvstore/lmdb`). The KVStore directory lives at `{dataDir}/kvstore/`.
 
 Keys: `'r' + first 8 bytes of event ID` → compact binary relay-list bytes
 
@@ -137,7 +137,7 @@ Keys: `'r' + first 8 bytes of event ID` → compact binary relay-list bytes
 
 ### Thread Safety
 
-KVStore via BoltDB is thread-safe within a single process. No external mutex needed — BoltDB handles concurrent reads and serializes writes internally.
+KVStore via LMDB is thread-safe within a single process. No external mutex needed — LMDB handles concurrent reads and serializes writes internally.
 
 ---
 
@@ -245,7 +245,7 @@ if len(relays) == 0 {
 - HintFromTag (20pts): p-tag relay hint
 - Scoring: `basePoints * 1e10 / (age + 86400)^1.3` (same formula as nostr SDK)
 
-**Why**: `AllReadableRelays()` provides configured relays; `sdk.System.Store` (BoltDB/Bleve) handles local caching of fetched events.
+**Why**: `AllReadableRelays()` provides configured relays; `sdk.System.Store` (LMDB/Bleve) handles local caching of fetched events.
 
 **Functions following this pattern**: `GetEvent`, `GetEventAsync`, `GetMyTimeline`, `GetGlobalTimeline`, `GetFollowedTimeline`
 
@@ -260,7 +260,7 @@ if len(relays) == 0 {
 `GetProfile` delegates to `sdk.System.FetchProfileMetadata(ctx, pubkey)`:
 
 1. Check `MetadataCache` (in-memory LRU, 6h TTL)
-2. Query `Store` (BoltDB/Bleve) for persisted kind 0 event
+2. Query `Store` (LMDB/Bleve) for persisted kind 0 event
 3. If stale (>7 days) or miss, fetch from network via replaceable event loader
 4. Save to `MetadataCache` and `Store`
 
@@ -297,7 +297,7 @@ GetUserTimeline(pubKey)
 
 ## Event Persistence and Query
 
-Events are persisted via `sdk.System.Store` (BoltDB/Bleve) and queried through the normal relay network. There is no local relay — the store is only for caching events we've already fetched from relays.
+Events are persisted via `sdk.System.Store` (LMDB/Bleve) and queried through the normal relay network. There is no local relay — the store is only for caching events we've already fetched from relays.
 
 ```go
 func (a *AppContext) AllReadableRelays() []string {

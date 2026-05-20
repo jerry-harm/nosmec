@@ -20,6 +20,7 @@ fiatjaf.com/nostr (core)       <- lib dep, not forked
   |- eventstore/               <- lib dep, not forked
   |  |- Store interface
   |  |- boltdb/ (6 indexes)
+  |  |- lmdb/ (9+ indexes)
   |  |- bleve/ (full-text)
   |  `- wrappers/ (DynamicPublisher)
   `- nip*/                     <- lib dep, not forked
@@ -275,7 +276,7 @@ func encodeTimestamp(v nostr.Timestamp) []byte
 ## Why Not Fork eventstore
 
 - `eventstore.Store` interface is already fully public
-- `boltdb.BoltBackend` and `bleve.BleveBackend` are already fully configurable
+- `boltdb.BoltBackend`, `lmdb.LMDBBackend`, and `bleve.BleveBackend` are already fully configurable
 - `wrappers.DynamicPublisher` wraps Store and is fully functional
 - No modifications needed to any eventstore code
 

@@ -15,7 +15,7 @@ This directory contains guidelines for backend development. Each file covers a s
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | Module organization, file naming | ✅ Complete |
-| [Database Guidelines](./database-guidelines.md) | BoltDB+Bleve store, KVStore, Close() | ✅ Complete |
+| [Database Guidelines](./database-guidelines.md) | LMDB+Bleve store, KVStore, Close() | ✅ Complete |
 | [Error Handling](./error-handling.md) | Error types, handleError, TUI errors | ✅ Complete |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | ⚠️ Template |
 | [NIP Conventions](./nip-conventions.md) | NIP-19/10/65/17 output/input rules | ✅ Complete |
@@ -38,4 +38,4 @@ This directory contains guidelines for backend development. Each file covers a s
 | copy() anti-pattern | `quality-guidelines.md` |
 | TUI key events | `quality-guidelines.md` |
 | Timeout rule | `query-patterns.md` |
-| BoltDB store path | `database-guidelines.md` |
+| LMDB store paths | `database-guidelines.md` |

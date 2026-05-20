@@ -9,7 +9,7 @@
 ```go
 type AppContext struct {
     pool        *nostr.Pool      // Nostr connection pool (lazy relay connections)
-    store       StoreInterface   // BoltDB event store (fiatjaf.com/nostr/eventstore/boltdb) — now unused, kept for compat
+    store       StoreInterface   // LMDB event store (fiatjaf.com/nostr/eventstore/lmdb) — now unused, kept for compat
     cfg         Config           // Config snapshot (read-only via Config(), mutable via setters)
     mu          sync.RWMutex     // Protects cfg writes
     viper       *viper.Viper     // Config persistence (WriteConfig on mutations)
@@ -18,7 +18,7 @@ type AppContext struct {
 }
 ```
 
-**StoreInterface** was `eventstore.Store` from `fiatjaf.com/nostr/eventstore/boltdb` — now superseded by `sdk.System.Store` which stacks BoltDB + Bleve.
+**StoreInterface** was `eventstore.Store` from `fiatjaf.com/nostr/eventstore/lmdb` — now superseded by `sdk.System.Store` which stacks LMDB + Bleve.
 
 ---
 
@@ -28,7 +28,7 @@ type AppContext struct {
 func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext
 ```
 
-Created in `config/config.go` during app init. Pool injected; hints initialized via `GlobalHints()`; system via `GlobalSystem` (sdk.NewSystem with BoltDB+Bleve Store).
+Created in `config/config.go` during app init. Pool injected; hints initialized via `GlobalHints()`; system via `GlobalSystem` (sdk.NewSystem with LMDB+Bleve Store).
 
 ---
 
@@ -38,7 +38,7 @@ Created in `config/config.go` during app init. Pool injected; hints initialized 
 
 ```go
 func (a *AppContext) Pool() *nostr.Pool   // Returns the nostr connection pool
-func (a *AppContext) Store() StoreInterface // Returns the BoltDB store (legacy, returns nil)
+func (a *AppContext) Store() StoreInterface // Returns the LMDB store (legacy, returns nil)
 func (a *AppContext) Hints() sdk_hints.HintsDB // Returns relay→pubkey scoring DB
 func (a *AppContext) System() *sdk.System // Returns the sdk.System
 ```
@@ -130,9 +130,9 @@ func (a *AppContext) AddRelay(url string, read, write bool) error {
 
 `AppContext.sys` is a `*sdk.System` (from `fiatjaf.com/nostr/sdk`):
 
-- **`sys.Store`** — BoltDB (+ Bleve) event store, handles persistence
-- **`sys.KVStore`** — BoltDB-backed KVStore for event→relay hints and profile fetch timestamps
-- **`sys.Hints`** — HintsDB (bbolth) for relay→pubkey scoring
+- **`sys.Store`** — LMDB (+ Bleve) event store, handles persistence
+- **`sys.KVStore`** — LMDB-backed KVStore for event→relay hints and profile fetch timestamps
+- **`sys.Hints`** — HintsDB (lmdbh) for relay→pubkey scoring
 - **`sys.MetadataCache`** — In-memory LRU cache for profile metadata (6h TTL)
 - **`sys.Pool`** — Points to the same `*nostr.Pool` as `AppContext.pool`
 

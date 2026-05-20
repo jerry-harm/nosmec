@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"fiatjaf.com/nostr"
-	"go.etcd.io/bbolt"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 )
 
 func TestMergeUniqueSortedRelayURLs(t *testing.T) {
@@ -33,11 +34,11 @@ func TestMergeUniqueSortedRelayURLs(t *testing.T) {
 func TestCollectHintsDBRelays(t *testing.T) {
 	t.Parallel()
 
-	dbPath := filepath.Join(t.TempDir(), "hints.db")
+	dbPath := filepath.Join(t.TempDir(), "hints")
 	pk1 := mustPubKeyFromSecret(t, strings.Repeat("1", 64))
 	pk2 := mustPubKeyFromSecret(t, strings.Repeat("2", 64))
 
-	seedBoltDB(t, dbPath, []byte("hints"), map[string][]byte{
+	seedLMDB(t, dbPath, hintsDBIName, map[string][]byte{
 		string(append(pk1[:], []byte("wss://relay-b.example")...)): {1},
 		string(append(pk1[:], []byte("wss://relay-a.example")...)): {1},
 		string(append(pk2[:], []byte("wss://relay-a.example")...)): {1},
@@ -60,11 +61,11 @@ func TestCollectHintsDBRelays(t *testing.T) {
 func TestCollectKVStoreEventRelays(t *testing.T) {
 	t.Parallel()
 
-	dbPath := filepath.Join(t.TempDir(), "kvstore.db")
+	dbPath := filepath.Join(t.TempDir(), "kvstore")
 	id1 := mustID(t, strings.Repeat("a", 64))
 	id2 := mustID(t, strings.Repeat("b", 64))
 
-	seedBoltDB(t, dbPath, []byte("default"), map[string][]byte{
+	seedLMDB(t, dbPath, kvStoreDBIName, map[string][]byte{
 		string(makeEventRelayKVKey(id1)): encodeRelayListForTest([]string{"wss://relay-b.example", "wss://relay-a.example"}),
 		string(makeEventRelayKVKey(id2)): encodeRelayListForTest([]string{"wss://relay-a.example", "wss://relay-c.example"}),
 		"xignored":                       []byte("ignored"),
@@ -92,10 +93,10 @@ func TestWriteRelayList(t *testing.T) {
 	pk := mustPubKeyFromSecret(t, strings.Repeat("3", 64))
 	id := mustID(t, strings.Repeat("c", 64))
 
-	seedBoltDB(t, filepath.Join(dataDir, "hints.db"), []byte("hints"), map[string][]byte{
+	seedLMDB(t, filepath.Join(dataDir, "hints"), hintsDBIName, map[string][]byte{
 		string(append(pk[:], []byte("wss://relay-b.example")...)): {1},
 	})
-	seedBoltDB(t, filepath.Join(dataDir, "kvstore.db"), []byte("default"), map[string][]byte{
+	seedLMDB(t, filepath.Join(dataDir, "kvstore"), kvStoreDBIName, map[string][]byte{
 		string(makeEventRelayKVKey(id)): encodeRelayListForTest([]string{"wss://relay-a.example", "wss://relay-b.example"}),
 	})
 
@@ -138,29 +139,45 @@ func mustID(t *testing.T, hex string) nostr.ID {
 	return id
 }
 
-func seedBoltDB(t *testing.T, dbPath string, bucket []byte, entries map[string][]byte) {
+func seedLMDB(t *testing.T, dbPath string, dbiName string, entries map[string][]byte) {
 	t.Helper()
 
-	db, err := bbolt.Open(dbPath, 0o600, nil)
-	if err != nil {
-		t.Fatalf("open bbolt %s: %v", dbPath, err)
+	// LMDB requires the directory to exist before opening.
+	if err := os.MkdirAll(dbPath, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", dbPath, err)
 	}
-	defer db.Close()
 
-	err = db.Update(func(tx *bbolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(bucket)
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		t.Fatalf("lmdb.NewEnv: %v", err)
+	}
+	defer env.Close()
+
+	if err := env.SetMaxDBs(1); err != nil {
+		t.Fatalf("env.SetMaxDBs: %v", err)
+	}
+	if err := env.SetMapSize(1 << 24); err != nil {
+		t.Fatalf("env.SetMapSize: %v", err)
+	}
+
+	if err := env.Open(dbPath, lmdb.NoTLS|lmdb.WriteMap, 0o644); err != nil {
+		t.Fatalf("env.Open %s: %v", dbPath, err)
+	}
+
+	err = env.Update(func(txn *lmdb.Txn) error {
+		dbi, err := txn.OpenDBI(dbiName, lmdb.Create)
 		if err != nil {
 			return err
 		}
 		for key, value := range entries {
-			if err := b.Put([]byte(key), value); err != nil {
+			if err := txn.Put(dbi, []byte(key), value, 0); err != nil {
 				return err
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("seed bbolt %s: %v", dbPath, err)
+		t.Fatalf("seed lmdb %s: %v", dbPath, err)
 	}
 }
 

@@ -87,7 +87,7 @@ app.ReadableRelays() []string   // 获取可读 relay
 
 ### 缓存过滤器 (CacheFilters)
 
-`CacheFilters` 用于指定哪些事件应该被缓存到本地 BoltDB store。如果不设置，程序会自动生成默认过滤器。
+`CacheFilters` 用于指定哪些事件应该被缓存到本地 LMDB store。如果不设置，程序会自动生成默认过滤器。
 
 ```yaml
 cache_filters:
@@ -205,4 +205,7 @@ if err := viper.WriteConfigAs(configFile); err != nil {
 | 路径 | 说明 |
 |------|------|
 | `~/.config/nosmec/nosmec.yaml` | 配置文件 |
-| `~/.cache/nosmec/nosmec.db` | BoltDB 数据库 |
+| `~/.cache/nosmec/events/` | LMDB event store 目录 |
+| `~/.cache/nosmec/hints/` | LMDB hints 目录 |
+| `~/.cache/nosmec/kvstore/` | LMDB KVStore 目录 |
+| `~/.cache/nosmec/search_index/` | Bleve 搜索索引目录 |
