@@ -1790,3 +1790,36 @@ Added relay source display to event detail header (via: relay URL). Built ReplyS
 ### Next Steps
 
 - None - task complete
+
+
+## Session 54: Add relay list command
+
+**Date**: 2026-05-20
+**Task**: Add relay list command
+**Branch**: `main`
+
+### Summary
+
+Persisted SDK KVStore, added nosmec relay list for inspecting relays from hints.db and kvstore.db, and removed legacy KnownRelays config fallback paths.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1bba05c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
