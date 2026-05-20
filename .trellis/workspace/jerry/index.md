@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 54
+- **Total Sessions**: 55
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1825 | Active |
+| `journal-1.md` | ~1858 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 55 | 2026-05-20 | Switch all persistent DB backends from bbolt/BoltDB to LMDB | `34c19d1` | `main` |
 | 54 | 2026-05-20 | Add relay list command | `1bba05c` | `main` |
 | 53 | 2026-05-20 | Event detail relay source and NIP-driven reply strategy | `59b4e0b` | `main` |
 | 52 | 2026-05-20 | Narrow default nostr_sdk verification scope | `128fa0d` | `main` |

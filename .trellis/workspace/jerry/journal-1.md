@@ -1823,3 +1823,36 @@ Persisted SDK KVStore, added nosmec relay list for inspecting relays from hints.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 55: Switch all persistent DB backends from bbolt/BoltDB to LMDB
+
+**Date**: 2026-05-20
+**Task**: Switch all persistent DB backends from bbolt/BoltDB to LMDB
+**Branch**: `main`
+
+### Summary
+
+Switched HintsDB, KVStore, and event store from bbolt/BoltDB to LMDB. LMDB supports multi-process concurrent reads, eliminating the blocking issue that prevented shell completion and other processes from running simultaneously. Old BoltDB data is not migrated; LMDB stores start fresh. Updated all specs and docs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `34c19d1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
