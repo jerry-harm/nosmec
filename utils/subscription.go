@@ -99,7 +99,7 @@ func syncCommunitiesFromNetwork(ctx context.Context, app *config.AppContext, pub
 
 	readableRelays := app.ReadableRelays()
 	if len(readableRelays) == 0 {
-		readableRelays = app.Config().KnownRelays
+		return []config.Subscription{}, nil
 	}
 
 	var event nostr.Event
@@ -144,7 +144,7 @@ func syncUsersFromNetwork(ctx context.Context, app *config.AppContext, pubKey no
 
 	readableRelays := app.ReadableRelays()
 	if len(readableRelays) == 0 {
-		readableRelays = app.Config().KnownRelays
+		return []config.Subscription{}, nil
 	}
 
 	var event nostr.Event
@@ -201,7 +201,7 @@ func syncHashtagsFromNetwork(ctx context.Context, app *config.AppContext, pubKey
 
 	readableRelays := app.ReadableRelays()
 	if len(readableRelays) == 0 {
-		readableRelays = app.Config().KnownRelays
+		return []config.Subscription{}, nil
 	}
 
 	var event nostr.Event

@@ -20,9 +20,6 @@ func SyncRelaysFromNetwork(ctx context.Context, app *config.AppContext) error {
 		relays = app.ReadableRelays()
 	}
 	if len(relays) == 0 {
-		relays = app.Config().KnownRelays
-	}
-	if len(relays) == 0 {
 		return fmt.Errorf("no relays available to query")
 	}
 
@@ -92,9 +89,6 @@ func SyncDMRelaysFromNetwork(ctx context.Context, app *config.AppContext) error 
 	relays := app.WritableRelays()
 	if len(relays) == 0 {
 		relays = app.ReadableRelays()
-	}
-	if len(relays) == 0 {
-		relays = app.Config().KnownRelays
 	}
 	if len(relays) == 0 {
 		return fmt.Errorf("no relays available to query")

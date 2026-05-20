@@ -11,15 +11,15 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/nostr_sdk"
-	"github.com/jerry-harm/nosmec/tui/theme"
-	"github.com/jerry-harm/nosmec/tui/event"
+	"github.com/jerry-harm/nosmec/tui/component/bubblon"
 	"github.com/jerry-harm/nosmec/tui/component/label"
+	"github.com/jerry-harm/nosmec/tui/event"
+	"github.com/jerry-harm/nosmec/tui/theme"
 	"github.com/jerry-harm/nosmec/utils"
 )
 
@@ -523,10 +523,7 @@ func (m *model) startSubscription(since nostr.Timestamp) tea.Cmd {
 		m.subCtx = ctx
 		m.subCancel = cancel
 
-		relays := m.app.Config().KnownRelays
-		if len(relays) == 0 {
-			relays = m.app.AllReadableRelays()
-		}
+		relays := m.app.AllReadableRelays()
 
 		// Build filter based on timeline type
 		var filter nostr.Filter

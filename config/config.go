@@ -14,6 +14,7 @@ import (
 	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints/bbolth"
+	kvstore_bbolt "github.com/jerry-harm/nosmec/nostr_sdk/kvstore/bbolt"
 	"github.com/spf13/viper"
 )
 
@@ -31,7 +32,7 @@ var (
 )
 
 type ProxyConfig struct {
-	Socks   string
+	Socks    string
 	I2PSocks string
 }
 
@@ -86,7 +87,6 @@ func loadConfig() *Config {
 	globalViper.AutomaticEnv()
 
 	globalViper.SetDefault("data_dir", defaultDataDir)
-	globalViper.SetDefault("known_relays", []string{})
 	globalViper.SetDefault("private_key", "")
 	globalViper.SetDefault("proxy.socks", "")
 	globalViper.SetDefault("proxy.i2p_socks", "")
@@ -209,6 +209,14 @@ func GlobalPool() *nostr.Pool {
 		GlobalSystem.Hints = hints
 
 		dataDir := globalConfig.DataDir
+		kvStorePath := filepath.Join(dataDir, "kvstore.db")
+		kvStore, err := kvstore_bbolt.NewStore(kvStorePath)
+		if err != nil {
+			logger.Warn("failed to create BoltDB KVStore, falling back to in-memory store", "error", err.Error(), "path", kvStorePath)
+		} else {
+			GlobalSystem.KVStore = kvStore
+		}
+
 		boltPath := filepath.Join(dataDir, "nosmec_events.db")
 		boltStore := &boltdb.BoltBackend{Path: boltPath}
 		if err := boltStore.Init(); err != nil {
@@ -238,29 +246,91 @@ func DataDir() string {
 }
 
 func TrackEventRelay(eventID, relayURL string) {
+	if relayURL == "" {
+		return
+	}
 	sys := GlobalSystem
-	if sys != nil && sys.KVStore != nil {
-		key := []byte(eventID)
-		val := []byte(relayURL)
-		if err := sys.KVStore.Update(key, func(existing []byte) ([]byte, error) {
-			if existing != nil {
+	if sys == nil {
+		return
+	}
+	id, err := nostr.IDFromHex(eventID)
+	if err != nil {
+		return
+	}
+	if sys.KVStore == nil {
+		return
+	}
+	key := make([]byte, 9)
+	key[0] = 'r'
+	copy(key[1:], id[:8])
+	if err := sys.KVStore.Update(key, func(existing []byte) ([]byte, error) {
+		if existing == nil {
+			return encodeRelayListCompat([]string{relayURL}), nil
+		}
+		relays := decodeRelayListCompat(existing)
+		for _, relay := range relays {
+			if relay == relayURL {
 				return existing, nil
 			}
-			return val, nil
-		}); err != nil {
-			logger.Warn("failed to persist event→relay mapping", "error", err.Error(), "event", eventID, "relay", relayURL)
 		}
+		relays = append(relays, relayURL)
+		return encodeRelayListCompat(relays), nil
+	}); err != nil {
+		logger.Warn("failed to persist event→relay mapping", "error", err.Error(), "event", eventID, "relay", relayURL)
 	}
 }
 
 func GetEventRelay(eventID string) string {
 	sys := GlobalSystem
-	if sys != nil && sys.KVStore != nil {
-		val, err := sys.KVStore.Get([]byte(eventID))
-		if err != nil || val == nil {
-			return ""
-		}
-		return string(val)
+	if sys == nil {
+		return ""
+	}
+	id, err := nostr.IDFromHex(eventID)
+	if err != nil {
+		return ""
+	}
+	relays := sys.GetEventRelays(id)
+	if len(relays) > 0 {
+		return relays[0]
 	}
 	return ""
+}
+
+func encodeRelayListCompat(relays []string) []byte {
+	totalSize := 0
+	for _, relay := range relays {
+		if len(relay) > 256 {
+			continue
+		}
+		totalSize += 1 + len(relay)
+	}
+	buf := make([]byte, totalSize)
+	offset := 0
+	for _, relay := range relays {
+		if len(relay) > 256 {
+			continue
+		}
+		buf[offset] = uint8(len(relay))
+		offset++
+		copy(buf[offset:], relay)
+		offset += len(relay)
+	}
+	return buf
+}
+
+func decodeRelayListCompat(data []byte) []string {
+	relays := make([]string, 0, 6)
+	for offset := 0; offset < len(data); {
+		if offset+1 > len(data) {
+			return nil
+		}
+		length := int(data[offset])
+		offset++
+		if offset+length > len(data) {
+			return nil
+		}
+		relays = append(relays, string(data[offset:offset+length]))
+		offset += length
+	}
+	return relays
 }

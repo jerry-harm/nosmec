@@ -9,12 +9,10 @@ type Relay struct {
 type Config struct {
 	ConfigDir    string   `mapstructure:"config_dir"`
 	DataDir      string   `mapstructure:"data_dir"`
-	RelayList   []Relay  `mapstructure:"relay_list"`
-	DMRelays    []string `mapstructure:"dm_relays"`
+	RelayList    []Relay  `mapstructure:"relay_list"`
+	DMRelays     []string `mapstructure:"dm_relays"`
 	SearchRelays []string `mapstructure:"search_relays"`
-	PrivateKey  string   `mapstructure:"private_key"`
-
-	KnownRelays []string `mapstructure:"known_relays"`
+	PrivateKey   string   `mapstructure:"private_key"`
 
 	Proxy struct {
 		Socks    string `mapstructure:"socks"`

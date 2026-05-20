@@ -111,7 +111,6 @@ When `GetOptions` has no explicit relay list, `GetQueryRelays` determines the re
 1. **tag[2] relay hints** — `ExtractRelayHints(event)` from e/p/a/q tags
 2. **HintsDB outbox** — `app.Hints().TopN(pubkey, 3)` from e tag author pubkeys (checks tag[4] first for NIP-10 5-field, falls back to tag[3])
 3. **AllReadableRelays()** — configured relays only
-4. **KnownRelays** — NIP-65 discovered + gossip fallback
 
 ```go
 func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string

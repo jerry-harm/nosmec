@@ -156,9 +156,6 @@ func registerCommunityCommands() {
 
 			// Get relay list for queries
 			relays := app.AllReadableRelays()
-			if len(relays) == 0 {
-				relays = app.Config().KnownRelays
-			}
 			timeoutMs := app.QueryTimeoutms()
 
 			// --- Following (Kind 10004) ---

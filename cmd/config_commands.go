@@ -112,7 +112,7 @@ func registerConfigCommands() {
 
 			fmt.Println("=== nosmec Configuration ===")
 
-				fmt.Printf("Data Directory: %s\n", cfg.DataDir)
+			fmt.Printf("Data Directory: %s\n", cfg.DataDir)
 			fmt.Printf("Config Directory: %s\n", cfg.ConfigDir)
 			fmt.Printf("Private Key: %s\n", maskString(cfg.PrivateKey, 8))
 
@@ -145,14 +145,6 @@ func registerConfigCommands() {
 				fmt.Println("  (none)")
 			}
 			for _, url := range cfg.SearchRelays {
-				fmt.Printf("  %s\n", url)
-			}
-
-			fmt.Println("\n--- Known Relays ---")
-			if len(cfg.KnownRelays) == 0 {
-				fmt.Println("  (none)")
-			}
-			for _, url := range cfg.KnownRelays {
 				fmt.Printf("  %s\n", url)
 			}
 
@@ -275,9 +267,6 @@ func registerConfigCommands() {
 			relays := app.WritableRelays()
 			if len(relays) == 0 {
 				relays = app.ReadableRelays()
-			}
-			if len(relays) == 0 {
-				relays = app.Config().KnownRelays
 			}
 
 			filter := nostr.Filter{
@@ -463,7 +452,7 @@ func registerConfigCommands() {
 		},
 	}
 
-configDMRelayAddCmd := &cobra.Command{
+	configDMRelayAddCmd := &cobra.Command{
 		Use:   "add <url>",
 		Short: "Add DM relay",
 		Args:  cobra.ExactArgs(1),

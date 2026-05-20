@@ -82,9 +82,9 @@ func ListenForDMs(ctx context.Context, app *config.AppContext, since nostr.Times
 }
 
 type Conversation struct {
-	PubKey       string
-	LatestDM     DMMessage
-	LatestAt     nostr.Timestamp
+	PubKey   string
+	LatestDM DMMessage
+	LatestAt nostr.Timestamp
 }
 
 type DMMessage struct {
@@ -108,9 +108,6 @@ func ListDMConversations(ctx context.Context, app *config.AppContext, limit int)
 	relays := app.ListDMRelays()
 	if len(relays) == 0 {
 		relays = app.ReadableRelays()
-	}
-	if len(relays) == 0 {
-		relays = app.Config().KnownRelays
 	}
 	if len(relays) == 0 {
 		relays = app.AllReadableRelays()
@@ -203,9 +200,6 @@ func QueryDMHistory(ctx context.Context, app *config.AppContext, recipientPubKey
 		relays = app.ReadableRelays()
 	}
 	if len(relays) == 0 {
-		relays = app.Config().KnownRelays
-	}
-	if len(relays) == 0 {
 		relays = app.AllReadableRelays()
 	}
 	if len(relays) == 0 {
@@ -241,7 +235,7 @@ func QueryDMHistory(ctx context.Context, app *config.AppContext, recipientPubKey
 
 		messages = append(messages, DMMessage{
 			Content:   rumor.Content,
-			FromMe:   fromMe,
+			FromMe:    fromMe,
 			Timestamp: rumor.CreatedAt,
 		})
 	}

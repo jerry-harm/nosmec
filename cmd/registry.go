@@ -29,6 +29,7 @@ func registerDefaultCommands() {
 	registerEventCommands()
 	registerSearchCommands()
 	registerGossipCommands()
+	registerRelayCommands()
 }
 
 type commandGroup struct {

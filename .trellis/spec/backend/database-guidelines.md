@@ -49,15 +49,15 @@ Layered store:
 
 ## sdk.System KVStore
 
-The `sdk.System.KVStore` (`fiatjaf.com/nostr/sdk/kvstore/bbolt`) stores:
+The `sdk.System.KVStore` (`nostr_sdk/kvstore/bbolt`) stores:
 
 - **Event→relay mappings** — which relay an event was first fetched from (for NIP-10 e-tag relay hints)
 - **Profile fetch timestamps** — last time we refreshed a profile from network (7-day debounce)
 
 ```go
 // Key format
-"evrel:{eventID}" → relay URL bytes
-"prof:{kind}:{pubkeyHex}" → Unix timestamp (last network fetch)
+'r' + first 8 bytes of event ID → compact relay list bytes
+"prof:{kind}:{pubkeyHex}"      → Unix timestamp (last network fetch)
 ```
 
 KVStore is accessed via `GlobalSystem.KVStore.Get/Set/Update`.
@@ -66,7 +66,7 @@ KVStore is accessed via `GlobalSystem.KVStore.Get/Set/Update`.
 
 ## NIP-65 Relay List Caching (In-Memory Only)
 
-User relay lists (from NIP-65 Kind 10002) are **not stored in BoltDB**. They're kept in-memory in `AppContext.knownRelays` and persisted to the config file (`known_relays` in `nosmec.yaml`) on `Close()`.
+User relay lists (from NIP-65 Kind 10002) are **not stored in BoltDB**. Relay inspection for `nosmec relay list` reads only SDK-managed databases (`hints.db` and `kvstore.db`).
 
 The `DiscoverUserRelays` function queries the network on-demand; there's no `user-relays` bucket in BoltDB.
 
@@ -99,7 +99,7 @@ func (a *AppContext) Close() error {
             errs = append(errs, err)
         }
     }
-    // ... relay persistence ...
+    // ... other shutdown work ...
     if len(errs) > 0 {
         return errors.Join(errs...)
     }

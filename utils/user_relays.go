@@ -72,7 +72,6 @@ func DiscoverUserRelays(ctx context.Context, app *config.AppContext, pubKey nost
 	logger.Debug("DiscoverUserRelays: parsed relays", "pubkey", pubKey.Hex(), "read", readRelays, "write", writeRelays)
 
 	EnsureRelays(app, allRelays)
-	app.TrackRelays(allRelays)
 
 	return allRelays, nil
 }
@@ -91,16 +90,6 @@ func getAllCandidateRelays(app *config.AppContext) []string {
 		}
 	}
 
-	known := app.Config().KnownRelays
-	logger.Debug("getAllCandidateRelays: KnownRelays", "count", len(known), "relays", known)
-
-	for _, r := range known {
-		if _, ok := seen[r]; !ok {
-			seen[r] = struct{}{}
-			result = append(result, r)
-		}
-	}
-
 	logger.Debug("getAllCandidateRelays: total candidates", "count", len(result))
 	return result
 }
@@ -108,11 +97,8 @@ func getAllCandidateRelays(app *config.AppContext) []string {
 func DiscoverUserRelaysWithFallback(ctx context.Context, app *config.AppContext, pubKey nostr.PubKey) ([]string, error) {
 	relays, err := DiscoverUserRelays(ctx, app, pubKey)
 	if err != nil {
-		logger.Debug("DiscoverUserRelays failed, trying KnownRelays fallback", "error", err.Error(), "pubkey", pubKey.Hex())
+		logger.Debug("DiscoverUserRelays failed", "error", err.Error(), "pubkey", pubKey.Hex())
 		relays, err = nil, nil
-	}
-	if len(relays) == 0 {
-		relays = app.Config().KnownRelays
 	}
 	return relays, err
 }
@@ -126,7 +112,7 @@ func EnsureRelays(app *config.AppContext, urls []string) {
 
 // GetQueryRelays returns the ordered relay list for querying events related to the given event.
 // Priority: 1. tag[2] relay hints  2. HintsDB outbox (from e tag[3] author pubkeys)
-// 3. AllReadableRelays  4. KnownRelays fallback.
+// 3. AllReadableRelays.
 func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string {
 	seen := make(map[string]struct{})
 	var result []string
@@ -173,14 +159,6 @@ func GetQueryRelays(event *nostr.Event, app *config.AppContext) []string {
 
 	// 3. All readable relays (configured + local)
 	for _, r := range app.AllReadableRelays() {
-		if _, ok := seen[r]; !ok {
-			seen[r] = struct{}{}
-			result = append(result, r)
-		}
-	}
-
-	// 4. KnownRelays fallback
-	for _, r := range app.Config().KnownRelays {
 		if _, ok := seen[r]; !ok {
 			seen[r] = struct{}{}
 			result = append(result, r)

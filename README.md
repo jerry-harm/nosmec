@@ -92,7 +92,6 @@ All config can be overridden with `NOSMEC_` prefix:
 | `private_key` | `NOSMEC_PRIVATE_KEY` |
 | `relay_list` | `NOSMEC_RELAY_LIST` |
 | `dm_relays` | `NOSMEC_DM_RELAYS` |
-| `known_relays` | `NOSMEC_KNOWN_RELAYS` |
 
 ### Proxy Support
 

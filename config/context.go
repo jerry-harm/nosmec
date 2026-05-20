@@ -15,13 +15,12 @@ import (
 )
 
 type AppContext struct {
-	pool         *nostr.Pool
-	cfg          Config
-	mu           sync.RWMutex
-	viper        *viper.Viper
-	knownRelays  map[string]struct{}
-	hints        hints.HintsDB
-	sys          *nostr_sdk.System
+	pool  *nostr.Pool
+	cfg   Config
+	mu    sync.RWMutex
+	viper *viper.Viper
+	hints hints.HintsDB
+	sys   *nostr_sdk.System
 }
 
 func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
@@ -35,15 +34,13 @@ func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
 	}
 
 	return &AppContext{
-		pool:        pool,
-		cfg:         cfg,
-		viper:       v,
-		knownRelays: make(map[string]struct{}),
-		hints:       GlobalHints(),
-		sys:         sys,
+		pool:  pool,
+		cfg:   cfg,
+		viper: v,
+		hints: GlobalHints(),
+		sys:   sys,
 	}
 }
-
 
 func (a *AppContext) System() *nostr_sdk.System {
 	return a.sys
@@ -410,43 +407,11 @@ func (a *AppContext) AddAlias(k, v string) {
 	a.viper.WriteConfig()
 }
 
-func (a *AppContext) TrackRelays(relays []string) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	for _, r := range relays {
-		a.knownRelays[r] = struct{}{}
-	}
-}
-
 func (a *AppContext) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	var errs []error
-
-	relays := make([]string, 0, len(a.knownRelays))
-	for r := range a.knownRelays {
-		relays = append(relays, r)
-	}
-
-	if len(relays) > 0 {
-		existing := make(map[string]struct{})
-		for _, r := range a.cfg.KnownRelays {
-			existing[r] = struct{}{}
-		}
-		for _, r := range relays {
-			existing[r] = struct{}{}
-		}
-		merged := make([]string, 0, len(existing))
-		for r := range existing {
-			merged = append(merged, r)
-		}
-		a.cfg.KnownRelays = merged
-		a.viper.Set("known_relays", merged)
-		if err := a.viper.WriteConfig(); err != nil {
-			errs = append(errs, err)
-		}
-	}
 
 	// Close System last (KVStore must flush after all writes)
 	if a.sys != nil && a.sys.KVStore != nil {
@@ -459,35 +424,4 @@ func (a *AppContext) Close() error {
 		return errors.Join(errs...)
 	}
 	return nil
-}
-
-func (a *AppContext) PersistKnownRelays() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	relays := make([]string, 0, len(a.knownRelays))
-	for r := range a.knownRelays {
-		relays = append(relays, r)
-	}
-
-	if len(relays) == 0 {
-		return nil
-	}
-
-	existing := make(map[string]struct{})
-	for _, r := range a.cfg.KnownRelays {
-		existing[r] = struct{}{}
-	}
-	for _, r := range relays {
-		existing[r] = struct{}{}
-	}
-
-	merged := make([]string, 0, len(existing))
-	for r := range existing {
-		merged = append(merged, r)
-	}
-
-	a.cfg.KnownRelays = merged
-	a.viper.Set("known_relays", merged)
-	return a.viper.WriteConfig()
 }

@@ -16,7 +16,7 @@ import (
 func registerGossipCommands() {
 	gossipCmd := &cobra.Command{
 		Use:   "gossip",
-		Short: "Batch fetch users' relay lists (NIP-65) and update KnownRelays",
+		Short: "Batch fetch users' relay lists (NIP-65) and ensure them in the pool",
 		Args:  cobra.NoArgs,
 		Run:   runGossip,
 	}
@@ -88,10 +88,6 @@ func runGossip(cmd *cobra.Command, args []string) {
 	fmt.Printf("\nDiscovered %d unique relays from %d users\n", len(relaySet), len(subs))
 
 	if len(relaySet) > 0 {
-		if err := app.PersistKnownRelays(); err != nil {
-			fmt.Printf("Warning: failed to persist relays: %v\n", err)
-		} else {
-			fmt.Printf("Saved %d relays to config.\n", len(relaySet))
-		}
+		fmt.Printf("Ensured %d relays in pool for this session.\n", len(relaySet))
 	}
 }

@@ -8,8 +8,8 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	sdk "github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/config"
+	sdk "github.com/jerry-harm/nosmec/nostr_sdk"
 )
 
 type RelayInfo struct {
@@ -34,14 +34,14 @@ type HashtagInfo struct {
 }
 
 type FullProfile struct {
-	NPub       string            `json:"npub"`
-	PubKey     string            `json:"pubkey"`
-	Metadata   *sdk.ProfileMetadata `json:"metadata,omitempty"`
-	Relays     []RelayInfo       `json:"relays,omitempty"`
-	DMRelays   []string          `json:"dm_relays,omitempty"`
-	Follows    []FollowInfo      `json:"follows,omitempty"`
-	Communities []CommunityInfo  `json:"communities,omitempty"`
-	Hashtags   []HashtagInfo     `json:"hashtags,omitempty"`
+	NPub        string               `json:"npub"`
+	PubKey      string               `json:"pubkey"`
+	Metadata    *sdk.ProfileMetadata `json:"metadata,omitempty"`
+	Relays      []RelayInfo          `json:"relays,omitempty"`
+	DMRelays    []string             `json:"dm_relays,omitempty"`
+	Follows     []FollowInfo         `json:"follows,omitempty"`
+	Communities []CommunityInfo      `json:"communities,omitempty"`
+	Hashtags    []HashtagInfo        `json:"hashtags,omitempty"`
 }
 
 func profileConfigToMetadata(pc config.ProfileConfig) sdk.ProfileMetadata {
@@ -282,16 +282,9 @@ func GetFullProfile(ctx context.Context, pubKey nostr.PubKey, app *config.AppCon
 	}
 
 	allRelays := app.AllReadableRelays()
-	knownRelays := app.Config().KnownRelays
 	seen := make(map[string]bool)
-	relays := make([]string, 0, len(allRelays)+len(knownRelays))
+	relays := make([]string, 0, len(allRelays))
 	for _, r := range allRelays {
-		if !seen[r] {
-			relays = append(relays, r)
-			seen[r] = true
-		}
-	}
-	for _, r := range knownRelays {
 		if !seen[r] {
 			relays = append(relays, r)
 			seen[r] = true

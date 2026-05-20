@@ -15,8 +15,6 @@ dm_relays: []    # DM relay 列表
 
 search_relays: [] # Search relay 列表
 
-known_relays: [] # 已知 relay 列表（程序结束时自动维护）
-
 cache_filters: [] # 缓存过滤器列表，默认动态生成
 
 local_relay:
@@ -41,7 +39,6 @@ alias: {}  # 别名映射
 | `relay_list` | `NOSMEC_RELAY_LIST` | Relay 列表 |
 | `dm_relays` | `NOSMEC_DM_RELAYS` | DM relay 列表 |
 | `search_relays` | `NOSMEC_SEARCH_RELAYS` | Search relay 列表 |
-| `known_relays` | `NOSMEC_KNOWN_RELAYS` | 已知 relay |
 | `local_relay.enabled` | `NOSMEC_LOCAL_RELAY_ENABLED` | 本地 relay 开关 |
 | `local_relay.port` | `NOSMEC_LOCAL_RELAY_PORT` | 本地 relay 端口 |
 | `proxy.i2p_socks` | `NOSMEC_PROXY_I2P_SOCKS` | I2P 代理 |
@@ -168,7 +165,6 @@ type Config struct {
     DMRelays       []string
     SearchRelays   []string
     PrivateKey     string
-    KnownRelays    []string
     Proxy          ProxyConfig
     Alias          map[string]string
     Subscriptions  []Subscription

@@ -165,7 +165,6 @@ func ConfigKeyCompletionFunc(cmd *cobra.Command, args []string, toComplete strin
 		"relay_list",
 		"dm_relays",
 		"search_relays",
-		"known_relays",
 		"alias",
 	}
 

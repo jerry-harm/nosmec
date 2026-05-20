@@ -13,7 +13,6 @@ type AppContext struct {
     cfg         Config           // Config snapshot (read-only via Config(), mutable via setters)
     mu          sync.RWMutex     // Protects cfg writes
     viper       *viper.Viper     // Config persistence (WriteConfig on mutations)
-    knownRelays map[string]struct{} // Discovered relays, persisted on Close()
     hints       sdk_hints.HintsDB // Relay→pubkey scoring from every incoming event
     sys         *sdk.System      // sdk.System (Pool, Hints, KVStore, RelayStreams, Store)
 }
@@ -103,11 +102,10 @@ func (a *AppContext) ReplaceAllSubscriptions(subscriptions []Subscription) error
 func (a *AppContext) AddAlias(k, v string)  // Persists immediately
 ```
 
-### Relay Discovery Tracking
+### Shutdown
 
 ```go
-func (a *AppContext) TrackRelays(relays []string)  // Adds to knownRelays map
-func (a *AppContext) Close() error                 // Persists knownRelays to config on shutdown
+func (a *AppContext) Close() error // Flushes SDK/system resources on shutdown
 ```
 
 ---
@@ -147,8 +145,7 @@ Created via `sdk.NewSystem()` in `GlobalPool()` (config/config.go).
 `AppContext.Close()` is called on app shutdown:
 
 1. Closes the `sdk.System` (KVStore + Pool)
-2. Merges `knownRelays` into `cfg.KnownRelays`
-3. Persists merged list via `viper.WriteConfig()`
+2. Closes the SDK-backed KVStore cleanly
 
 ```go
 func (a *AppContext) Close() error {
@@ -160,7 +157,6 @@ func (a *AppContext) Close() error {
             errs = append(errs, err)
         }
     }
-    // ... relay persistence ...
     if len(errs) > 0 {
         return errors.Join(errs...)
     }
