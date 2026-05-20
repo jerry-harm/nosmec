@@ -1,0 +1,2 @@
+{"file":".trellis/tasks/05-20-reduce-test-overreach/prd.md","reason":"Verify the final documentation changes match the agreed scope: command guidance only, no test-code changes required."}
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"Check that backend verification rules explicitly avoid default full-package nostr_sdk runs and exclude WoT tests."}

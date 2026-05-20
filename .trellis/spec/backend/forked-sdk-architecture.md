@@ -288,13 +288,24 @@ go build ./nip72 ./utils ./cmd ./tui/community/discover
 go build ./...             # Full project when practical
 ```
 
-Behavior-focused tests required for this area:
+Default verification for this area is scope-driven, not package-wide:
+
+- If the current change does **not** touch `nostr_sdk` or `nip72`, do **not** run `go test ./nostr_sdk` as a routine verification step.
+- If the current change **does** touch `nostr_sdk` / `nip72` behavior, run focused `-run` selections for the behavior you changed instead of the full legacy package suite.
+- Full-package `go test ./nostr_sdk` is **not** a default verification command in this repo.
+- WoT tests (`TestLoadWoT`, `TestLoadWoTManyPeople`) are excluded from default verification.
+
+Behavior-focused tests for scoped `nostr_sdk` / `nip72` changes should stay narrow and match the code you touched. Start from commands like:
 ```bash
 go test ./nip72 ./utils
 go test ./nostr_sdk -run 'TestFetchEventsByFilter|TestDefaultRelaysForFilter|TestFetchEventsByFilter_CanQueryCommunityDefinitionsFromStore|TestFetchEventByIDInScope_UsesLocalStore|TestFetchParentChainInScope_StopsOnScopeMismatch|TestFetchRepliesBreadthFirstInScope_UsesLocalStoreAndFiltersScope|TestExtractCommunityScope|TestMatchesCommunityScope|TestFetchSpecificEventInScope_NilWhenScopeMismatches'
 ```
 
+Adjust the package list and `-run` pattern to the exact behavior under change. Do not read the example above as a rule that only these tests are allowed.
+
 Do not treat a long-running full `go test ./nostr_sdk` timeout as proof that the refactor is broken unless one of the targeted behavior tests fails.
+
+If you intentionally work on legacy live-relay or WoT behavior, verify that slice separately and explicitly instead of expanding the default verification command set for unrelated tasks.
 
 ## Common Issues
 
