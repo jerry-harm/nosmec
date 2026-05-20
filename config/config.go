@@ -7,14 +7,11 @@ import (
 	"sync"
 
 	"fiatjaf.com/nostr"
-	"fiatjaf.com/nostr/eventstore/bleve"
-	"fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints/lmdbh"
-	kvstore_lmdb "github.com/jerry-harm/nosmec/nostr_sdk/kvstore/lmdb"
 	"github.com/spf13/viper"
 )
 
@@ -203,34 +200,9 @@ func GlobalPool() *nostr.Pool {
 	if globalPool != nil {
 		return globalPool
 	}
+	// Initialize GlobalSystem if not yet created (stores are lazily opened on first access)
 	if GlobalSystem == nil {
 		GlobalSystem = nostr_sdk.NewSystem()
-		hints := GlobalHints()
-		GlobalSystem.Hints = hints
-
-		dataDir := globalConfig.DataDir
-		kvStorePath := filepath.Join(dataDir, "kvstore")
-		kvStore, err := kvstore_lmdb.NewStore(kvStorePath)
-		if err != nil {
-			logger.Warn("failed to create LMDB KVStore, falling back to in-memory store", "error", err.Error(), "path", kvStorePath)
-		} else {
-			GlobalSystem.KVStore = kvStore
-		}
-
-		eventsPath := filepath.Join(dataDir, "events")
-		lmdbStore := &lmdb.LMDBBackend{Path: eventsPath}
-		if err := lmdbStore.Init(); err != nil {
-			logger.Warn("failed to create LMDB event store, local cache disabled", "error", err.Error())
-		} else {
-			searchIndexPath := filepath.Join(dataDir, "search_index")
-			bleveStore := &bleve.BleveBackend{Path: searchIndexPath, RawEventStore: lmdbStore}
-			if err := bleveStore.Init(); err != nil {
-				logger.Warn("failed to create Bleve search index, search disabled", "error", err.Error())
-				GlobalSystem.Store = lmdbStore
-			} else {
-				GlobalSystem.Store = bleveStore
-			}
-		}
 	}
 	globalPool = NewPool(GlobalSystem.Hints)
 	GlobalSystem.Pool = globalPool

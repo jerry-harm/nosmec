@@ -65,8 +65,10 @@ func initApp() {
 		Socks:    cfg.Proxy.Socks,
 		I2PSocks: cfg.Proxy.I2PSocks,
 	})
-	pool := config.GlobalPool()
-	app = config.NewAppContext(pool, cfg, config.GetViper())
+	// NOTE: GlobalPool() is NOT called here — pool/stores are lazily initialized
+	// on first actual use (relay connection). This keeps shell completion fast
+	// by avoiding LMDB open on every tab-press.
+	app = config.NewAppContext(nil, cfg, config.GetViper())
 
 	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
 	SetCmdApp(app)

@@ -37,7 +37,6 @@ func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
 		pool:  pool,
 		cfg:   cfg,
 		viper: v,
-		hints: GlobalHints(),
 		sys:   sys,
 	}
 }
@@ -51,10 +50,16 @@ func (a *AppContext) Theme() *theme.Theme {
 }
 
 func (a *AppContext) Pool() *nostr.Pool {
+	if a.pool == nil {
+		a.pool = GlobalPool()
+	}
 	return a.pool
 }
 
 func (a *AppContext) Hints() hints.HintsDB {
+	if a.hints == nil {
+		a.hints = GlobalHints()
+	}
 	return a.hints
 }
 
