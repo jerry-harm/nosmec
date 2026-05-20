@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/tui/window-size-management.md", "reason": "Event detail view and compose flow are TUI screens that must preserve existing sizing behavior."}
+{"file": ".trellis/spec/tui/theme-system.md", "reason": "Event detail display changes must follow the existing TUI theme rules."}
+{"file": ".trellis/spec/backend/nip-conventions.md", "reason": "Reply and quote behavior must match local NIP tagging conventions before code changes."}
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Relay source display and relay hint/tag handling depend on repo relay guidance."}
+{"file": ".trellis/spec/backend/nostr-sdk-usage.md", "reason": "Event detail and reply flows fetch/store Nostr data through the local sdk wrapper."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "The task crosses event detail UI, compose behavior, and Nostr protocol rules."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/prd.md", "reason": "Primary task requirements and chosen reply-strategy design."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/reply-semantics-standard-events.md", "reason": "Baseline NIP-10 vs NIP-22 reply semantics research."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/reply-semantics-special-events.md", "reason": "Special-event reply semantics and scope limits research."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/readme-special-reply-kinds.md", "reason": "README event-kind table mapping for dedicated reply/comment kinds."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/nip22-semantics.md", "reason": "Precise NIP-22 root/parent semantics for the generic reply path."}

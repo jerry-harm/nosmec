@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/tui/window-size-management.md", "reason": "Review must verify that event detail and compose changes keep TUI sizing/layout intact."}
+{"file": ".trellis/spec/tui/theme-system.md", "reason": "Review must check that new display states follow the TUI theme system."}
+{"file": ".trellis/spec/backend/nip-conventions.md", "reason": "Review must validate generated reply/quote semantics against repo NIP conventions."}
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Review must validate relay-origin display and relay hint usage."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Review should apply backend quality expectations to protocol-routing helpers and tests."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Review must check consistency across UI, compose, and protocol layers."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/prd.md", "reason": "Primary review target for intended behavior and acceptance criteria."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/reply-semantics-standard-events.md", "reason": "Reference for note/comment reply behavior validation."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/reply-semantics-special-events.md", "reason": "Reference for unsupported or special-case reply targets."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/readme-special-reply-kinds.md", "reason": "Reference for dedicated reply/comment kind precedence."}
+{"file": ".trellis/tasks/05-20-improve-event-detail-display-and-interaction/research/nip22-semantics.md", "reason": "Reference for precise NIP-22 root/parent semantics during review."}
