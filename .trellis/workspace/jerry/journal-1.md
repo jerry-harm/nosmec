@@ -1724,3 +1724,36 @@ Moved pure community definition parsing out of utils into nip72 with small-grain
 ### Next Steps
 
 - None - task complete
+
+
+## Session 52: Narrow default nostr_sdk verification scope
+
+**Date**: 2026-05-20
+**Task**: Narrow default nostr_sdk verification scope
+**Branch**: `main`
+
+### Summary
+
+Investigated the current slow-test hotspot and confirmed nostr_sdk was dominated by legacy live-relay and WoT coverage, with TestLoadWoTManyPeople timing out the package run. Chose to fix the problem at the verification-command layer rather than changing test behavior. Updated backend verification guidance so default checks are scope-driven, full-package go test ./nostr_sdk is no longer a routine command, and WoT tests are excluded from default verification while still allowing targeted nostr_sdk -run coverage when that area is actually changed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `128fa0d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
