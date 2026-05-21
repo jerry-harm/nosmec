@@ -1889,3 +1889,36 @@ Debugged shell completion slowness: initApp() was calling GlobalPool() unconditi
 ### Next Steps
 
 - None - task complete
+
+
+## Session 57: Unify fetch relay selection to upstream-compatible defaultRelaysForFilter
+
+**Date**: 2026-05-21
+**Task**: Unify fetch relay selection to upstream-compatible defaultRelaysForFilter
+**Branch**: `main`
+
+### Summary
+
+Researched upstream nostr/sdk hint model (4-layer: TrackQueryAttempts + TrackEventHintsAndRelays + FetchOutboxRelays + per-family extension). Adopted Approach C (two-layer: hint collection + SDK expansion). Converged FetchGlobalTimelinePage and FetchRepliesToRoot to use defaultRelaysForFilter(ctx, filter) instead of hardcoded FallbackRelays.URLs. Semantically equivalent — both filters fall through to the same FallbackRelays branch with identical final fallback. All 7 system.go fetch functions now consistently route through centralized relay selection. Build, vet, and 5/5 tests pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8f83805` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

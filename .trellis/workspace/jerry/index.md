@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 56
-- **Last Active**: 2026-05-20
+- **Total Sessions**: 57
+- **Last Active**: 2026-05-21
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1891 | Active |
+| `journal-1.md` | ~1924 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 57 | 2026-05-21 | Unify fetch relay selection to upstream-compatible defaultRelaysForFilter | `8f83805` | `main` |
 | 56 | 2026-05-20 | Fix completion blocking by lazy-loading LMDB stores | `1b10568` | `main` |
 | 55 | 2026-05-20 | Switch all persistent DB backends from bbolt/BoltDB to LMDB | `34c19d1` | `main` |
 | 54 | 2026-05-20 | Add relay list command | `1bba05c` | `main` |
