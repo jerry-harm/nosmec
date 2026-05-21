@@ -222,10 +222,7 @@ func (sys *System) FetchGlobalTimelinePage(
 		filter.Until = until
 	}
 
-	relays := sys.FallbackRelays.URLs
-	if len(relays) == 0 {
-		relays = []string{"wss://relay.damus.io", "wss://nos.lol"}
-	}
+	relays := sys.defaultRelaysForFilter(ctx, filter)
 
 	events := make([]nostr.Event, 0, limit)
 	for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "global"}) {
@@ -625,10 +622,7 @@ func (sys *System) FetchRepliesToRoot(ctx context.Context, rootID nostr.ID, limi
 		Limit: limit,
 	}
 
-	relays := sys.FallbackRelays.URLs
-	if len(relays) == 0 {
-		relays = []string{"wss://relay.damus.io", "wss://nos.lol"}
-	}
+	relays := sys.defaultRelaysForFilter(ctx, filter)
 
 	var events []*nostr.Event
 	for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "replies"}) {
