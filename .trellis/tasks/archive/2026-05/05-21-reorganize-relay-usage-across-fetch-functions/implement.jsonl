@@ -1,0 +1,7 @@
+{"file":".trellis/tasks/05-21-reorganize-relay-usage-across-fetch-functions/prd.md","reason":"Scope confirmed: converge system.go fetch functions to upstream-compatible hints/outbox/fallback layering."}
+{"file":".trellis/tasks/05-21-reorganize-relay-usage-across-fetch-functions/research/relay-usage-architecture.md","reason":"Full catalog of current fetch/relay behavior, inconsistencies, and 3 organization options."}
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"SDK ownership rules, local-first contracts, generic filter relay defaults, scoped-thread local-first rule."}
+{"file":".trellis/spec/backend/query-patterns.md","reason":"Generic filter contracts, relay defaults priority ladder, local-first contract, caller-override semantics."}
+{"file":"nostr_sdk/system.go","reason":"Core file being refactored: all timeline/filter/replies fetch functions with inline relay selection."}
+{"file":"nostr_sdk/outbox.go","reason":"FetchOutboxRelays logic that upstream uses as author-read backbone; must align with."}
+{"file":"nostr_sdk/feeds.go","reason":"Upstream feed/live path using outbox relay selection; reference for timeline alignment."}

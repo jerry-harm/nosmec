@@ -1,0 +1,7 @@
+{"file":".trellis/tasks/05-21-reorganize-relay-usage-across-fetch-functions/prd.md","reason":"Check that implementation matches confirmed scope: system.go fetch functions converge to upstream-compatible layering."}
+{"file":".trellis/tasks/05-21-reorganize-relay-usage-across-fetch-functions/research/relay-usage-architecture.md","reason":"Reference for current behavior; check that refactored functions no longer have scattered relay logic."}
+{"file":".trellis/spec/backend/forked-sdk-architecture.md","reason":"Verify local-first contracts and generic-filter relay defaults are preserved."}
+{"file":".trellis/spec/backend/query-patterns.md","reason":"Verify relay-defaults priority ladder and caller-override semantics are preserved."}
+{"file":"nostr_sdk/system.go","reason":"Verify refactored timeline/filter/replies functions use consistent relay selection."}
+{"file":"nostr_sdk/outbox.go","reason":"Verify FetchOutboxRelays remains the author-read backbone."}
+{"file":"nostr_sdk/fetch_events_test.go","reason":"Verify existing tests still pass after refactor."}
