@@ -382,6 +382,7 @@ func (sys *System) FetchFollowedTimelinePage(
 	}
 
 	events := make([]nostr.Event, 0, limit)
+	results := make(chan nostr.Event)
 	wg := sync.WaitGroup{}
 	wg.Add(len(pubkeys) + len(communityAddrs))
 
@@ -447,7 +448,7 @@ func (sys *System) FetchFollowedTimelinePage(
 
 			for _, ev := range localEvents {
 				if ev.CreatedAt < until || until == 0 {
-					events = append(events, ev)
+					results <- ev
 				}
 			}
 		}(pubkey, oldestTimestamp)
@@ -475,7 +476,7 @@ func (sys *System) FetchFollowedTimelinePage(
 			for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.SubscriptionOptions{Label: "community"}) {
 				sys.Publisher.Publish(ctx, ie.Event)
 				if ie.Event.CreatedAt < until || until == 0 {
-					events = append(events, ie.Event)
+					results <- ie.Event
 					count++
 					if count >= limitPerKey {
 						break
@@ -485,7 +486,20 @@ func (sys *System) FetchFollowedTimelinePage(
 		}(addr)
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	seen := make(map[nostr.ID]bool)
+	for ev := range results {
+		if seen[ev.ID] {
+			continue
+		}
+		seen[ev.ID] = true
+		events = append(events, ev)
+	}
+
 	slices.SortFunc(events, nostr.CompareEventReverse)
 	if len(events) > limit {
 		events = events[:limit]

@@ -3,7 +3,6 @@ package nostr_sdk
 import (
 	"context"
 	"slices"
-	"sync"
 	"sync/atomic"
 
 	"fiatjaf.com/nostr"
@@ -108,9 +107,7 @@ func (sys *System) FetchFeedPage(
 ) ([]nostr.Event, error) {
 	limitPerKey := PerQueryLimitInBatch(totalLimit, len(pubkeys))
 	events := make([]nostr.Event, 0, len(pubkeys)*limitPerKey)
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(pubkeys))
+	results := make(chan nostr.Event)
 
 	for _, pubkey := range pubkeys {
 		oldestKey := makePubkeyStreamKey(pubkeyStreamOldestPrefix, pubkey)
@@ -125,28 +122,20 @@ func (sys *System) FetchFeedPage(
 
 		filter := nostr.Filter{Authors: []nostr.PubKey{pubkey}, Kinds: kinds}
 		if until > oldestTimestamp {
-			// we can use our local database
 			filter.Until = until
 
 			count := 0
 			for evt := range sys.Store.QueryEvents(filter, limitPerKey) {
-				events = append(events, evt)
+				results <- evt
 				count++
 				if count >= limitPerKey {
-					// we got enough from the local store
-					wg.Done()
 					break
 				}
 			}
 		}
 
-		// if we didn't get enough events from local database
-		// OR if we are requesting for very old stuff
-		// then we will query relays -- always with Until set to our oldestTimestamp+1
-		// (so we don't get events we already have)
 		relays := sys.FetchOutboxRelays(ctx, pubkey, 2)
 		if len(relays) == 0 {
-			wg.Done()
 			continue
 		}
 		filter.Until = oldestTimestamp + 1
@@ -156,23 +145,26 @@ func (sys *System) FetchFeedPage(
 		}) {
 			sys.Publisher.Publish(ctx, ie.Event)
 
-			// we shouldn't need this check here, but against rogue relays we'll do it
 			if ie.Event.CreatedAt < oldestTimestamp {
 				oldestTimestamp = ie.Event.CreatedAt
 			}
 
-			// we should check this because we might be just catching up to the point where the
-			// offset that was requested.
-			// so we don't add these events to our results, just to our local store (above)
 			if ie.Event.CreatedAt < until {
-				events = append(events, ie.Event)
+				results <- ie.Event
 			}
 		}
-		wg.Done()
 		sys.KVStore.Set(oldestKey, encodeTimestamp(oldestTimestamp))
 	}
 
-	wg.Wait()
+	close(results)
+	seen := make(map[nostr.ID]bool)
+	for ev := range results {
+		if seen[ev.ID] {
+			continue
+		}
+		seen[ev.ID] = true
+		events = append(events, ev)
+	}
 	slices.SortFunc(events, nostr.CompareEventReverse)
 
 	return events, nil
