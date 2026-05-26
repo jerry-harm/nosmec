@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -164,26 +163,6 @@ func registerConfigCommands() {
 		},
 	}
 
-	configSetCmd := &cobra.Command{
-		Use:               "set <key> <value>",
-		Short:             "Set a configuration value",
-		Args:              cobra.ExactArgs(2),
-		ValidArgsFunction: completion.ConfigKeyCompletionFunc,
-		Run: func(cmd *cobra.Command, args []string) {
-			key := args[0]
-			value := args[1]
-
-			config.GetViper().Set(key, value)
-
-			if err := config.GetViper().WriteConfig(); err != nil {
-				handleError(newError("failed to write config", err))
-			}
-
-			reloadApp()
-			fmt.Printf("Set %s = %s\n", key, value)
-		},
-	}
-
 	configRelayCmd := &cobra.Command{
 		Use:   "relay",
 		Short: "Manage relays",
@@ -313,72 +292,6 @@ func registerConfigCommands() {
 	configRelayCmd.AddCommand(configRelayAddCmd)
 	configRelayCmd.AddCommand(configRelayRemoveCmd)
 	configRelayCmd.AddCommand(configRelaySyncCmd)
-
-	configAliasCmd := &cobra.Command{
-		Use:   "alias",
-		Short: "Manage aliases",
-	}
-
-	configAliasListCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List aliases",
-		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			aliases := utils.ListAliases(getApp())
-			if len(aliases) == 0 {
-				fmt.Println("No aliases configured.")
-				return
-			}
-
-			var keys []string
-			for k := range aliases {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-
-			fmt.Println("Configured aliases:")
-			for _, alias := range keys {
-				fmt.Printf("%-20s -> %s\n", alias, aliases[alias])
-			}
-		},
-	}
-
-	configAliasAddCmd := &cobra.Command{
-		Use:   "add <alias> <value>",
-		Short: "Add an alias",
-		Args:  cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			alias := args[0]
-			value := args[1]
-			getApp().AddAlias(alias, value)
-			fmt.Printf("Alias added: %s -> %s\n", alias, value)
-		},
-	}
-
-	configAliasRemoveCmd := &cobra.Command{
-		Use:               "remove <alias>",
-		Short:             "Remove an alias",
-		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: completion.AliasCompletionFunc,
-		Run: func(cmd *cobra.Command, args []string) {
-			alias := args[0]
-			cfg := getApp().Config()
-			if cfg.Alias == nil {
-				handleError(newError("alias not found", nil))
-			}
-			delete(cfg.Alias, alias)
-			config.GetViper().Set("alias", cfg.Alias)
-			if err := config.GetViper().WriteConfig(); err != nil {
-				handleError(newError("failed to write config", err))
-			}
-			reloadApp()
-			fmt.Printf("Alias removed: %s\n", alias)
-		},
-	}
-
-	configAliasCmd.AddCommand(configAliasListCmd)
-	configAliasCmd.AddCommand(configAliasAddCmd)
-	configAliasCmd.AddCommand(configAliasRemoveCmd)
 
 	configSearchRelayCmd := &cobra.Command{
 		Use:   "search-relay",
@@ -840,9 +753,7 @@ This will overwrite your local configuration with data from relays.
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configPubkeyCmd)
 	configCmd.AddCommand(profileCmd)
-	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configRelayCmd)
-	configCmd.AddCommand(configAliasCmd)
 	configCmd.AddCommand(configSearchRelayCmd)
 	configCmd.AddCommand(configDMRelayCmd)
 	configCmd.AddCommand(configSubscribeCmd)

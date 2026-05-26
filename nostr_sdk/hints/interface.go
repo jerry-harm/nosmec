@@ -15,4 +15,5 @@ type HintsDB interface {
 	Save(pubkey nostr.PubKey, relay string, key HintKey, score nostr.Timestamp)
 	PrintScores()
 	GetDetailedScores(pubkey nostr.PubKey, n int) []RelayScores
+	GetAllKnownRelays() ([]string, error)
 }

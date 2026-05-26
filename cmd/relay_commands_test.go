@@ -10,6 +10,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/jerry-harm/nosmec/config"
 )
 
 func TestMergeUniqueSortedRelayURLs(t *testing.T) {
@@ -100,8 +101,10 @@ func TestWriteRelayList(t *testing.T) {
 		string(makeEventRelayKVKey(id)): encodeRelayListForTest([]string{"wss://relay-a.example", "wss://relay-b.example"}),
 	})
 
+	app := config.NewAppContext(nil, config.Config{DataDir: dataDir}, nil)
+
 	var out bytes.Buffer
-	if err := writeRelayList(&out, dataDir); err != nil {
+	if err := writeRelayList(&out, app); err != nil {
 		t.Fatalf("writeRelayList() error = %v", err)
 	}
 

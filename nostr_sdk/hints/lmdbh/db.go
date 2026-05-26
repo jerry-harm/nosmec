@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"sort"
 
 	"fiatjaf.com/nostr"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints"
@@ -139,6 +140,43 @@ func (lh *LMDBHints) TopN(pubkey nostr.PubKey, n int) []string {
 		result = append(result, rs.relay)
 	}
 	return result
+}
+
+func (lh *LMDBHints) GetAllKnownRelays() ([]string, error) {
+	var relays []string
+	err := lh.env.View(func(txn *lmdb.Txn) error {
+		txn.RawRead = true
+		cursor, err := txn.OpenCursor(lh.dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+
+		seen := make(map[string]struct{})
+		for k, _, err := cursor.Get(nil, nil, lmdb.First); err == nil; k, _, err = cursor.Get(nil, nil, lmdb.Next) {
+			if len(k) <= 32 {
+				continue
+			}
+			relay := string(k[32:])
+			if relay == "" {
+				continue
+			}
+			if _, ok := seen[relay]; ok {
+				continue
+			}
+			seen[relay] = struct{}{}
+			relays = append(relays, relay)
+		}
+		if !lmdb.IsNotFound(err) {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(relays)
+	return relays, nil
 }
 
 func (lh *LMDBHints) PrintScores() {

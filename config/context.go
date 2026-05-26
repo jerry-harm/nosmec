@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -24,18 +23,18 @@ type AppContext struct {
 }
 
 func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
-	sys := GlobalSystem
-	if sys == nil {
-		sys = nostr_sdk.NewSystem()
-		GlobalSystem = sys
-	}
+	sys := globalSystem()
+	wirePersistentBackends(sys)
 	if sys.Pool == nil {
 		sys.Pool = pool
+	} else if pool == nil {
+		pool = sys.Pool
 	}
 
 	return &AppContext{
 		pool:  pool,
 		cfg:   cfg,
+		hints: sys.Hints,
 		viper: v,
 		sys:   sys,
 	}
@@ -401,32 +400,21 @@ func (a *AppContext) ReplaceAllSubscriptions(subscriptions []Subscription) error
 	return a.viper.WriteConfig()
 }
 
-func (a *AppContext) AddAlias(k, v string) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.cfg.Alias == nil {
-		a.cfg.Alias = make(map[string]string)
-	}
-	a.cfg.Alias[k] = v
-	a.viper.Set("alias", a.cfg.Alias)
-	a.viper.WriteConfig()
-}
-
 func (a *AppContext) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var errs []error
-
-	// Close System last (KVStore must flush after all writes)
-	if a.sys != nil && a.sys.KVStore != nil {
-		if err := a.sys.KVStore.Close(); err != nil {
-			errs = append(errs, err)
-		}
+	if a.sys == nil {
+		return nil
 	}
 
-	if len(errs) > 0 {
-		return errors.Join(errs...)
+	closingGlobalSystem := a.sys == GlobalSystem
+	err := a.sys.Close()
+	a.pool = nil
+	a.hints = nil
+	a.sys = nil
+	if closingGlobalSystem {
+		resetGlobalRuntimeState()
 	}
-	return nil
+	return err
 }

@@ -130,6 +130,16 @@ func (db *HintDB) GetDetailedScores(pubkey nostr.PubKey, n int) []hints.RelaySco
 	return result
 }
 
+func (db *HintDB) GetAllKnownRelays() ([]string, error) {
+	db.Lock()
+	defer db.Unlock()
+
+	relays := make([]string, len(db.RelayBySerial))
+	copy(relays, db.RelayBySerial)
+	slices.Sort(relays)
+	return relays, nil
+}
+
 type RelayEntry struct {
 	Relay      int
 	Timestamps [4]nostr.Timestamp

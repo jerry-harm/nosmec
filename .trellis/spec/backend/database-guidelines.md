@@ -101,27 +101,34 @@ Profile metadata (Kind 0) is cached in `sdk.System.MetadataCache` (in-memory LRU
 
 ## Close() Error Handling
 
-When closing, errors must be accumulated and returned:
+`System.Close()` is the single place that closes all backend resources. Errors are accumulated and returned from `System.Close()` → `AppContext.Close()`:
 
 ```go
-func (a *AppContext) Close() error {
-    a.mu.Lock()
-    defer a.mu.Unlock()
+func (sys *System) Close() error {
     var errs []error
-    if a.sys != nil && a.sys.KVStore != nil {
-        if err := a.sys.KVStore.Close(); err != nil {
+    if sys.Pool != nil {
+        sys.Pool.Close("sdk.System closed")
+    }
+    if sys.Store != nil {
+        if err := sys.Store.Close(); err != nil {
             errs = append(errs, err)
         }
     }
-    // ... other shutdown work ...
-    if len(errs) > 0 {
-        return errors.Join(errs...)
+    if sys.Hints != nil {
+        if cl, ok := sys.Hints.(interface{ Close() }); ok {
+            cl.Close()
+        }
     }
-    return nil
+    if sys.KVStore != nil {
+        if err := sys.KVStore.Close(); err != nil {
+            errs = append(errs, err)
+        }
+    }
+    return errors.Join(errs...)
 }
 ```
 
-**Why**: `Close()` errors indicate failure to flush/sync data. Ignoring them risks data loss.
+**Why**: `Close()` errors indicate failure to flush/sync data. Ignoring them risks data loss. Closing in the correct order (Pool before Store) prevents dangling references.
 
 ---
 

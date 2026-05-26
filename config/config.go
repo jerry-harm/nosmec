@@ -7,23 +7,35 @@ import (
 	"sync"
 
 	"fiatjaf.com/nostr"
+	"fiatjaf.com/nostr/eventstore"
+	eventstorebleve "fiatjaf.com/nostr/eventstore/bleve"
+	eventstorelmdb "fiatjaf.com/nostr/eventstore/lmdb"
 	"fiatjaf.com/nostr/nip19"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/nostr_sdk"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints"
 	"github.com/jerry-harm/nosmec/nostr_sdk/hints/lmdbh"
+	"github.com/jerry-harm/nosmec/nostr_sdk/kvstore"
+	kvstorelmdb "github.com/jerry-harm/nosmec/nostr_sdk/kvstore/lmdb"
 	"github.com/spf13/viper"
 )
 
 var (
-	globalPool   *nostr.Pool
-	globalHints  hints.HintsDB
-	globalConfig Config
-	configDir    string
-	onceInit     sync.Once
-	initialized  bool
-	proxyConfig  ProxyConfig
-	globalViper  *viper.Viper
+	globalPool    *nostr.Pool
+	globalHints   hints.HintsDB
+	globalKVStore kvstore.KVStore
+	globalStore   eventstore.Store
+	globalConfig  Config
+	configDir     string
+	onceInit      sync.Once
+	onceSystem    sync.Once
+	onceHints     sync.Once
+	onceKVStore   sync.Once
+	onceStore     sync.Once
+	oncePool      sync.Once
+	initialized   bool
+	proxyConfig   ProxyConfig
+	globalViper   *viper.Viper
 
 	GlobalSystem *nostr_sdk.System
 )
@@ -166,20 +178,90 @@ func loadConfig() *Config {
 }
 
 func GlobalHints() hints.HintsDB {
-	if globalHints != nil {
-		return globalHints
-	}
-	if globalConfig.DataDir == "" {
-		return nil
-	}
-	hintsPath := filepath.Join(globalConfig.DataDir, "hints")
-	bh, err := lmdbh.NewLMDBHints(hintsPath)
-	if err != nil {
-		logger.Error("failed to open hints db", "error", err.Error(), "path", hintsPath)
-		return nil
-	}
-	globalHints = bh
+	onceHints.Do(func() {
+		dataDir := getDataDir()
+		if dataDir == "" {
+			return
+		}
+		hintsPath := filepath.Join(dataDir, "hints")
+		bh, err := lmdbh.NewLMDBHints(hintsPath)
+		if err != nil {
+			logger.Error("failed to open hints db", "error", err.Error(), "path", hintsPath)
+			return
+		}
+		globalHints = bh
+	})
 	return globalHints
+}
+
+func GlobalKVStore() kvstore.KVStore {
+	onceKVStore.Do(func() {
+		dataDir := getDataDir()
+		if dataDir == "" {
+			return
+		}
+		kvPath := filepath.Join(dataDir, "kvstore")
+		store, err := kvstorelmdb.NewStore(kvPath)
+		if err != nil {
+			logger.Error("failed to open kvstore", "error", err.Error(), "path", kvPath)
+			return
+		}
+		globalKVStore = store
+	})
+	return globalKVStore
+}
+
+func GlobalStore() eventstore.Store {
+	onceStore.Do(func() {
+		dataDir := getDataDir()
+		if dataDir == "" {
+			return
+		}
+
+		eventsPath := filepath.Join(dataDir, "events")
+		lmdbStore := &eventstorelmdb.LMDBBackend{Path: eventsPath}
+		if err := lmdbStore.Init(); err != nil {
+			logger.Warn("failed to create LMDB event store, local cache disabled", "error", err.Error(), "path", eventsPath)
+			return
+		}
+
+		searchIndexPath := filepath.Join(dataDir, "search_index")
+		bleveStore := &eventstorebleve.BleveBackend{Path: searchIndexPath, RawEventStore: lmdbStore}
+		if err := bleveStore.Init(); err != nil {
+			logger.Warn("failed to create Bleve search index, search disabled", "error", err.Error(), "path", searchIndexPath)
+			globalStore = lmdbStore
+			return
+		}
+
+		globalStore = bleveStore
+	})
+	return globalStore
+}
+
+func wirePersistentBackends(sys *nostr_sdk.System) {
+	if sys == nil {
+		return
+	}
+
+	// Always wire persistent backends when available.
+	// NewSystem() pre-sets memory/null defaults, so we must overwrite them
+	// unconditionally rather than checking != nil.
+	if hintsDB := GlobalHints(); hintsDB != nil {
+		sys.Hints = hintsDB
+	}
+	if kv := GlobalKVStore(); kv != nil {
+		sys.KVStore = kv
+	}
+	if store := GlobalStore(); store != nil {
+		sys.Store = store
+	}
+}
+
+func globalSystem() *nostr_sdk.System {
+	onceSystem.Do(func() {
+		GlobalSystem = nostr_sdk.NewSystem()
+	})
+	return GlobalSystem
 }
 
 func NewPool(h hints.HintsDB) *nostr.Pool {
@@ -197,15 +279,12 @@ func NewPool(h hints.HintsDB) *nostr.Pool {
 }
 
 func GlobalPool() *nostr.Pool {
-	if globalPool != nil {
-		return globalPool
-	}
-	// Initialize GlobalSystem if not yet created (stores are lazily opened on first access)
-	if GlobalSystem == nil {
-		GlobalSystem = nostr_sdk.NewSystem()
-	}
-	globalPool = NewPool(GlobalSystem.Hints)
-	GlobalSystem.Pool = globalPool
+	oncePool.Do(func() {
+		sys := globalSystem()
+		wirePersistentBackends(sys)
+		globalPool = NewPool(sys.Hints)
+		sys.Pool = globalPool
+	})
 	return globalPool
 }
 
@@ -215,6 +294,26 @@ func SetPool(p *nostr.Pool) {
 
 func DataDir() string {
 	return globalConfig.DataDir
+}
+
+func getDataDir() string {
+	if globalConfig.DataDir != "" {
+		return globalConfig.DataDir
+	}
+	return InitConfig().DataDir
+}
+
+func resetGlobalRuntimeState() {
+	globalPool = nil
+	globalHints = nil
+	globalKVStore = nil
+	globalStore = nil
+	GlobalSystem = nil
+	onceSystem = sync.Once{}
+	onceHints = sync.Once{}
+	onceKVStore = sync.Once{}
+	onceStore = sync.Once{}
+	oncePool = sync.Once{}
 }
 
 func TrackEventRelay(eventID, relayURL string) {

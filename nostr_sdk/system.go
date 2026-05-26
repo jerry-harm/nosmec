@@ -2,6 +2,7 @@ package nostr_sdk
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"slices"
 	"sync"
@@ -10,6 +11,7 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/eventstore"
+	eventstorebleve "fiatjaf.com/nostr/eventstore/bleve"
 	"fiatjaf.com/nostr/eventstore/nullstore"
 	"fiatjaf.com/nostr/eventstore/wrappers"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -198,12 +200,57 @@ func NewSystem() *System {
 }
 
 // Close releases resources held by the System.
-func (sys *System) Close() {
-	if sys.KVStore != nil {
-		sys.KVStore.Close()
+func (sys *System) Close() error {
+	if sys == nil {
+		return nil
 	}
+
+	var errs []error
+
 	if sys.Pool != nil {
 		sys.Pool.Close("sdk.System closed")
+		sys.Pool = nil
+	}
+	if sys.Store != nil {
+		closeStore(sys.Store)
+		sys.Store = nil
+	}
+	if sys.Hints != nil {
+		if err := closeResource(sys.Hints); err != nil {
+			errs = append(errs, err)
+		}
+		sys.Hints = nil
+	}
+	if sys.KVStore != nil {
+		if err := sys.KVStore.Close(); err != nil {
+			errs = append(errs, err)
+		}
+		sys.KVStore = nil
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+func closeStore(store eventstore.Store) {
+	store.Close()
+
+	if bleveStore, ok := store.(*eventstorebleve.BleveBackend); ok && bleveStore.RawEventStore != nil {
+		bleveStore.RawEventStore.Close()
+	}
+}
+
+func closeResource(resource any) error {
+	switch resource := resource.(type) {
+	case interface{ Close() error }:
+		return resource.Close()
+	case interface{ Close() }:
+		resource.Close()
+		return nil
+	default:
+		return nil
 	}
 }
 

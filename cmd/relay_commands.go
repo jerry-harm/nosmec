@@ -10,6 +10,7 @@ import (
 
 	"github.com/PowerDNS/lmdb-go/lmdb"
 	"github.com/spf13/cobra"
+	"github.com/jerry-harm/nosmec/config"
 )
 
 var (
@@ -35,7 +36,7 @@ func registerRelayCommands() {
 				return newError("app not initialized", nil)
 			}
 
-			if err := writeRelayList(cmd.OutOrStdout(), app.Config().DataDir); err != nil {
+			if err := writeRelayList(cmd.OutOrStdout(), app); err != nil {
 				return newError("failed to list relays", err)
 			}
 			return nil
@@ -46,13 +47,18 @@ func registerRelayCommands() {
 	RegisterCommandGroup("Relay", "Relay operations", relayCmd)
 }
 
-func writeRelayList(w io.Writer, dataDir string) error {
-	hintsRelays, err := collectHintsDBRelays(filepath.Join(dataDir, "hints"))
-	if err != nil {
-		return err
+func writeRelayList(w io.Writer, app *config.AppContext) error {
+	var hintsRelays []string
+	sys := app.System()
+	if sys != nil && sys.Hints != nil {
+		var err error
+		hintsRelays, err = sys.Hints.GetAllKnownRelays()
+		if err != nil {
+			return err
+		}
 	}
 
-	kvRelays, err := collectKVStoreEventRelays(filepath.Join(dataDir, "kvstore"))
+	kvRelays, err := collectKVStoreEventRelays(filepath.Join(app.Config().DataDir, "kvstore"))
 	if err != nil {
 		return err
 	}

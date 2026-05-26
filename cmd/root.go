@@ -1,19 +1,17 @@
 package cmd
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/jerry-harm/nosmec/cmd/completion"
 	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/logger"
 	"github.com/jerry-harm/nosmec/utils"
 	"github.com/spf13/cobra"
 )
-
-type appContextKey struct{}
 
 var debug bool
 
@@ -29,8 +27,6 @@ var rootCmd = &cobra.Command{
 }
 
 var app *config.AppContext
-
-type cmdContextKey struct{}
 
 func Execute() {
 	sigChan := make(chan os.Signal, 1)
@@ -70,19 +66,7 @@ func initApp() {
 	// by avoiding LMDB open on every tab-press.
 	app = config.NewAppContext(nil, cfg, config.GetViper())
 
-	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
-	SetCmdApp(app)
-}
-
-func SetCmdApp(a *config.AppContext) {
-	rootCmd.SetContext(context.WithValue(context.Background(), cmdContextKey{}, a))
-}
-
-func GetCmdApp() *config.AppContext {
-	if appPtr := rootCmd.Context().Value(cmdContextKey{}); appPtr != nil {
-		return appPtr.(*config.AppContext)
-	}
-	return app
+	completion.SetApp(app)
 }
 
 func setupHTTPTransport() {
@@ -94,26 +78,4 @@ func setupHTTPTransport() {
 
 func getApp() *config.AppContext {
 	return app
-}
-
-func getAppFromContext(ctx context.Context) *config.AppContext {
-	if appPtr := ctx.Value(appContextKey{}); appPtr != nil {
-		return appPtr.(*config.AppContext)
-	}
-	return app
-}
-
-func reloadApp() {
-	if app != nil {
-		app.Close()
-	}
-	cfg := config.InitConfig()
-	config.SetProxyConfig(config.ProxyConfig{
-		Socks:    cfg.Proxy.Socks,
-		I2PSocks: cfg.Proxy.I2PSocks,
-	})
-	pool := config.GlobalPool()
-	app = config.NewAppContext(pool, cfg, config.GetViper())
-
-	rootCmd.SetContext(context.WithValue(context.Background(), appContextKey{}, app))
 }

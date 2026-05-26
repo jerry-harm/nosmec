@@ -96,21 +96,15 @@ func (a *AppContext) RemoveSubscription(subType, subID string) error
 func (a *AppContext) ReplaceAllSubscriptions(subscriptions []Subscription) error
 ```
 
-### Aliases
-
-```go
-func (a *AppContext) AddAlias(k, v string)  // Persists immediately
-```
-
 ### Shutdown
 
 ```go
 func (a *AppContext) Close() error // Flushes SDK/system resources on shutdown
 ```
 
----
-
 ## Config Mutation Rule
+
+**Note**: `config alias` commands have been removed. `AppContext.AddAlias` no longer exists.
 
 Every mutation method calls `a.viper.WriteConfig()` to persist changes immediately.
 
@@ -142,27 +136,26 @@ Created via `sdk.NewSystem()` in `GlobalPool()` (config/config.go).
 
 ## Close() Behavior
 
-`AppContext.Close()` is called on app shutdown:
-
-1. Closes the `sdk.System` (KVStore + Pool)
-2. Closes the SDK-backed KVStore cleanly
+`AppContext.Close()` is called on app shutdown. It delegates entirely to `System.Close()`:
 
 ```go
 func (a *AppContext) Close() error {
     a.mu.Lock()
     defer a.mu.Unlock()
-    var errs []error
-    if a.sys != nil {
-        if err := a.sys.Close(); err != nil {
-            errs = append(errs, err)
-        }
+    if a.sys == nil {
+        return nil
     }
-    if len(errs) > 0 {
-        return errors.Join(errs...)
-    }
-    return nil
+    return a.sys.Close() // closes Pool, Store, Hints, KVStore in order
 }
 ```
+
+`System.Close()` closes resources in this order:
+1. **Pool** — nostr relay connections
+2. **Store** — LMDB/Bleve event store
+3. **Hints** — HintsDB (via type assertion; no-op if already nil)
+4. **KVStore** — LMDB key-value store
+
+Errors from each close are aggregated and returned. `HintsDB` does not expose a `Close()` method in its interface; closing is done via `interface{ Close() }` type assertion, so not all implementations can be closed — this is a known limitation of the upstream interface.
 
 ---
 
@@ -171,3 +164,4 @@ func (a *AppContext) Close() error {
 - `mu sync.RWMutex` protects `cfg` writes (all setters acquire write lock)
 - Read methods (`Config()`, `ReadableRelays()`, etc.) acquire read lock, release immediately
 - `Hints()` and `Pool()` are always safe (no internal mutation after construction)
+- Global backend initialization (`GlobalHints`, `GlobalKVStore`, `GlobalStore`, `GlobalPool`) is protected by `sync.Once` to prevent concurrent duplicate initialization

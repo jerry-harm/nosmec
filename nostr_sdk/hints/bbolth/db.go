@@ -180,6 +180,36 @@ func (bh *BoltHints) PrintScores() {
 	}
 }
 
+func (bh *BoltHints) GetAllKnownRelays() ([]string, error) {
+	var relays []string
+	err := bh.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(hintsBucket)
+		c := b.Cursor()
+
+		seen := make(map[string]struct{})
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			if len(k) <= 32 {
+				continue
+			}
+			relay := string(k[32:])
+			if relay == "" {
+				continue
+			}
+			if _, ok := seen[relay]; ok {
+				continue
+			}
+			seen[relay] = struct{}{}
+			relays = append(relays, relay)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	slices.Sort(relays)
+	return relays, nil
+}
+
 type timestamps [4]nostr.Timestamp
 
 func (tss timestamps) sum() int64 {
