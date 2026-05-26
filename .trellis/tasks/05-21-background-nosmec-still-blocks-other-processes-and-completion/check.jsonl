@@ -1,0 +1,5 @@
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/database-guidelines.md","reason":"Review must confirm the final Store/KVStore/Hints wiring matches the documented persistent backend contract and fallback behavior."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/app-context.md","reason":"Review must confirm AppContext and GlobalSystem still share the intended sdk.System dependencies after the wiring change."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/forked-sdk-architecture.md","reason":"Review must check that the fix preserves the SDK boundary and local-store-backed design assumptions."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/query-patterns.md","reason":"Review must verify query and middleware paths still rely on the same centralized sdk.System behavior after the fix."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Review should inspect layer-boundary regressions across config, storage, and SDK wiring."}

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index for verification context."}
+{"file": ".trellis/spec/backend/app-context.md", "reason": "Check AppContext behavior and shutdown semantics against project guidance."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify database/resource closure behavior and error handling."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Apply project testing and verification standards during review."}

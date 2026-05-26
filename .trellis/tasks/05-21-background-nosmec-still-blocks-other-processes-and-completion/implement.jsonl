@@ -1,0 +1,6 @@
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/database-guidelines.md","reason":"Defines the required LMDB/Bleve store stack and says GlobalSystem.Store/KVStore/Hints must be persistent."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/app-context.md","reason":"Defines AppContext and GlobalSystem integration contract, including shared Pool and persistent sdk.System dependencies."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/forked-sdk-architecture.md","reason":"Explains sdk.System ownership boundaries and local-store-first behavior so wiring changes stay aligned with the forked SDK design."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/backend/query-patterns.md","reason":"Documents that FetchEventsByFilter and middleware rely on sdk.System store and KVStore behavior, which this wiring fix must preserve."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/guides/cross-layer-thinking-guide.md","reason":"This fix crosses config initialization, sdk.System, and persistent storage boundaries; use it to verify contracts at each boundary."}
+{"file":"/home/jerry/code/nosmec/.trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Helps avoid duplicating persistent initialization logic and keeps GlobalSystem wiring centralized."}

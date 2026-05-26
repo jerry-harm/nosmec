@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index for relevant lifecycle, database, and quality guidance."}
+{"file": ".trellis/spec/backend/app-context.md", "reason": "AppContext ownership, mutation, and shutdown behavior are central to this task."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Close semantics and LMDB/Bleve backend lifecycle rules apply to resource shutdown changes."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Project testing and change-quality requirements for backend refactors."}
