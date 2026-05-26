@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-1.md`
-- **Total Sessions**: 58
+- **Active File**: `journal-2.md`
+- **Total Sessions**: 60
 - **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1958 | Active |
+| `journal-2.md` | ~40 | Active |
+| `journal-1.md` | ~1991 | Archived |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +30,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 60 | 2026-05-26 | relay list 改走 System 读取 | `18a8a0d` | `main` |
+| 59 | 2026-05-26 | 移除低价值 reply strategy 测试 | `820189e` | `main` |
 | 58 | 2026-05-26 | 审计整改：AppContext 收拢 runtime 所有权 | `9e6559e`, `0ab9a93` | `main` |
 | 57 | 2026-05-21 | Unify fetch relay selection to upstream-compatible defaultRelaysForFilter | `8f83805` | `main` |
 | 56 | 2026-05-20 | Fix completion blocking by lazy-loading LMDB stores | `1b10568` | `main` |
