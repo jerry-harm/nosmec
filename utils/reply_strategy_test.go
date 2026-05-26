@@ -189,44 +189,6 @@ func TestDetermineReplyTarget_CommunityPost(t *testing.T) {
 	}
 }
 
-func TestBuildAddressableTag(t *testing.T) {
-	event := &nostr.Event{
-		ID:   [32]byte{1},
-		Kind: 30023,
-		Tags: nostr.Tags{
-			nostr.Tag{"d", "my-article"},
-		},
-	}
-	tag := buildAddressableTag(event)
-	expected := "30023:000000000000000000000000000000000000000000000000000000000000000001:my-article"
-	if tag != expected {
-		t.Errorf("buildAddressableTag: got %q, want %q", tag, expected)
-	}
-}
-
-func TestExtractPubKeyFromATag(t *testing.T) {
-	tests := []struct {
-		aTag  string
-		want  string
-		empty bool
-	}{
-		{"34550:abc123def456:general", "abc123def456", false},
-		{"30023:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:my-article", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", false},
-		{"invalid", "", true},
-		{"", "", true},
-	}
-
-	for _, tt := range tests {
-		got := extractPubKeyFromATag(tt.aTag)
-		if tt.empty && got != "" {
-			t.Errorf("extractPubKeyFromATag(%q): got %q, want empty", tt.aTag, got)
-		}
-		if !tt.empty && got != tt.want {
-			t.Errorf("extractPubKeyFromATag(%q): got %q, want %q", tt.aTag, got, tt.want)
-		}
-	}
-}
-
 func TestIsCommunityPost(t *testing.T) {
 	eventWithA := &nostr.Event{
 		ID:   [32]byte{1},

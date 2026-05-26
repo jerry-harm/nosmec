@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index for utils package review context."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Review test removals and goleak adjustments against backend testing rules."}
