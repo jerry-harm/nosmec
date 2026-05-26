@@ -38,3 +38,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 61: FetchFollowedTimelinePage race 修复
+
+**Date**: 2026-05-26
+**Task**: FetchFollowedTimelinePage race 修复
+**Branch**: `main`
+
+### Summary
+
+修复 nostr_sdk 中 FetchFollowedTimelinePage 和 FetchFeedPage 的并发数据竞争：用 channel fan-in 替代多个 goroutine 直接写共享 slice，保留并发抓取性能收益的同时消除 race，并增加 seen 去重。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `62795ef` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
