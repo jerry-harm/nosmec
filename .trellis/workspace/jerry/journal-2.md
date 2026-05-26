@@ -71,3 +71,34 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 62: timeline i2p relay path analysis
+
+**Date**: 2026-05-26
+**Task**: timeline i2p relay path analysis
+**Branch**: `main`
+
+### Summary
+
+分析了 note timeline 的 followed 拉取链路，确认首批 timeline 通过 FetchFollowedTimelinePage 和 FetchOutboxRelays 走 HintDB.TopN(pubkey, 6) 做 outbox relay 选择；同时按要求硬删除了临时回退提交，当前 stale task 已不存在，因此本次 journal 不关联 surviving work commit。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
