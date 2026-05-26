@@ -1922,3 +1922,37 @@ Researched upstream nostr/sdk hint model (4-layer: TrackQueryAttempts + TrackEve
 ### Next Steps
 
 - None - task complete
+
+
+## Session 58: 审计整改：AppContext 收拢 runtime 所有权
+
+**Date**: 2026-05-26
+**Task**: 审计整改：AppContext 收拢 runtime 所有权
+**Branch**: `main`
+
+### Summary
+
+审计整改：资源生命周期与 Close 语义修复。删除 config alias/set/reloadApp，System.Close() 补齐 Store/Hints，AppContext 收拢所有 runtime 资源所有权，移除 GlobalPool/GlobalHints 等全局 getter，GetEventRelay 移至 AppContext 方法。Commit 0ab9a93 和 9e6559e。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9e6559e` | (see git log) |
+| `0ab9a93` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
