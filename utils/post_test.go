@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"fiatjaf.com/nostr"
+	"github.com/spf13/viper"
+	"github.com/jerry-harm/nosmec/config"
 )
 
 func TestQuoteNoteTags(t *testing.T) {
@@ -23,13 +25,14 @@ func TestQuoteNoteTags(t *testing.T) {
 }
 
 func TestReplyToNoteTags(t *testing.T) {
+	app := config.NewAppContext(nil, config.Config{DataDir: t.TempDir()}, viper.New())
 	// Root event (no e tags) → reply should have only "root" marker with pubkey
 	rootEvent := &nostr.Event{
 		ID:      [32]byte{1},
 		Content: "root",
 		Kind:    nostr.KindTextNote,
 	}
-	tags := BuildReplyTags(rootEvent)
+	tags := BuildReplyTags(app, rootEvent)
 	if len(tags) != 1 {
 		t.Fatalf("len(tags) = %d, want 1", len(tags))
 	}
@@ -51,7 +54,7 @@ func TestReplyToNoteTags(t *testing.T) {
 			{"e", "some-parent-id", "", "reply"},
 		},
 	}
-	tags = BuildReplyTags(nestedParent)
+	tags = BuildReplyTags(app, nestedParent)
 	if len(tags) != 2 {
 		t.Fatalf("len(tags) = %d, want 2", len(tags))
 	}
@@ -108,6 +111,7 @@ func TestDeleteNoteEventKind(t *testing.T) {
 }
 
 func TestBuildReplyTags(t *testing.T) {
+	app := config.NewAppContext(nil, config.Config{DataDir: t.TempDir()}, viper.New())
 	id, _ := nostr.IDFromHex("abcd123400000000000000000000000000000000000000000000000000000000")
 	parentPubKeyHex := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	parentEvent := &nostr.Event{
@@ -117,7 +121,7 @@ func TestBuildReplyTags(t *testing.T) {
 		Tags:    nostr.Tags{},
 	}
 
-	tags := BuildReplyTags(parentEvent)
+	tags := BuildReplyTags(app, parentEvent)
 	tags = append(tags, nostr.Tag{"p", parentPubKeyHex})
 
 	foundRoot := false

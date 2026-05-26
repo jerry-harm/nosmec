@@ -23,12 +23,27 @@ type AppContext struct {
 }
 
 func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
-	sys := globalSystem()
-	wirePersistentBackends(sys)
-	if sys.Pool == nil {
-		sys.Pool = pool
-	} else if pool == nil {
+	sys := nostr_sdk.NewSystem()
+
+	if cfg.DataDir != "" {
+		if h := openHints(cfg.DataDir); h != nil {
+			sys.Hints = h
+		}
+		if kv := openKVStore(cfg.DataDir); kv != nil {
+			sys.KVStore = kv
+		}
+		if store := openStore(cfg.DataDir); store != nil {
+			sys.Store = store
+		}
+	}
+
+	if pool == nil && sys.Pool != nil {
 		pool = sys.Pool
+	} else if pool != nil && sys.Pool == nil {
+		sys.Pool = pool
+	} else if pool == nil && sys.Pool == nil {
+		pool = newPool(sys)
+		sys.Pool = pool
 	}
 
 	return &AppContext{
@@ -44,21 +59,33 @@ func (a *AppContext) System() *nostr_sdk.System {
 	return a.sys
 }
 
+func (a *AppContext) GetEventRelay(eventID string) string {
+	if a == nil || a.sys == nil {
+		return ""
+	}
+	id, err := nostr.IDFromHex(eventID)
+	if err != nil {
+		return ""
+	}
+	relays := a.sys.GetEventRelays(id)
+	if len(relays) > 0 {
+		return relays[0]
+	}
+	return ""
+}
+
 func (a *AppContext) Theme() *theme.Theme {
 	return theme.LoadTheme(a.viper)
 }
 
 func (a *AppContext) Pool() *nostr.Pool {
 	if a.pool == nil {
-		a.pool = GlobalPool()
+		a.pool = newPool(a.sys)
 	}
 	return a.pool
 }
 
 func (a *AppContext) Hints() hints.HintsDB {
-	if a.hints == nil {
-		a.hints = GlobalHints()
-	}
 	return a.hints
 }
 
@@ -408,13 +435,9 @@ func (a *AppContext) Close() error {
 		return nil
 	}
 
-	closingGlobalSystem := a.sys == GlobalSystem
 	err := a.sys.Close()
 	a.pool = nil
 	a.hints = nil
 	a.sys = nil
-	if closingGlobalSystem {
-		resetGlobalRuntimeState()
-	}
 	return err
 }

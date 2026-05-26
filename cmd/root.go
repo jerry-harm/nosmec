@@ -61,9 +61,6 @@ func initApp() {
 		Socks:    cfg.Proxy.Socks,
 		I2PSocks: cfg.Proxy.I2PSocks,
 	})
-	// NOTE: GlobalPool() is NOT called here — pool/stores are lazily initialized
-	// on first actual use (relay connection). This keeps shell completion fast
-	// by avoiding LMDB open on every tab-press.
 	app = config.NewAppContext(nil, cfg, config.GetViper())
 
 	completion.SetApp(app)

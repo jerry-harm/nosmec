@@ -266,7 +266,7 @@ func encodeTimestamp(v nostr.Timestamp) []byte
 
 | Before | After |
 |--------|-------|
-| `sdkplus.System` wraps `*sdk.System` | `config.GlobalSystem *nostr_sdk.System` (direct, no wrapper) |
+| `sdkplus.System` wraps `*sdk.System` | `AppContext.System() *nostr_sdk.System` (owned, no global) |
 | `sdkplus.FetchFollowedTimelinePage` | `nostr_sdk.System.FetchFollowedTimelinePage` |
 | `sdkplus.Wrap(app.System()).Method()` | `app.System().Method()` |
 | `fiatjaf.com/nostr/sdk` import | `github.com/jerry-harm/nosmec/nostr_sdk` import |

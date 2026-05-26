@@ -7,7 +7,6 @@ import (
 
 	"fiatjaf.com/nostr"
 	"fiatjaf.com/nostr/nip19"
-	"github.com/jerry-harm/nosmec/config"
 	"github.com/jerry-harm/nosmec/tui/component/label"
 )
 
@@ -47,7 +46,7 @@ func (m *EventView) renderHeader() string {
 	}
 
 	// Line 4: Relay source (if known)
-	if relays := config.GetEventRelay(e.ID.Hex()); relays != "" {
+	if relays := m.app.GetEventRelay(e.ID.Hex()); relays != "" {
 		lines += "\n" + fmt.Sprintf("via: %s", m.styles.relaySource.Render(relays))
 	}
 

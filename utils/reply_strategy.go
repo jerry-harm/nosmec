@@ -54,9 +54,9 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplyDedicated,
 			ReplyKind: KindVoiceMessageComment,
-			RootTags:  buildNIP22RootTags(event, "E"),
+			RootTags:  buildNIP22RootTags(app, event, "E"),
 			ParentTags: nostr.Tags{
-				nostr.Tag{"e", event.ID.Hex(), getEventRelay(event.ID.Hex())},
+				nostr.Tag{"e", event.ID.Hex(), app.GetEventRelay(event.ID.Hex())},
 				nostr.Tag{"k", fmt.Sprintf("%d", k)},
 				nostr.Tag{"p", event.PubKey.Hex()},
 			},
@@ -65,9 +65,9 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplyDedicated,
 			ReplyKind: KindTorrentComment,
-			RootTags:  buildNIP10RootTags(event),
+			RootTags:  buildNIP10RootTags(app, event),
 			ParentTags: nostr.Tags{
-				nostr.Tag{"e", event.ID.Hex(), getEventRelay(event.ID.Hex()), "reply", event.PubKey.Hex()},
+				nostr.Tag{"e", event.ID.Hex(), app.GetEventRelay(event.ID.Hex()), "reply", event.PubKey.Hex()},
 				nostr.Tag{"p", event.PubKey.Hex()},
 			},
 		}
@@ -75,9 +75,9 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplyDedicated,
 			ReplyKind: KindLiveChat,
-			RootTags:  buildNIP22RootTags(event, "A"),
+			RootTags:  buildNIP22RootTags(app, event, "A"),
 			ParentTags: nostr.Tags{
-				nostr.Tag{"e", event.ID.Hex(), getEventRelay(event.ID.Hex())},
+				nostr.Tag{"e", event.ID.Hex(), app.GetEventRelay(event.ID.Hex())},
 				nostr.Tag{"k", fmt.Sprintf("%d", k)},
 				nostr.Tag{"p", event.PubKey.Hex()},
 			},
@@ -86,9 +86,9 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplySameKind,
 			ReplyKind: 42,
-			RootTags:  buildNIP10RootTags(event),
+			RootTags:  buildNIP10RootTags(app, event),
 			ParentTags: nostr.Tags{
-				nostr.Tag{"e", event.ID.Hex(), getEventRelay(event.ID.Hex()), "reply", event.PubKey.Hex()},
+				nostr.Tag{"e", event.ID.Hex(), app.GetEventRelay(event.ID.Hex()), "reply", event.PubKey.Hex()},
 				nostr.Tag{"p", event.PubKey.Hex()},
 			},
 		}
@@ -97,7 +97,7 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 			Strategy:  ReplySameKind,
 			ReplyKind: 9,
 			ParentTags: nostr.Tags{
-				nostr.Tag{"q", event.ID.Hex(), getEventRelay(event.ID.Hex()), event.PubKey.Hex()},
+				nostr.Tag{"q", event.ID.Hex(), app.GetEventRelay(event.ID.Hex()), event.PubKey.Hex()},
 			},
 		}
 	}
@@ -107,9 +107,9 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplyNote,
 			ReplyKind: nostr.KindTextNote,
-			RootTags:  buildNIP10RootTags(event),
+			RootTags:  buildNIP10RootTags(app, event),
 			ParentTags: nostr.Tags{
-				nostr.Tag{"e", event.ID.Hex(), getEventRelay(event.ID.Hex()), "reply", event.PubKey.Hex()},
+				nostr.Tag{"e", event.ID.Hex(), app.GetEventRelay(event.ID.Hex()), "reply", event.PubKey.Hex()},
 				nostr.Tag{"p", event.PubKey.Hex()},
 			},
 		}
@@ -130,7 +130,7 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplyComment,
 			ReplyKind: KindComment,
-			RootTags:  buildNIP22RootTags(event, "A"),
+			RootTags:  buildNIP22RootTags(app, event, "A"),
 			ParentTags: nostr.Tags{
 				nostr.Tag{"a", buildAddressableTag(event)},
 				nostr.Tag{"k", fmt.Sprintf("%d", k)},
@@ -142,9 +142,9 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 		return ReplyTarget{
 			Strategy:  ReplyComment,
 			ReplyKind: KindComment,
-			RootTags:  buildNIP22RootTags(event, "E"),
+			RootTags:  buildNIP22RootTags(app, event, "E"),
 			ParentTags: nostr.Tags{
-				nostr.Tag{"e", event.ID.Hex(), getEventRelay(event.ID.Hex())},
+				nostr.Tag{"e", event.ID.Hex(), app.GetEventRelay(event.ID.Hex())},
 				nostr.Tag{"k", fmt.Sprintf("%d", k)},
 				nostr.Tag{"p", event.PubKey.Hex()},
 			},
@@ -153,8 +153,8 @@ func DetermineReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarge
 }
 
 // buildNIP10RootTags builds NIP-10 root e-tags for kind:1 replies.
-func buildNIP10RootTags(event *nostr.Event) nostr.Tags {
-	relay := getEventRelay(event.ID.Hex())
+func buildNIP10RootTags(app *config.AppContext, event *nostr.Event) nostr.Tags {
+	relay := app.GetEventRelay(event.ID.Hex())
 	return nostr.Tags{
 		nostr.Tag{"e", event.ID.Hex(), relay, "root", event.PubKey.Hex()},
 	}
@@ -162,8 +162,8 @@ func buildNIP10RootTags(event *nostr.Event) nostr.Tags {
 
 // buildNIP22RootTags builds NIP-22 uppercase root tags.
 // scopeType is "E", "A", or "I".
-func buildNIP22RootTags(event *nostr.Event, scopeType string) nostr.Tags {
-	relay := getEventRelay(event.ID.Hex())
+func buildNIP22RootTags(app *config.AppContext, event *nostr.Event, scopeType string) nostr.Tags {
+	relay := app.GetEventRelay(event.ID.Hex())
 	switch scopeType {
 	case "E":
 		return nostr.Tags{
@@ -213,7 +213,7 @@ func buildNIP72ReplyTarget(event *nostr.Event, app *config.AppContext) ReplyTarg
 		}
 	}
 
-	relay := getEventRelay(event.ID.Hex())
+	relay := app.GetEventRelay(event.ID.Hex())
 
 	if communityA == "" {
 		// No community tag found; fall back to generic NIP-22.
@@ -260,9 +260,4 @@ func extractPubKeyFromATag(aTag string) string {
 		return ""
 	}
 	return pubkey
-}
-
-// getEventRelay returns the relay URL for an event using config tracking.
-func getEventRelay(eventID string) string {
-	return config.GetEventRelay(eventID)
 }

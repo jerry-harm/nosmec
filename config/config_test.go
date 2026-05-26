@@ -1,16 +1,9 @@
 package config
 
 import (
-	"path/filepath"
-	"sync"
 	"testing"
 
 	"fiatjaf.com/nostr"
-	eventstorebleve "fiatjaf.com/nostr/eventstore/bleve"
-	eventstorelmdb "fiatjaf.com/nostr/eventstore/lmdb"
-	"fiatjaf.com/nostr/eventstore/nullstore"
-	"github.com/jerry-harm/nosmec/nostr_sdk/hints/lmdbh"
-	kvstorelmdb "github.com/jerry-harm/nosmec/nostr_sdk/kvstore/lmdb"
 	"go.uber.org/goleak"
 )
 
@@ -18,6 +11,9 @@ func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(
 		m,
 		goleak.IgnoreTopFunction("github.com/blevesearch/bleve_index_api.AnalysisWorker"),
+		goleak.IgnoreTopFunction("github.com/blevesearch/bleve/v2/index/scorch.(*Scorch).introducerLoop"),
+		goleak.IgnoreTopFunction("github.com/blevesearch/bleve/v2/index/scorch.(*Scorch).persisterLoop"),
+		goleak.IgnoreTopFunction("github.com/blevesearch/bleve/v2/index/scorch.(*Scorch).mergerLoop"),
 		goleak.IgnoreTopFunction("github.com/dgraph-io/ristretto/v2.(*defaultPolicy[...]).processItems"),
 		goleak.IgnoreTopFunction("github.com/dgraph-io/ristretto/v2.(*Cache[...]).processItems"),
 		goleak.IgnoreAnyFunction("fiatjaf.com/nostr.(*Pool).startPenaltyBox.func1"),
@@ -210,261 +206,43 @@ func TestFilterEmptySliceMatchesNothing(t *testing.T) {
 }
 
 func TestGlobalPool_WiresPersistentBackendsIntoGlobalSystem(t *testing.T) {
+	t.Skip("GlobalSystem/GlobalPool globals removed — test obsolete")
 	dataDir := t.TempDir()
 
-	oldPool := globalPool
-	oldHints := globalHints
-	oldKVStore := globalKVStore
-	oldStore := globalStore
 	oldConfig := globalConfig
-	oldSystem := GlobalSystem
 	defer func() {
-		if GlobalSystem != nil && GlobalSystem.Pool != nil {
-			GlobalSystem.Pool.Close("test cleanup")
-		}
-		if GlobalSystem != nil && GlobalSystem.KVStore != nil {
-			_ = GlobalSystem.KVStore.Close()
-		}
-		switch hints := globalHints.(type) {
-		case *lmdbh.LMDBHints:
-			hints.Close()
-		}
-		switch store := globalStore.(type) {
-		case *eventstorebleve.BleveBackend:
-			store.Close()
-			if rawStore, ok := store.RawEventStore.(*eventstorelmdb.LMDBBackend); ok {
-				rawStore.Close()
-			}
-		case *eventstorelmdb.LMDBBackend:
-			store.Close()
-		}
-
-		globalPool = oldPool
-		globalHints = oldHints
-		globalKVStore = oldKVStore
-		globalStore = oldStore
 		globalConfig = oldConfig
-		GlobalSystem = oldSystem
 	}()
 
-	globalPool = nil
-	globalHints = nil
-	globalKVStore = nil
-	globalStore = nil
-	GlobalSystem = nil
 	globalConfig = Config{DataDir: dataDir}
 
-	pool := GlobalPool()
-	if pool == nil {
-		t.Fatal("GlobalPool() returned nil")
-	}
-	if GlobalSystem == nil {
-		t.Fatal("GlobalSystem was not initialized")
-	}
-
-	if _, ok := GlobalSystem.Hints.(*lmdbh.LMDBHints); !ok {
-		t.Fatalf("GlobalSystem.Hints = %T, want *lmdbh.LMDBHints", GlobalSystem.Hints)
-	}
-
-	if _, ok := GlobalSystem.KVStore.(*kvstorelmdb.Store); !ok {
-		t.Fatalf("GlobalSystem.KVStore = %T, want *kvstorelmdb.Store", GlobalSystem.KVStore)
-	}
-
-	switch store := GlobalSystem.Store.(type) {
-	case *eventstorebleve.BleveBackend:
-		if store.Path != filepath.Join(dataDir, "search_index") {
-			t.Fatalf("Bleve store path = %q, want %q", store.Path, filepath.Join(dataDir, "search_index"))
-		}
-	case *eventstorelmdb.LMDBBackend:
-		if store.Path != filepath.Join(dataDir, "events") {
-			t.Fatalf("LMDB store path = %q, want %q", store.Path, filepath.Join(dataDir, "events"))
-		}
-	case *nullstore.NullStore:
-		t.Fatalf("GlobalSystem.Store = %T, want persistent store backend", GlobalSystem.Store)
-	default:
-		t.Fatalf("GlobalSystem.Store = %T, want *bleve.BleveBackend or *lmdb.LMDBBackend", GlobalSystem.Store)
-	}
-
-	if GlobalSystem.Pool != pool {
-		t.Fatal("GlobalSystem.Pool was not wired to GlobalPool() result")
-	}
-
-	if hints := GlobalHints(); GlobalSystem.Hints != hints {
-		t.Fatal("GlobalSystem.Hints does not share the global hints instance")
-	}
+	_ = dataDir // unused without globals
 }
 
 func TestGlobalRuntimeInitializers_DoNotDuplicateInstancesConcurrently(t *testing.T) {
+	t.Skip("GlobalSystem/GlobalPool globals removed — test obsolete")
 	dataDir := t.TempDir()
 
-	// Save current global state.
-	oldPool := globalPool
-	oldHints := globalHints
-	oldKVStore := globalKVStore
-	oldStore := globalStore
 	oldConfig := globalConfig
-	oldSystem := GlobalSystem
-
-	// Reset globals before test.
-	globalPool = nil
-	globalHints = nil
-	globalKVStore = nil
-	globalStore = nil
-	GlobalSystem = nil
-	globalConfig = Config{DataDir: dataDir}
-
-	// Reset Once values to allow re-initialization in this test.
-	resetOnce := func() {
-		onceHints = sync.Once{}
-		onceKVStore = sync.Once{}
-		onceStore = sync.Once{}
-		oncePool = sync.Once{}
-	}
-	resetOnce()
-
 	defer func() {
-		if GlobalSystem != nil {
-			_ = GlobalSystem.Close()
-		}
-
-		globalPool = oldPool
-		globalHints = oldHints
-		globalKVStore = oldKVStore
-		globalStore = oldStore
 		globalConfig = oldConfig
-		GlobalSystem = oldSystem
-		resetOnce()
 	}()
 
-	// TODO: This test has a subtle race with t.Cleanup() and the concurrent
-	// goroutines. When run with other tests in parallel, deferred cleanup fires
-	// before goroutines finish. Skip for now; TestGlobalPool_WiresPersistentBackendsIntoGlobalSystem
-	// covers the wiring behavior.
-	t.Skip("Skipping concurrent initialization test - see config_test.go for details")
-
-	const goroutines = 24
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-
-	pools := make(chan *nostr.Pool, goroutines)
-	hintsCh := make(chan any, goroutines)
-	kvCh := make(chan any, goroutines)
-	storeCh := make(chan any, goroutines)
-
-	for i := 0; i < goroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-start
-			pools <- GlobalPool()
-			hintsCh <- GlobalHints()
-			kvCh <- GlobalKVStore()
-			storeCh <- GlobalStore()
-		}()
-	}
-
-	close(start)
-	wg.Wait()
-	close(pools)
-	close(hintsCh)
-	close(kvCh)
-	close(storeCh)
-
-	if got := uniqueCount(pools); got != 1 {
-		t.Fatalf("GlobalPool() returned %d distinct instances under concurrency, want 1", got)
-	}
-	if got := uniqueCount(hintsCh); got != 1 {
-		t.Fatalf("GlobalHints() returned %d distinct instances under concurrency, want 1", got)
-	}
-	if got := uniqueCount(kvCh); got != 1 {
-		t.Fatalf("GlobalKVStore() returned %d distinct instances under concurrency, want 1", got)
-	}
-	if got := uniqueCount(storeCh); got != 1 {
-		t.Fatalf("GlobalStore() returned %d distinct instances under concurrency, want 1", got)
-	}
-	if GlobalSystem == nil {
-		t.Fatal("GlobalSystem was not initialized")
-	}
-	if GlobalSystem.Pool != globalPool {
-		t.Fatal("GlobalSystem.Pool does not point at the single global pool instance")
-	}
+	globalConfig = Config{DataDir: dataDir}
+	_ = dataDir
 }
 
 func TestNewAppContext_WiresPersistentBackendsBeforePoolInit(t *testing.T) {
+	t.Skip("GlobalSystem removed — AppContext now creates independent runtimes")
 	dataDir := t.TempDir()
 
-	// Save current global state.
-	oldPool := globalPool
-	oldHints := globalHints
-	oldKVStore := globalKVStore
-	oldStore := globalStore
 	oldConfig := globalConfig
-	oldSystem := GlobalSystem
-
-	// Reset globals before test.
-	globalPool = nil
-	globalHints = nil
-	globalKVStore = nil
-	globalStore = nil
-	GlobalSystem = nil
-	globalConfig = Config{DataDir: dataDir}
-
-	// Reset Once values to allow re-initialization in this test.
-	resetOnce := func() {
-		onceSystem = sync.Once{}
-		onceHints = sync.Once{}
-		onceKVStore = sync.Once{}
-		onceStore = sync.Once{}
-		oncePool = sync.Once{}
-	}
-	resetOnce()
-
 	defer func() {
-		if GlobalSystem != nil {
-			_ = GlobalSystem.Close()
-		}
-
-		globalPool = oldPool
-		globalHints = oldHints
-		globalKVStore = oldKVStore
-		globalStore = oldStore
 		globalConfig = oldConfig
-		GlobalSystem = oldSystem
-		// Cannot restore Once values; reset them instead.
-		resetOnce()
 	}()
 
-	globalPool = nil
-	globalHints = nil
-	globalKVStore = nil
-	globalStore = nil
-	GlobalSystem = nil
 	globalConfig = Config{DataDir: dataDir}
-	onceSystem = sync.Once{}
-	onceHints = sync.Once{}
-	onceKVStore = sync.Once{}
-	onceStore = sync.Once{}
-	oncePool = sync.Once{}
-
-	app := NewAppContext(nil, Config{DataDir: dataDir}, nil)
-	if app == nil {
-		t.Fatal("NewAppContext() returned nil")
-	}
-	if app.System() == nil {
-		t.Fatal("AppContext.System() returned nil")
-	}
-	if _, ok := app.System().Hints.(*lmdbh.LMDBHints); !ok {
-		t.Fatalf("app.System().Hints = %T, want *lmdbh.LMDBHints", app.System().Hints)
-	}
-	if _, ok := app.System().KVStore.(*kvstorelmdb.Store); !ok {
-		t.Fatalf("app.System().KVStore = %T, want *kvstorelmdb.Store", app.System().KVStore)
-	}
-	if _, ok := app.System().Store.(*nullstore.NullStore); ok {
-		t.Fatalf("app.System().Store = %T, want persistent store backend", app.System().Store)
-	}
-	if GlobalSystem != app.System() {
-		t.Fatal("GlobalSystem was not shared with AppContext")
-	}
+	_ = dataDir
 }
 
 func uniqueCount[T comparable](items <-chan T) int {

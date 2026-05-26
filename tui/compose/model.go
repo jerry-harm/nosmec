@@ -230,7 +230,7 @@ func (m *model) AddReplyWithRoot(parentEvent *nostr.Event, rootPubKey string) {
 	m.parentEvent = parentEvent
 	m.parentID = parentEvent.ID.Hex()
 
-	tags := utils.BuildReplyTagsWithRoot(parentEvent, rootPubKey)
+	tags := utils.BuildReplyTagsWithRoot(m.app, parentEvent, rootPubKey)
 	for _, t := range tags {
 		m.tags = append(m.tags, Tag(t))
 	}
@@ -241,7 +241,7 @@ func (m *model) AddQuoteFromTarget(parentEvent *nostr.Event, target utils.ReplyT
 	m.composeKind = KindQuote
 	m.parentEvent = parentEvent
 	m.quotedID = parentEvent.ID.Hex()
-	relay := config.GetEventRelay(parentEvent.ID.Hex())
+	relay := m.app.GetEventRelay(parentEvent.ID.Hex())
 	m.tags = append(m.tags,
 		Tag{"q", parentEvent.ID.Hex(), relay, parentEvent.PubKey.Hex()},
 	)
@@ -257,7 +257,7 @@ func (m *model) AddQuote(parentEvent *nostr.Event) {
 	m.composeKind = KindQuote
 	m.parentEvent = parentEvent
 	m.quotedID = parentEvent.ID.Hex()
-	relay := config.GetEventRelay(parentEvent.ID.Hex())
+	relay := m.app.GetEventRelay(parentEvent.ID.Hex())
 	m.tags = append(m.tags,
 		Tag{"q", parentEvent.ID.Hex(), relay, parentEvent.PubKey.Hex()},
 	)

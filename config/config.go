@@ -21,23 +21,12 @@ import (
 )
 
 var (
-	globalPool    *nostr.Pool
-	globalHints   hints.HintsDB
-	globalKVStore kvstore.KVStore
-	globalStore   eventstore.Store
-	globalConfig  Config
-	configDir     string
-	onceInit      sync.Once
-	onceSystem    sync.Once
-	onceHints     sync.Once
-	onceKVStore   sync.Once
-	onceStore     sync.Once
-	oncePool      sync.Once
-	initialized   bool
-	proxyConfig   ProxyConfig
-	globalViper   *viper.Viper
-
-	GlobalSystem *nostr_sdk.System
+	globalConfig Config
+	configDir    string
+	onceInit     sync.Once
+	initialized  bool
+	proxyConfig  ProxyConfig
+	globalViper  *viper.Viper
 )
 
 type ProxyConfig struct {
@@ -177,94 +166,45 @@ func loadConfig() *Config {
 	return &config
 }
 
-func GlobalHints() hints.HintsDB {
-	onceHints.Do(func() {
-		dataDir := getDataDir()
-		if dataDir == "" {
-			return
-		}
-		hintsPath := filepath.Join(dataDir, "hints")
-		bh, err := lmdbh.NewLMDBHints(hintsPath)
-		if err != nil {
-			logger.Error("failed to open hints db", "error", err.Error(), "path", hintsPath)
-			return
-		}
-		globalHints = bh
-	})
-	return globalHints
+func openHints(dataDir string) hints.HintsDB {
+	hintsPath := filepath.Join(dataDir, "hints")
+	bh, err := lmdbh.NewLMDBHints(hintsPath)
+	if err != nil {
+		logger.Error("failed to open hints db", "error", err.Error(), "path", hintsPath)
+		return nil
+	}
+	return bh
 }
 
-func GlobalKVStore() kvstore.KVStore {
-	onceKVStore.Do(func() {
-		dataDir := getDataDir()
-		if dataDir == "" {
-			return
-		}
-		kvPath := filepath.Join(dataDir, "kvstore")
-		store, err := kvstorelmdb.NewStore(kvPath)
-		if err != nil {
-			logger.Error("failed to open kvstore", "error", err.Error(), "path", kvPath)
-			return
-		}
-		globalKVStore = store
-	})
-	return globalKVStore
+func openKVStore(dataDir string) kvstore.KVStore {
+	kvPath := filepath.Join(dataDir, "kvstore")
+	store, err := kvstorelmdb.NewStore(kvPath)
+	if err != nil {
+		logger.Error("failed to open kvstore", "error", err.Error(), "path", kvPath)
+		return nil
+	}
+	return store
 }
 
-func GlobalStore() eventstore.Store {
-	onceStore.Do(func() {
-		dataDir := getDataDir()
-		if dataDir == "" {
-			return
-		}
-
-		eventsPath := filepath.Join(dataDir, "events")
-		lmdbStore := &eventstorelmdb.LMDBBackend{Path: eventsPath}
-		if err := lmdbStore.Init(); err != nil {
-			logger.Warn("failed to create LMDB event store, local cache disabled", "error", err.Error(), "path", eventsPath)
-			return
-		}
-
-		searchIndexPath := filepath.Join(dataDir, "search_index")
-		bleveStore := &eventstorebleve.BleveBackend{Path: searchIndexPath, RawEventStore: lmdbStore}
-		if err := bleveStore.Init(); err != nil {
-			logger.Warn("failed to create Bleve search index, search disabled", "error", err.Error(), "path", searchIndexPath)
-			globalStore = lmdbStore
-			return
-		}
-
-		globalStore = bleveStore
-	})
-	return globalStore
-}
-
-func wirePersistentBackends(sys *nostr_sdk.System) {
-	if sys == nil {
-		return
+func openStore(dataDir string) eventstore.Store {
+	eventsPath := filepath.Join(dataDir, "events")
+	lmdbStore := &eventstorelmdb.LMDBBackend{Path: eventsPath}
+	if err := lmdbStore.Init(); err != nil {
+		logger.Warn("failed to create LMDB event store, local cache disabled", "error", err.Error(), "path", eventsPath)
+		return nil
 	}
 
-	// Always wire persistent backends when available.
-	// NewSystem() pre-sets memory/null defaults, so we must overwrite them
-	// unconditionally rather than checking != nil.
-	if hintsDB := GlobalHints(); hintsDB != nil {
-		sys.Hints = hintsDB
+	searchIndexPath := filepath.Join(dataDir, "search_index")
+	bleveStore := &eventstorebleve.BleveBackend{Path: searchIndexPath, RawEventStore: lmdbStore}
+	if err := bleveStore.Init(); err != nil {
+		logger.Warn("failed to create Bleve search index, search disabled", "error", err.Error(), "path", searchIndexPath)
+		return lmdbStore
 	}
-	if kv := GlobalKVStore(); kv != nil {
-		sys.KVStore = kv
-	}
-	if store := GlobalStore(); store != nil {
-		sys.Store = store
-	}
+
+	return bleveStore
 }
 
-func globalSystem() *nostr_sdk.System {
-	onceSystem.Do(func() {
-		GlobalSystem = nostr_sdk.NewSystem()
-	})
-	return GlobalSystem
-}
-
-func NewPool(h hints.HintsDB) *nostr.Pool {
+func newPool(sys *nostr_sdk.System) *nostr.Pool {
 	opts := nostr.PoolOptions{
 		RelayOptions: nostr.RelayOptions{
 			NoticeHandler: func(relay *nostr.Relay, notice string) {
@@ -272,24 +212,10 @@ func NewPool(h hints.HintsDB) *nostr.Pool {
 			},
 		},
 	}
-	if h != nil {
-		opts.EventMiddleware = GlobalSystem.TrackEventHintsAndRelays
+	if sys != nil {
+		opts.EventMiddleware = sys.TrackEventHintsAndRelays
 	}
 	return nostr.NewPool(opts)
-}
-
-func GlobalPool() *nostr.Pool {
-	oncePool.Do(func() {
-		sys := globalSystem()
-		wirePersistentBackends(sys)
-		globalPool = NewPool(sys.Hints)
-		sys.Pool = globalPool
-	})
-	return globalPool
-}
-
-func SetPool(p *nostr.Pool) {
-	globalPool = p
 }
 
 func DataDir() string {
@@ -304,66 +230,9 @@ func getDataDir() string {
 }
 
 func resetGlobalRuntimeState() {
-	globalPool = nil
-	globalHints = nil
-	globalKVStore = nil
-	globalStore = nil
-	GlobalSystem = nil
-	onceSystem = sync.Once{}
-	onceHints = sync.Once{}
-	onceKVStore = sync.Once{}
-	onceStore = sync.Once{}
-	oncePool = sync.Once{}
-}
-
-func TrackEventRelay(eventID, relayURL string) {
-	if relayURL == "" {
-		return
-	}
-	sys := GlobalSystem
-	if sys == nil {
-		return
-	}
-	id, err := nostr.IDFromHex(eventID)
-	if err != nil {
-		return
-	}
-	if sys.KVStore == nil {
-		return
-	}
-	key := make([]byte, 9)
-	key[0] = 'r'
-	copy(key[1:], id[:8])
-	if err := sys.KVStore.Update(key, func(existing []byte) ([]byte, error) {
-		if existing == nil {
-			return encodeRelayListCompat([]string{relayURL}), nil
-		}
-		relays := decodeRelayListCompat(existing)
-		for _, relay := range relays {
-			if relay == relayURL {
-				return existing, nil
-			}
-		}
-		relays = append(relays, relayURL)
-		return encodeRelayListCompat(relays), nil
-	}); err != nil {
-		logger.Warn("failed to persist event→relay mapping", "error", err.Error(), "event", eventID, "relay", relayURL)
-	}
 }
 
 func GetEventRelay(eventID string) string {
-	sys := GlobalSystem
-	if sys == nil {
-		return ""
-	}
-	id, err := nostr.IDFromHex(eventID)
-	if err != nil {
-		return ""
-	}
-	relays := sys.GetEventRelays(id)
-	if len(relays) > 0 {
-		return relays[0]
-	}
 	return ""
 }
 

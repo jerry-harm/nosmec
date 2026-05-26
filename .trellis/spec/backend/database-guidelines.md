@@ -23,10 +23,10 @@ Store interface: `eventstore.Store` (type alias `StoreInterface` in `config/inte
 
 ## Store Initialization
 
-`GlobalPool()` in `config/config.go` initializes the store stack:
+`NewAppContext()` in `config/config.go` initializes the store stack:
 
 ```go
-// config/config.go:GlobalPool
+// config/config.go:NewAppContext
 eventsPath := filepath.Join(dataDir, "events")
 lmdbStore := &lmdb.LMDBBackend{Path: eventsPath}
 if err := lmdbStore.Init(); err != nil {
@@ -36,9 +36,9 @@ if err := lmdbStore.Init(); err != nil {
     bleveStore := &bleve.BleveBackend{Path: searchIndexPath, RawEventStore: lmdbStore}
     if err := bleveStore.Init(); err != nil {
         logger.Warn("failed to create Bleve search index, search disabled", "error", err.Error())
-        GlobalSystem.Store = lmdbStore
+        sys.Store = lmdbStore
     } else {
-        GlobalSystem.Store = bleveStore
+        sys.Store = bleveStore
     }
 }
 ```
@@ -63,7 +63,7 @@ The `sdk.System.KVStore` (`nostr_sdk/kvstore/lmdb`) stores:
 "prof:{kind}:{pubkeyHex}"      → Unix timestamp (last network fetch)
 ```
 
-KVStore is accessed via `GlobalSystem.KVStore.Get/Set/Update`.
+KVStore is accessed via `AppContext.System().KVStore`.
 
 ---
 

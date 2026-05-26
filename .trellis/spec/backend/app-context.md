@@ -28,7 +28,7 @@ type AppContext struct {
 func NewAppContext(pool *nostr.Pool, store StoreInterface, cfg Config, v *viper.Viper) *AppContext
 ```
 
-Created in `config/config.go` during app init. Pool injected; hints initialized via `GlobalHints()`; system via `GlobalSystem` (sdk.NewSystem with LMDB+Bleve Store).
+Created in `config/config.go` during app init. `NewAppContext` constructs a fresh `sdk.System` and wires persistent backends directly from `cfg.DataDir`. AppContext is the sole owner of runtime resources.
 
 ---
 
@@ -130,7 +130,7 @@ func (a *AppContext) AddRelay(url string, read, write bool) error {
 - **`sys.MetadataCache`** — In-memory LRU cache for profile metadata (6h TTL)
 - **`sys.Pool`** — Points to the same `*nostr.Pool` as `AppContext.pool`
 
-Created via `sdk.NewSystem()` in `GlobalPool()` (config/config.go).
+Created via `sdk.NewSystem()` in `NewAppContext()` (config/config.go), with backends wired from `cfg.DataDir`.
 
 ---
 
@@ -164,4 +164,4 @@ Errors from each close are aggregated and returned. `HintsDB` does not expose a 
 - `mu sync.RWMutex` protects `cfg` writes (all setters acquire write lock)
 - Read methods (`Config()`, `ReadableRelays()`, etc.) acquire read lock, release immediately
 - `Hints()` and `Pool()` are always safe (no internal mutation after construction)
-- Global backend initialization (`GlobalHints`, `GlobalKVStore`, `GlobalStore`, `GlobalPool`) is protected by `sync.Once` to prevent concurrent duplicate initialization
+- `AppContext` owns all runtime resources; no global initialization needed

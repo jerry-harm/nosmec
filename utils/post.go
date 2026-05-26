@@ -62,7 +62,7 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 		}
 	}
 
-	tags := BuildReplyTagsWithRoot(parentEvent, rootPubKey)
+	tags := BuildReplyTagsWithRoot(app, parentEvent, rootPubKey)
 	for _, p := range parentEvent.Tags {
 		if len(p) >= 2 && p[0] == "p" {
 			tags = append(tags, p)
@@ -95,14 +95,14 @@ func ReplyToNote(ctx context.Context, app *config.AppContext, parentID, content 
 	return event, nil
 }
 
-func BuildReplyTags(parentEvent *nostr.Event) nostr.Tags {
-	return BuildReplyTagsWithRoot(parentEvent, "")
+func BuildReplyTags(app *config.AppContext, parentEvent *nostr.Event) nostr.Tags {
+	return BuildReplyTagsWithRoot(app, parentEvent, "")
 }
 
-func BuildReplyTagsWithRoot(parentEvent *nostr.Event, rootPubKey string) nostr.Tags {
+func BuildReplyTagsWithRoot(app *config.AppContext, parentEvent *nostr.Event, rootPubKey string) nostr.Tags {
 	rootID, isRoot := findRootEvent(parentEvent)
-	rootRelay := config.GetEventRelay(rootID.Hex())
-	parentRelay := config.GetEventRelay(parentEvent.ID.Hex())
+	rootRelay := app.GetEventRelay(rootID.Hex())
+	parentRelay := app.GetEventRelay(parentEvent.ID.Hex())
 
 	if isRoot {
 		return nostr.Tags{{"e", parentEvent.ID.Hex(), parentRelay, "root", parentEvent.PubKey.Hex()}}
@@ -119,7 +119,7 @@ func QuoteNote(ctx context.Context, app *config.AppContext, quotedID, quotedAuth
 		return nil, err
 	}
 
-	relay := config.GetEventRelay(quotedID)
+	relay := app.GetEventRelay(quotedID)
 	tags := nostr.Tags{
 		{"q", quotedID, relay, quotedAuthorPubkey},
 	}
