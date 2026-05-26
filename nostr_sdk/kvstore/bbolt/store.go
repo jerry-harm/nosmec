@@ -94,3 +94,17 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 		return b.Put(key, newVal)
 	})
 }
+
+func (s *Store) Iterate(visit func(key, value []byte) error) error {
+	return s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(s.bucket)
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(k, v []byte) error {
+			keyCopy := append([]byte(nil), k...)
+			valCopy := append([]byte(nil), v...)
+			return visit(keyCopy, valCopy)
+		})
+	})
+}

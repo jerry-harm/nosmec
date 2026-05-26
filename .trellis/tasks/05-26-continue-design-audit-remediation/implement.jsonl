@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Relay list storage and event->relay tracking rules"}
+{"file": ".trellis/spec/backend/forked-sdk-architecture.md", "reason": "SDK ownership boundary for adding read APIs"}
+{"file": ".trellis/spec/backend/app-context.md", "reason": "AppContext/System boundary for command access"}
+{"file": ".trellis/workspace/jerry/design-audit-2026-05-26.md", "reason": "Audit source and remaining remediation rationale"}

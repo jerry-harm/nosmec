@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"fiatjaf.com/nostr"
+	"github.com/jerry-harm/nosmec/nostr_sdk/kvstore/memory"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,4 +80,30 @@ func TestEncodeDecodeRelayList(t *testing.T) {
 			"wss://also-normal.example.com",
 		}, decoded)
 	})
+
+	t.Run("list known event relays merges unique sorted relays", func(t *testing.T) {
+		sys := NewSystem()
+		sys.KVStore = memory.NewStore()
+
+		id1 := mustEventID(t, strings.Repeat("a", 64))
+		id2 := mustEventID(t, strings.Repeat("b", 64))
+		require.NoError(t, sys.KVStore.Set(makeEventRelayKey(id1), encodeRelayList([]string{"wss://relay-b.example", "wss://relay-a.example"})))
+		require.NoError(t, sys.KVStore.Set(makeEventRelayKey(id2), encodeRelayList([]string{"wss://relay-a.example", "wss://relay-c.example"})))
+		require.NoError(t, sys.KVStore.Set([]byte("xignored"), []byte("ignored")))
+
+		relays, err := sys.ListKnownEventRelays()
+		require.NoError(t, err)
+		require.Equal(t, []string{
+			"wss://relay-a.example",
+			"wss://relay-b.example",
+			"wss://relay-c.example",
+		}, relays)
+	})
+}
+
+func mustEventID(t *testing.T, hex string) nostr.ID {
+	t.Helper()
+	id, err := nostr.IDFromHex(hex)
+	require.NoError(t, err)
+	return id
 }

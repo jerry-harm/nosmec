@@ -19,4 +19,7 @@ type KVStore interface {
 	// and returns the new value to be set.
 	// If f returns nil, the key is deleted.
 	Update(key []byte, f func([]byte) ([]byte, error)) error
+
+	// Iterate visits each key/value pair in the store.
+	Iterate(func(key, value []byte) error) error
 }

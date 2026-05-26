@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/relay-guidelines.md", "reason": "Verify relay behavior and storage access boundaries"}
+{"file": ".trellis/spec/backend/forked-sdk-architecture.md", "reason": "Verify SDK boundary and no command-layer LMDB reach-through"}
+{"file": ".trellis/spec/backend/app-context.md", "reason": "Verify command integration still respects AppContext/System access"}
+{"file": ".trellis/workspace/jerry/design-audit-2026-05-26.md", "reason": "Verify implementation matches audit remediation intent"}

@@ -95,6 +95,30 @@ func (sys *System) FetchParent(ctx context.Context, event *nostr.Event, timeoutM
 
 `FetchEventsByFilter` is the generic, thicker read-side API for filter-driven multi-event fetches. It returns raw `nostr.Event` values, not community-specific typed objects.
 
+### 4.1 Storage-Owned Relay List Reads
+
+When command/UI code needs the set of known relay URLs learned by the SDK, expose that through `nostr_sdk.System` instead of reading LMDB in higher layers.
+
+```go
+func (sys *System) ListKnownEventRelays() ([]string, error)
+```
+
+Contract:
+- returns merged unique sorted relay URLs
+- includes both `HintsDB` relay knowledge and KV event→relay mappings
+- hides KVStore key format and relay-list byte encoding from callers
+
+Supporting storage contract:
+
+```go
+type KVStore interface {
+    ...
+    Iterate(func(key, value []byte) error) error
+}
+```
+
+Use `Iterate` only inside storage-owning layers such as `nostr_sdk`. Do not push LMDB scanning back into `cmd` or `config`.
+
 ### 5. NIP-72 Parsing Layer
 
 Community protocol parsing is not owned by `nostr_sdk.System`. It lives in a dedicated `nip72` package, shaped similarly to `nip10` / `nip22`: small-grained, single-event, tag-local helpers.

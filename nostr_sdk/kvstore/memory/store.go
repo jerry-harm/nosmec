@@ -70,3 +70,15 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 	}
 	return nil
 }
+
+func (s *Store) Iterate(visit func(key, value []byte) error) error {
+	s.RLock()
+	defer s.RUnlock()
+
+	for key, value := range s.data {
+		if err := visit([]byte(key), value); err != nil {
+			return err
+		}
+	}
+	return nil
+}

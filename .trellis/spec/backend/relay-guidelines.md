@@ -139,6 +139,50 @@ Keys: `'r' + first 8 bytes of event ID` → compact binary relay-list bytes
 
 KVStore via LMDB is thread-safe within a single process. No external mutex needed — LMDB handles concurrent reads and serializes writes internally.
 
+### Known Relay List Read Path
+
+`relay list` must not open LMDB directly from the command layer.
+
+```go
+// cmd/relay_commands.go
+func writeRelayList(w io.Writer, app *config.AppContext) error {
+    sys := app.System()
+    if sys == nil {
+        return nil
+    }
+    relays, err := sys.ListKnownEventRelays()
+    if err != nil {
+        return err
+    }
+    ...
+}
+```
+
+`System.ListKnownEventRelays()` is the owning read API for this behavior. It is responsible for:
+
+1. reading relay URLs learned through `HintsDB`
+2. reading event→relay mappings from `KVStore`
+3. merging, deduplicating, and sorting the final list
+
+Wrong:
+
+```go
+// cmd layer opens LMDB and decodes relay-list bytes itself
+env, _ := lmdb.NewEnv()
+... decodeKVRelayList(v)
+```
+
+Correct:
+
+```go
+relays, err := app.System().ListKnownEventRelays()
+```
+
+Why:
+- command code should not know KVStore layout, DBI names, or relay byte encoding
+- relay-list storage details belong to `nostr_sdk`
+- changing on-disk relay encoding should not require CLI-layer updates
+
 ---
 
 ## Relay Discovery from NIP-65 (kind:10002)

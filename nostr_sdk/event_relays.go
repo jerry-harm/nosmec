@@ -117,6 +117,50 @@ func (sys *System) GetEventRelays(id nostr.ID) []string {
 	return decodeRelayList(data)
 }
 
+func (sys *System) ListKnownEventRelays() ([]string, error) {
+	if sys == nil || sys.KVStore == nil {
+		return []string{}, nil
+	}
+
+	seen := make(map[string]struct{}, 8)
+	if sys.Hints != nil {
+		hintRelays, err := sys.Hints.GetAllKnownRelays()
+		if err != nil {
+			return nil, err
+		}
+		for _, relay := range hintRelays {
+			if relay == "" {
+				continue
+			}
+			seen[relay] = struct{}{}
+		}
+	}
+
+	err := sys.KVStore.Iterate(func(key, value []byte) error {
+		if len(key) != 9 || key[0] != eventRelayPrefix {
+			return nil
+		}
+		for _, relay := range decodeRelayList(value) {
+			if relay == "" {
+				continue
+			}
+			seen[relay] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	known := make([]string, 0, len(seen))
+	for relay := range seen {
+		known = append(known, relay)
+	}
+	slices.Sort(known)
+
+	return known, nil
+}
+
 func (sys *System) EraseEventRelays(id nostr.ID) error {
 	key := makeEventRelayKey(id)
 	return sys.KVStore.Delete(key)

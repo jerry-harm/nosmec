@@ -116,3 +116,33 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 		return txn.Put(s.dbi, key, newVal, 0)
 	})
 }
+
+func (s *Store) Iterate(visit func(key, value []byte) error) error {
+	return s.env.View(func(txn *lmdb.Txn) error {
+		dbi, err := txn.OpenDBI("store", 0)
+		if err != nil {
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		cursor, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+
+		for k, v, err := cursor.Get(nil, nil, lmdb.First); err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
+			keyCopy := append([]byte(nil), k...)
+			valCopy := append([]byte(nil), v...)
+			if err := visit(keyCopy, valCopy); err != nil {
+				return err
+			}
+		}
+		if !lmdb.IsNotFound(err) {
+			return err
+		}
+		return nil
+	})
+}
