@@ -17,6 +17,20 @@ import (
 	"github.com/jerry-harm/nosmec/config"
 )
 
+var iconResource *fyne.StaticResource
+
+func loadIconResource() {
+	iconResource = fyne.NewStaticResource("icon", mustReadFile("Icon.png"))
+}
+
+func mustReadFile(path string) []byte {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		panic("failed to read " + path + ": " + err.Error())
+	}
+	return data
+}
+
 var currentLocale = "en"
 
 var translations = map[string]map[string]string{
@@ -232,6 +246,8 @@ func init() {
 }
 
 func Run() {
+	loadIconResource()
+
 	SetLocale(string(lang.SystemLocale()))
 	if os.Getenv("FYNE_LOCALE") == "" {
 		_ = os.Setenv("FYNE_LOCALE", currentLocale)
@@ -239,8 +255,10 @@ func Run() {
 
 	communitiesList = loadCommunitiesList()
 
-	a := app.New()
+	a := app.NewWithID("nosmec")
+	a.Settings().SetTheme(theme.DarkTheme())
 	w := a.NewWindow("nosmec")
+	w.SetIcon(iconResource)
 	w.Resize(fyne.NewSize(1024, 768))
 
 	contentArea := container.NewStack()

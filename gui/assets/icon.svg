@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 6 lines from inner hex vertices to viewport edge -->
+  <line x1="100" y1="20" x2="100" y2="0" stroke="#7c3aed" stroke-width="2"/>
+  <line x1="169" y1="60" x2="200" y2="40" stroke="#7c3aed" stroke-width="2"/>
+  <line x1="169" y1="140" x2="200" y2="160" stroke="#7c3aed" stroke-width="2"/>
+  <line x1="100" y1="180" x2="100" y2="200" stroke="#7c3aed" stroke-width="2"/>
+  <line x1="31" y1="140" x2="0" y2="160" stroke="#7c3aed" stroke-width="2"/>
+  <line x1="31" y1="60" x2="0" y2="40" stroke="#7c3aed" stroke-width="2"/>
+
+  <!-- Inner hexagon -->
+  <polygon
+    points="100,20 169,60 169,140 100,180 31,140 31,60"
+    fill="none"
+    stroke="#7c3aed"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+
+  <!-- 6 circles at hexagon corners - blue to purple -->
+  <circle cx="100" cy="20" r="6" fill="#818cf8"/>
+  <circle cx="169" cy="60" r="5" fill="#a78bfa"/>
+  <circle cx="169" cy="140" r="7" fill="#818cf8"/>
+  <circle cx="100" cy="180" r="5" fill="#a78bfa"/>
+  <circle cx="31" cy="140" r="6" fill="#818cf8"/>
+  <circle cx="31" cy="60" r="7" fill="#a78bfa"/>
+
+  <!-- Center circle (larger) -->
+  <circle cx="100" cy="100" r="38" fill="#a78bfa"/>
+  <circle cx="100" cy="100" r="24" fill="#7c3aed"/>
+</svg>
