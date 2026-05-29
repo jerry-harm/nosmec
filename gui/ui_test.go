@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
@@ -217,7 +219,45 @@ func TestPostCardRendersSingleNestedReplyCard(t *testing.T) {
 	_ = test.WidgetRenderer(card)
 }
 
-func TestFullPostCardOmitsPreviewThreadEntryAffordances(t *testing.T) {
+func TestReplyCardUsesNestedSurfaceStyling(t *testing.T) {
+	t.Setenv("LANG", "en_US.UTF-8")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+	t.Setenv("FYNE_LOCALE", "en")
+	SetLocale("en")
+
+	test.NewApp()
+
+	replyCard, ok := buildReplyCard(
+		[]Reply{{Author: "npub1reply1", Body: "nested reply one"}},
+		0,
+		true,
+		func() {},
+	).(*threadEntryCard)
+	if !ok {
+		t.Fatalf("reply card type = %T, want *threadEntryCard", replyCard)
+	}
+
+	background := firstRectangle(replyCard.card.Content)
+	if background == nil {
+		t.Fatal("reply card is missing nested surface background")
+	}
+
+	if got, want := background.FillColor, theme.Color(theme.ColorNameInputBackground); got != want {
+		t.Fatalf("reply card fill color = %#v, want %#v", got, want)
+	}
+
+	if got, want := background.StrokeColor, theme.Color(theme.ColorNameSeparator); got != want {
+		t.Fatalf("reply card stroke color = %#v, want %#v", got, want)
+	}
+
+	if background.StrokeWidth <= 0 {
+		t.Fatalf("reply card stroke width = %v, want > 0", background.StrokeWidth)
+	}
+
+	_ = test.WidgetRenderer(replyCard)
+}
+
+func TestFullPostCardKeepsToolbarAndOmitsPreviewThreadEntry(t *testing.T) {
 	t.Setenv("LANG", "en_US.UTF-8")
 	t.Setenv("LC_ALL", "en_US.UTF-8")
 	t.Setenv("FYNE_LOCALE", "en")
@@ -241,12 +281,21 @@ func TestFullPostCardOmitsPreviewThreadEntryAffordances(t *testing.T) {
 		t.Fatalf("full post card type = %T, want *widget.Card", obj)
 	}
 
-	if toolbar := firstToolbar(card.Content); toolbar != nil {
-		t.Fatal("full post card should not include preview toolbar actions")
+	toolbar := firstToolbar(card.Content)
+	if toolbar == nil {
+		t.Fatal("full post card should keep outer post action toolbar")
+	}
+
+	if got := countToolbarActions(toolbar); got == 0 {
+		t.Fatal("full post card toolbar exposes no actionable items")
 	}
 
 	if entry := firstThreadEntryCard(card.Content); entry != nil {
 		t.Fatal("full post card should not include tappable nested reply entry")
+	}
+
+	if containsLabelText(card.Content, T("replies")) {
+		t.Fatal("full post card should not render preview nested reply card")
 	}
 
 	_ = test.WidgetRenderer(card)
@@ -546,6 +595,38 @@ func countThreadEntryCards(root fyne.CanvasObject) int {
 	}
 
 	return count
+}
+
+func firstRectangle(root fyne.CanvasObject) *canvas.Rectangle {
+	if root == nil {
+		return nil
+	}
+
+	if rect, ok := root.(*canvas.Rectangle); ok {
+		return rect
+	}
+
+	if entry, ok := root.(*threadEntryCard); ok {
+		return firstRectangle(entry.card.Content)
+	}
+
+	if card, ok := root.(*widget.Card); ok {
+		return firstRectangle(card.Content)
+	}
+
+	if c, ok := root.(*fyne.Container); ok {
+		for _, child := range c.Objects {
+			if rect := firstRectangle(child); rect != nil {
+				return rect
+			}
+		}
+	}
+
+	if s, ok := root.(*container.Scroll); ok {
+		return firstRectangle(s.Content)
+	}
+
+	return nil
 }
 
 func containsLabelText(root fyne.CanvasObject, want string) bool {

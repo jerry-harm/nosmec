@@ -435,26 +435,21 @@ func buildPostCardContent(post *Post, preview bool) fyne.CanvasObject {
 		statsLabel,
 	)
 
-	replies := post.TopReplies
-	if !preview {
-		replies = mockReplies[post.ID]
-	}
-
-	if len(replies) > 0 {
+	if preview && len(post.TopReplies) > 0 {
 		var onOpen func()
-		if preview {
-			onOpen = func() {
-				openThread(post)
-			}
+		onOpen = func() {
+			openThread(post)
 		}
 
-		content.Add(buildReplyCard(replies, post.ExtraCount, preview, onOpen))
+		content.Add(buildReplyCard(post.TopReplies, post.ExtraCount, true, onOpen))
 	}
 
 	if preview {
 		content.Add(buildPostActionRow(func() {
 			openThread(post)
 		}))
+	} else {
+		content.Add(buildPostActionRow(nil))
 	}
 
 	return content

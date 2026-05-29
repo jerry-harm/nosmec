@@ -2,7 +2,6 @@ package gui
 
 import (
 	"fmt"
-	"image/color"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -148,21 +147,32 @@ func buildReplyCard(replies []Reply, extraCount int, preview bool, onOpenThread 
 	}
 
 	compactContent := container.New(
-		newTightVBoxLayout(theme.InnerPadding()/2),
+		newTightVBoxLayout(theme.InnerPadding()/4),
 		rows...,
 	)
 
-	background := canvas.NewRectangle(color.NRGBA{R: 232, G: 239, B: 250, A: 255})
+	background := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
+	background.StrokeColor = theme.Color(theme.ColorNameSeparator)
+	background.StrokeWidth = 1
 	inset := container.New(
 		layout.NewCustomPaddedLayout(
-			theme.InnerPadding(),
-			theme.InnerPadding(),
-			theme.InnerPadding(),
-			theme.InnerPadding(),
+			theme.InnerPadding()/2,
+			theme.InnerPadding()/2,
+			theme.InnerPadding()/2,
+			theme.InnerPadding()/2,
 		),
 		compactContent,
 	)
-	content := container.NewStack(background, inset)
+	surface := container.NewStack(background, inset)
+	content := container.New(
+		layout.NewCustomPaddedLayout(
+			theme.InnerPadding()/4,
+			theme.InnerPadding()/4,
+			theme.InnerPadding()/4,
+			theme.InnerPadding()/4,
+		),
+		surface,
+	)
 	if onOpenThread == nil {
 		return content
 	}
