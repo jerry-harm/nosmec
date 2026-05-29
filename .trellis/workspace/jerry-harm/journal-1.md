@@ -38,3 +38,37 @@ Migrated core packages from main (config, cmd, logger, nip72, utils, nostr_sdk s
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Refine Fyne GUI navigation
+
+**Date**: 2026-05-29
+**Task**: Refine Fyne GUI navigation
+**Branch**: `gui`
+
+### Summary
+
+Refined the Fyne GUI shell into an app-bar plus sidebar layout, moved thread entry to the nested reply card, replaced whole-card tapping with explicit actions, added Fyne widget interaction tests, and finalized reply card density/detail-view toolbar behavior.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `23fcd99` | (see git log) |
+| `f82e26d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
