@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guidelines — directory structure, error handling, logging conventions to follow when reorganizing migrated code"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Thinking guides index — cross-layer and code-reuse thinking to apply when migrating domain logic into the Fyne shell"}

@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend quality guidelines to verify migrated code maintains project standards"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Code reuse and cross-layer thinking guides for reviewing migration consistency"}
