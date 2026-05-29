@@ -17,6 +17,10 @@ type AppContext struct {
 }
 
 func NewAppContext(pool *nostr.Pool, cfg Config, v *viper.Viper) *AppContext {
+	if pool == nil {
+		pool = nostr.NewPool(nostr.PoolOptions{})
+	}
+
 	return &AppContext{
 		pool: pool,
 		cfg:  cfg,
@@ -132,6 +136,9 @@ func (a *AppContext) QueryTimeoutms() int {
 func (a *AppContext) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.pool != nil {
+		a.pool.Close("app context closed")
+	}
 	a.pool = nil
 	return nil
 }

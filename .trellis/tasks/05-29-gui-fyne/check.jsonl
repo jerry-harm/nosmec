@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/05-29-gui-fyne/prd.md", "reason": "All acceptance criteria are defined here; trellis-check verifies against these requirements"}
+{"file": "gui/app.go", "reason": "Implementation must pass build (go build ./...); gui package must compile without errors"}
+{"file": "go.mod", "reason": "Must contain fyne.io/fyne/v2 dependency; no TUI deps (bubbletea, lipgloss) should be present"}

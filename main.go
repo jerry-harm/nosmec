@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "gui" {
-		gui.Run()
+	if len(os.Args) > 1 && os.Args[1] == "cli" {
+		cmd.Execute()
 		return
 	}
-	cmd.Execute()
+	gui.Run()
 }

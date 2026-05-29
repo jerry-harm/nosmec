@@ -3,7 +3,6 @@ package config
 import (
 	"testing"
 
-	"fiatjaf.com/nostr"
 	"go.uber.org/goleak"
 )
 
